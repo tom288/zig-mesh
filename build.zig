@@ -1,4 +1,6 @@
 const std = @import("std");
+const zmath = @import("libs/zig-gamedev/libs/zmath/build.zig");
+const znoise = @import("libs/zig-gamedev/libs/znoise/build.zig");
 
 pub fn build(b: *std.build.Builder) !void {
     const target = b.standardTargetOptions(.{});
@@ -35,6 +37,14 @@ pub fn build(b: *std.build.Builder) !void {
     exe.addModule("gl", b.createModule(.{
         .source_file = .{ .path = "libs/gl41.zig" },
     }));
+
+    const zmath_pkg = zmath.package(b, target, optimize, .{
+        .options = .{ .enable_cross_platform_determinism = true },
+    });
+    zmath_pkg.link(exe);
+
+    const znoise_pkg = znoise.package(b, target, optimize, .{});
+    znoise_pkg.link(exe);
 
     // Once all is done, we install our artifact which
     // in this case is our executable
