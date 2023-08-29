@@ -10,7 +10,6 @@ fn glGetProcAddress(p: glfw.GLProc, proc: [:0]const u8) ?gl.FunctionPointer {
     return glfw.getProcAddress(proc);
 }
 
-/// Default GLFW error handling callback
 fn errorCallback(error_code: glfw.ErrorCode, description: [:0]const u8) void {
     std.log.err("glfw: {}: {s}\n", .{ error_code, description });
 }
@@ -22,14 +21,15 @@ fn keyCallback(window: glfw.Window, key: glfw.Key, scancode: i32, action: glfw.A
     if (key == glfw.Key.escape) window.setShouldClose(true);
 }
 
-pub fn init() !glfw.Window {
-    const InitError = error{
-        GlfwInitFailure,
-        MonitorUnobtainable,
-        VideoModeUnobtainable,
-        WindowCreationFailure,
-    };
+const InitError = error{
+    GlfwInitFailure,
+    MonitorUnobtainable,
+    VideoModeUnobtainable,
+    WindowCreationFailure,
+    OpenGlLoadFailure,
+};
 
+pub fn init() InitError!glfw.Window {
     // Ensure GLFW errors are logged
     glfw.setErrorCallback(errorCallback);
 
@@ -38,7 +38,7 @@ pub fn init() !glfw.Window {
         std.log.err("failed to initialize GLFW: {?s}", .{glfw.getErrorString()});
         return InitError.GlfwInitFailure;
     }
-    errdefer glfw.terminate();
+    errdefer if (windows == 0) glfw.terminate();
 
     // Obtain primary monitor
     const monitor = glfw.Monitor.getPrimary() orelse {
@@ -89,7 +89,7 @@ pub fn init() !glfw.Window {
     const proc: glfw.GLProc = undefined;
     gl.load(proc, glGetProcAddress) catch |err| {
         std.log.err("failed to load OpenGL: {}", .{err});
-        return err;
+        return InitError.OpenGlLoadFailure;
     };
 
     // Update window count
