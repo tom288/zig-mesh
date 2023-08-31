@@ -1,10 +1,21 @@
 const std = @import("std");
 const win = @import("window.zig");
-const shader = @import("shader.zig");
+const sdr = @import("shader.zig");
+const rec = @import("rectangle.zig");
 
 pub fn main() !void {
     var window = try win.Window.init();
     defer window.kill();
+
+    var shader = sdr.Shader.init(
+        "glsl/white.vert",
+        null,
+        "glsl/white.frag",
+    ) orelse return;
+    defer shader.kill();
+
+    var rectangle = rec.Rectangle.init();
+    defer rectangle.kill();
 
     // Wait for the user to close the window.
     while (window.ok()) {
@@ -14,6 +25,8 @@ pub fn main() !void {
         } else {
             window.clearColour(0.1, 0, 0.2, 1);
         }
+        shader.use();
+        rectangle.draw();
         window.swap();
     }
 }

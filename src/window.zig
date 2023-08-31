@@ -8,11 +8,11 @@ var windows: usize = 0;
 
 pub const Window = struct {
     window: glfw.Window,
-    mouse_pos: ?zm.Vec,
+    clear_mask: gl.GLbitfield,
     resolution: zm.Vec,
+    mouse_pos: ?zm.Vec,
     time: ?f32,
     delta: ?f32,
-    clear_mask: gl.GLbitfield,
 
     const InitError = error{
         GlfwInitFailure,
@@ -25,6 +25,17 @@ pub const Window = struct {
     pub fn init() InitError!Window {
         // Ensure GLFW errors are logged
         glfw.setErrorCallback(errorCallback);
+
+        const fullscreen = false;
+        const resizable = false;
+        const show_cursor = true;
+        const raw_input = false;
+        const cull_faces = true;
+        const test_depth = true;
+        const wireframe = false;
+        const vertical_sync = true;
+        const msaa_samples = 16;
+        const clear_buffers = true;
 
         // If we currently have no windows then initialise GLFW
         if (windows == 0 and !glfw.init(.{})) {
@@ -46,7 +57,8 @@ pub const Window = struct {
         };
 
         // Use scale to make window smaller than primary monitor
-        const scale: f32 = 900.0 / 1080.0;
+        const scale: f32 = if (fullscreen) 1 else 900.0 / 1080.0;
+        const scale_gap = (1 - scale) / 2;
         const width: f32 = @floatFromInt(mode.getWidth());
         const height: f32 = @floatFromInt(mode.getHeight());
 
@@ -55,12 +67,14 @@ pub const Window = struct {
             @intFromFloat(width * scale),
             @intFromFloat(height * scale),
             "mach-glfw + zig-opengl",
-            null,
+            if (fullscreen) monitor else null,
             null,
             .{
                 .opengl_profile = .opengl_core_profile,
                 .context_version_major = 4,
                 .context_version_minor = 1,
+                .resizable = resizable,
+                .samples = msaa_samples,
             },
         ) orelse {
             std.log.err("failed to create GLFW window: {?s}", .{glfw.getErrorString()});
@@ -69,17 +83,26 @@ pub const Window = struct {
         errdefer window.destroy();
 
         // Centre the window
-        const scale_gap = (1 - scale) / 2;
-        window.setPos(.{
+        if (!fullscreen) window.setPos(.{
             @intFromFloat(width * scale_gap),
             @intFromFloat(height * scale_gap),
         });
 
         // Listen to window input
         window.setKeyCallback(keyCallback);
-        window.setCursorPosCallback(cursorPosCallback);
         window.setMouseButtonCallback(mouseButtonCallback);
+        window.setCursorPosCallback(cursorPosCallback);
+        window.setScrollCallback(scrollCallback);
         glfw.makeContextCurrent(window);
+
+        // Configure input
+        if (!show_cursor) {
+            window.setInputModeCursor(glfw.Window.InputModeCursor.disabled);
+        }
+        if (raw_input and glfw.rawMouseMotionSupported()) {
+            // Disable mouse motion acceleration and scaling
+            window.setInputModeRawMouseMotion(true);
+        }
 
         const proc: glfw.GLProc = undefined;
         gl.load(proc, glGetProcAddress) catch |err| {
@@ -87,16 +110,34 @@ pub const Window = struct {
             return InitError.OpenGlLoadFailure;
         };
 
+        // Configure triangle visibility
+        if (cull_faces) gl.enable(gl.CULL_FACE);
+        if (test_depth) gl.enable(gl.DEPTH_TEST);
+        if (wireframe) gl.polygonMode(gl.FRONT_AND_BACK, gl.LINE);
+
+        // Configure additional window properties
+        if (!vertical_sync) glfw.swapInterval(0);
+        if (msaa_samples > 1) gl.enable(gl.MULTISAMPLE);
+
+        // Determine which buffers get cleared
+        var clear_mask: gl.GLbitfield = 0;
+        if (clear_buffers) {
+            clear_mask |= gl.COLOR_BUFFER_BIT;
+            if (test_depth) {
+                clear_mask |= gl.DEPTH_BUFFER_BIT;
+            }
+        }
+
         // Update window count
         windows += 1;
 
         return Window{
             .window = window,
-            .mouse_pos = null,
+            .clear_mask = clear_mask,
             .resolution = zm.f32x4(width, height, 0, 0),
+            .mouse_pos = null,
             .time = null,
             .delta = null,
-            .clear_mask = gl.COLOR_BUFFER_BIT,
         };
     }
 
@@ -115,7 +156,7 @@ pub const Window = struct {
         }
         window.time = new_time;
 
-        // Set the user pointer if window hasn't been done yet
+        // Set the user pointer if we are about to poll the first events
         if (window.delta == null) {
             window.window.setUserPointer(window);
         }
@@ -144,7 +185,7 @@ fn glGetProcAddress(p: glfw.GLProc, proc: [:0]const u8) ?gl.FunctionPointer {
 }
 
 fn errorCallback(error_code: glfw.ErrorCode, description: [:0]const u8) void {
-    std.log.err("glfw: {}: {s}\n", .{ error_code, description });
+    std.log.err("glfw: {}: {s}", .{ error_code, description });
 }
 
 fn keyCallback(window: glfw.Window, key: glfw.Key, scancode: i32, action: glfw.Action, mods: glfw.Mods) void {
@@ -152,6 +193,13 @@ fn keyCallback(window: glfw.Window, key: glfw.Key, scancode: i32, action: glfw.A
     _ = action;
     _ = scancode;
     if (key == glfw.Key.escape) window.setShouldClose(true);
+}
+
+fn mouseButtonCallback(window: glfw.Window, button: glfw.MouseButton, action: glfw.Action, mods: glfw.Mods) void {
+    _ = mods;
+    _ = action;
+    _ = button;
+    _ = window;
 }
 
 fn cursorPosCallback(window: glfw.Window, xpos: f64, ypos: f64) void {
@@ -162,9 +210,8 @@ fn cursorPosCallback(window: glfw.Window, xpos: f64, ypos: f64) void {
     ptr.mouse_pos = zm.f32x4(@floatCast(xpos), @floatCast(ypos), 0, 0);
 }
 
-fn mouseButtonCallback(window: glfw.Window, button: glfw.MouseButton, action: glfw.Action, mods: glfw.Mods) void {
-    _ = mods;
-    _ = action;
-    _ = button;
+fn scrollCallback(window: glfw.Window, xoffset: f64, yoffset: f64) void {
+    _ = yoffset;
+    _ = xoffset;
     _ = window;
 }
