@@ -1,18 +1,19 @@
 const std = @import("std");
-const glfw = @import("mach-glfw");
-const gl = @import("gl");
 const win = @import("window.zig");
+const shader = @import("shader.zig");
 
 pub fn main() !void {
-    const window = try win.init();
-    defer win.kill(window);
+    var window = try win.Window.init();
+    defer window.kill();
 
     // Wait for the user to close the window.
-    while (!window.shouldClose()) {
-        gl.clearColor(0.1, 0, 0.2, 1);
-        gl.clear(gl.COLOR_BUFFER_BIT);
-        glfw.pollEvents();
-
-        window.swapBuffers();
+    while (window.ok()) {
+        if (window.mouse_pos) |mouse| {
+            const pos = mouse / window.resolution;
+            window.clearColour(pos[0], pos[1], 0.5, 1);
+        } else {
+            window.clearColour(0.1, 0, 0.2, 1);
+        }
+        window.swap();
     }
 }
