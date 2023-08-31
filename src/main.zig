@@ -8,9 +8,9 @@ pub fn main() !void {
     defer window.kill();
 
     var shader = sdr.Shader.init(
-        "glsl/white.vert",
+        "glsl/colour.vert",
         null,
-        "glsl/white.frag",
+        "glsl/colour.frag",
     ) orelse return;
     defer shader.kill();
 

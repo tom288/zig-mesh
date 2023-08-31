@@ -1,13 +1,13 @@
 const gl = @import("gl");
 
 const vertices = [_]f32{
-    -0.5, -0.5, 0.0,
-    0.5,  0.5,  0.0,
-    -0.5, 0.5,  1.0,
+    -0.5, -0.5, 0.0, 0.0, 0.0, 1.0,
+    0.5,  0.5,  0.0, 0.0, 1.0, 0.0,
+    -0.5, 0.5,  1.0, 1.0, 0.0, 0.0,
 
-    0.5,  0.5,  0.0,
-    -0.5, -0.5, 0.0,
-    0.5,  -0.5, 1.0,
+    0.5,  0.5,  0.0, 0.0, 0.0, 1.0,
+    -0.5, -0.5, 0.0, 0.0, 1.0, 0.0,
+    0.5,  -0.5, 1.0, 1.0, 0.0, 0.0,
 };
 
 pub const Rectangle = struct {
@@ -36,6 +36,15 @@ pub const Rectangle = struct {
             null,
         );
         gl.enableVertexAttribArray(0);
+        gl.vertexAttribPointer(
+            1,
+            3,
+            gl.FLOAT,
+            gl.FALSE,
+            @sizeOf(@TypeOf(vertices)) / 6,
+            @ptrFromInt(@sizeOf(@TypeOf(vertices[0])) * 3),
+        );
+        gl.enableVertexAttribArray(1);
         gl.bindBuffer(gl.ARRAY_BUFFER, 0);
         gl.bindVertexArray(0);
 
