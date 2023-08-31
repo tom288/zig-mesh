@@ -7,11 +7,11 @@ pub fn main() !void {
     var window = try win.Window.init();
     defer window.kill();
 
-    var shader = sdr.Shader.init(
-        "glsl/colour.vert",
+    var shader = try sdr.Shader.init(
+        "glsl/wobble.vert",
         null,
-        "glsl/colour.frag",
-    ) orelse return;
+        "glsl/wobble.frag",
+    );
     defer shader.kill();
 
     var rectangle = rec.Rectangle.init();
@@ -26,6 +26,8 @@ pub fn main() !void {
             window.clearColour(0.1, 0, 0.2, 1);
         }
         shader.use();
+        shader.setFloat("uv_zoom", 1.9);
+        shader.setFloat("time", window.time orelse 0);
         rectangle.draw();
         window.swap();
     }

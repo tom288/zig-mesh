@@ -8,7 +8,7 @@ pub const Shader = struct {
         comptime vertex: []const u8,
         comptime geometry: ?[]const u8,
         comptime fragment: []const u8,
-    ) ?Shader {
+    ) !Shader {
         const vert = compile(vertex, gl.VERTEX_SHADER);
         const geom = if (geometry) |g| compile(g, gl.GEOMETRY_SHADER) else null;
         const frag = compile(fragment, gl.FRAGMENT_SHADER);
@@ -39,7 +39,7 @@ pub const Shader = struct {
             }
         }
 
-        return if (shader.id == null) null else shader;
+        return if (shader.id == null) error.ShaderInitFailure else shader;
     }
 
     pub fn kill(shader: *Shader) void {
@@ -54,6 +54,16 @@ pub const Shader = struct {
             gl.useProgram(id);
         }
     }
+
+    pub fn setFloat(shader: Shader, name: [:0]const u8, value: gl.GLfloat) void {
+        const id = shader.id orelse return;
+        const location = gl.getUniformLocation(id, name);
+        if (location == -1) {
+            std.log.err("Failed to find uniform {s} in setFloat\n", .{name});
+        } else {
+            gl.uniform1f(location, value);
+        }
+    }
 };
 
 fn compile(comptime path: []const u8, stage: gl.GLenum) gl.GLuint {
@@ -66,7 +76,7 @@ fn compile(comptime path: []const u8, stage: gl.GLenum) gl.GLuint {
 
 fn compile_error(id: gl.GLuint, comptime is_program: bool, path: []const u8) bool {
     const max_length = 1024;
-    var ok: gl.GLint = 0;
+    var ok: gl.GLint = gl.FALSE;
     var log: [max_length]gl.GLchar = undefined;
 
     if (is_program) {
@@ -75,7 +85,7 @@ fn compile_error(id: gl.GLuint, comptime is_program: bool, path: []const u8) boo
         gl.getShaderiv(id, gl.COMPILE_STATUS, &ok);
     }
 
-    if (ok == 0) {
+    if (ok == gl.FALSE) {
         var len: gl.GLsizei = undefined;
         (if (is_program) gl.getProgramInfoLog else gl.getShaderInfoLog)(id, max_length, &len, &log);
         std.log.err("Failed to {s} {s}\n{s}", .{
@@ -84,5 +94,5 @@ fn compile_error(id: gl.GLuint, comptime is_program: bool, path: []const u8) boo
             log[0..@intCast(len)],
         });
     }
-    return ok == 0;
+    return ok == gl.FALSE;
 }
