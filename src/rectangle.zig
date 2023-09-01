@@ -1,12 +1,12 @@
 const gl = @import("gl");
 
 const vertices = [_]f32{
-    -0.5, -0.5, 0.0, 0.0, 0.0, 1.0,
-    0.5,  0.5,  0.0, 0.0, 1.0, 0.0,
+    -0.5, -0.5, 1.0, 0.0, 0.0, 1.0,
+    0.5,  0.5,  1.0, 0.0, 1.0, 0.0,
     -0.5, 0.5,  1.0, 1.0, 0.0, 0.0,
 
-    0.5,  0.5,  0.0, 0.0, 0.0, 1.0,
-    -0.5, -0.5, 0.0, 0.0, 1.0, 0.0,
+    0.5,  0.5,  1.0, 0.0, 0.0, 1.0,
+    -0.5, -0.5, 1.0, 0.0, 1.0, 0.0,
     0.5,  -0.5, 1.0, 1.0, 0.0, 0.0,
 };
 
@@ -18,7 +18,9 @@ pub const Rectangle = struct {
         var vao: gl.GLuint = undefined;
         var vbo: gl.GLuint = undefined;
         gl.genVertexArrays(1, &vao);
+        errdefer gl.deleteVertexArrays(0, @ptrCast(&vao));
         gl.genBuffers(1, &vbo);
+        errdefer gl.deleteBuffers(1, &vbo);
         gl.bindVertexArray(vao);
         gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
         gl.bufferData(
@@ -54,19 +56,19 @@ pub const Rectangle = struct {
         };
     }
 
-    pub fn kill(rectangle: *Rectangle) void {
-        if (rectangle.vao) |vao| {
-            gl.deleteVertexArrays(0, @ptrCast(&vao));
-            rectangle.vao = null;
-        }
-        if (rectangle.vbo) |vbo| {
+    pub fn kill(rect: *Rectangle) void {
+        if (rect.vbo) |vbo| {
             gl.deleteBuffers(1, &vbo);
-            rectangle.vbo = null;
+            rect.vbo = null;
+        }
+        if (rect.vao) |vao| {
+            gl.deleteVertexArrays(0, @ptrCast(&vao));
+            rect.vao = null;
         }
     }
 
-    pub fn draw(rectangle: Rectangle) void {
-        const vao = rectangle.vao orelse return;
+    pub fn draw(rect: Rectangle) void {
+        const vao = rect.vao orelse return;
         gl.bindVertexArray(vao);
         gl.drawArrays(
             gl.TRIANGLES,

@@ -10,27 +10,31 @@ pub const Window = struct {
     window: glfw.Window,
     clear_mask: gl.GLbitfield,
     resolution: zm.Vec,
-    mouse_pos: ?zm.Vec,
     time: ?f32,
-    delta: ?f32,
+    delta: f32,
+    mouse_pos: ?zm.Vec,
+    mouse_delta: zm.Vec,
+    binds: std.AutoHashMap(glfw.Key, Action),
+    bindAllocator: std.heap.ArenaAllocator,
+    actionState: [@typeInfo(Action).Enum.fields.len]bool,
+    input: zm.Vec,
 
     const InitError = error{
         GlfwInitFailure,
         MonitorUnobtainable,
         VideoModeUnobtainable,
         WindowCreationFailure,
-        OpenGlLoadFailure,
     };
 
-    pub fn init() InitError!Window {
+    pub fn init() !Window {
         // Ensure GLFW errors are logged
         glfw.setErrorCallback(errorCallback);
 
         const fullscreen = false;
         const resizable = false;
-        const show_cursor = true;
-        const raw_input = false;
-        const cull_faces = true;
+        const show_cursor = false;
+        const raw_input = true;
+        const cull_faces = false;
         const test_depth = true;
         const wireframe = false;
         const vertical_sync = true;
@@ -107,7 +111,7 @@ pub const Window = struct {
         const proc: glfw.GLProc = undefined;
         gl.load(proc, glGetProcAddress) catch |err| {
             std.log.err("failed to load OpenGL: {}", .{err});
-            return InitError.OpenGlLoadFailure;
+            return err;
         };
 
         // Configure triangle visibility
@@ -131,52 +135,91 @@ pub const Window = struct {
         // Update window count
         windows += 1;
 
+        var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+        errdefer arena.deinit();
+        const allocator = arena.allocator();
+        var binds = std.AutoHashMap(glfw.Key, Action).init(allocator);
+        try binds.put(glfw.Key.w, Action.forward);
+        try binds.put(glfw.Key.s, Action.backward);
+        try binds.put(glfw.Key.a, Action.left);
+        try binds.put(glfw.Key.d, Action.right);
+        try binds.put(glfw.Key.space, Action.ascend);
+        try binds.put(glfw.Key.caps_lock, Action.descend);
+        try binds.put(glfw.Key.left_shift, Action.descend);
+        try binds.put(glfw.Key.left_control, Action.descend);
+
         return Window{
             .window = window,
             .clear_mask = clear_mask,
             .resolution = zm.f32x4(width * scale, height * scale, 0, 0),
-            .mouse_pos = null,
             .time = null,
-            .delta = null,
+            .delta = 0,
+            .mouse_pos = null,
+            .mouse_delta = zm.f32x4s(0),
+            .binds = binds,
+            .bindAllocator = arena,
+            .actionState = undefined,
+            .input = zm.f32x4s(0),
         };
     }
 
-    pub fn kill(window: *Window) void {
-        window.window.destroy();
+    pub fn kill(win: *Window) void {
+        win.window.destroy();
         windows -= 1;
         // When we have no windows we have no use for GLFW
         if (windows == 0) glfw.terminate();
+        win.bindAllocator.deinit();
     }
 
-    pub fn ok(window: *Window) bool {
+    pub fn ok(win: *Window) bool {
+        // Clear mouse delta
+        win.mouse_delta = zm.f32x4s(0);
+
         // Update deltaTime
         const new_time: f32 = @floatCast(glfw.getTime());
-        if (window.time) |time| {
-            window.delta = new_time - time;
+        if (win.time) |time| {
+            win.delta = new_time - time;
+        } else {
+            // Set the user pointer if we are about to poll the first events
+            win.window.setUserPointer(win);
+            win.actionState = std.mem.zeroes(@TypeOf(win.actionState));
         }
-        window.time = new_time;
-
-        // Set the user pointer if we are about to poll the first events
-        if (window.delta == null) {
-            window.window.setUserPointer(window);
-        }
+        win.time = new_time;
 
         glfw.pollEvents();
-        return !window.window.shouldClose();
+        win.input = zm.f32x4s(0);
+        if (win.actionState[@intFromEnum(Action.left)]) win.input[0] += 1;
+        if (win.actionState[@intFromEnum(Action.right)]) win.input[0] -= 1;
+        if (win.actionState[@intFromEnum(Action.ascend)]) win.input[1] += 1;
+        if (win.actionState[@intFromEnum(Action.descend)]) win.input[1] -= 1;
+        if (win.actionState[@intFromEnum(Action.forward)]) win.input[2] += 1;
+        if (win.actionState[@intFromEnum(Action.backward)]) win.input[2] -= 1;
+        return !win.window.shouldClose();
     }
 
-    pub fn clear(window: Window) void {
-        gl.clear(window.clear_mask);
+    pub fn clear(win: Window) void {
+        gl.clear(win.clear_mask);
     }
 
-    pub fn clearColour(window: Window, r: f32, g: f32, b: f32, a: f32) void {
+    pub fn clearColour(win: Window, r: f32, g: f32, b: f32, a: f32) void {
         gl.clearColor(r, g, b, a);
-        window.clear();
+        win.clear();
     }
 
-    pub fn swap(window: Window) void {
-        window.window.swapBuffers();
+    pub fn swap(win: Window) void {
+        win.window.swapBuffers();
     }
+};
+
+const Action = enum {
+    left,
+    right,
+    ascend,
+    descend,
+    forward,
+    backward,
+    attack1,
+    attack2,
 };
 
 fn glGetProcAddress(p: glfw.GLProc, proc: [:0]const u8) ?gl.FunctionPointer {
@@ -190,9 +233,16 @@ fn errorCallback(error_code: glfw.ErrorCode, description: [:0]const u8) void {
 
 fn keyCallback(window: glfw.Window, key: glfw.Key, scancode: i32, action: glfw.Action, mods: glfw.Mods) void {
     _ = mods;
-    _ = action;
     _ = scancode;
     if (key == glfw.Key.escape) window.setShouldClose(true);
+
+    const win = window.getUserPointer(Window) orelse {
+        std.log.err("Window user pointer not set", .{});
+        return;
+    };
+
+    var target = win.binds.get(key) orelse return;
+    win.actionState[@intFromEnum(target)] = action != glfw.Action.release;
 }
 
 fn mouseButtonCallback(window: glfw.Window, button: glfw.MouseButton, action: glfw.Action, mods: glfw.Mods) void {
@@ -203,11 +253,17 @@ fn mouseButtonCallback(window: glfw.Window, button: glfw.MouseButton, action: gl
 }
 
 fn cursorPosCallback(window: glfw.Window, xpos: f64, ypos: f64) void {
-    const ptr = window.getUserPointer(Window) orelse {
+    const win = window.getUserPointer(Window) orelse {
         std.log.err("Window user pointer not set", .{});
         return;
     };
-    ptr.mouse_pos = zm.f32x4(@floatCast(xpos), @floatCast(ptr.resolution[1] - ypos - 1), 0, 0);
+
+    const new_pos = zm.f32x4(@floatCast(xpos), @floatCast(win.resolution[1] - ypos - 1), 0, 0);
+    if (win.mouse_pos) |pos| {
+        win.mouse_delta += new_pos - pos;
+    }
+
+    win.mouse_pos = new_pos;
 }
 
 fn scrollCallback(window: glfw.Window, xoffset: f64, yoffset: f64) void {
