@@ -1,4 +1,4 @@
-#version 330 core
+#version 410 core
 
 uniform float uv_zoom;
 uniform float time;

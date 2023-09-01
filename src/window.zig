@@ -134,7 +134,7 @@ pub const Window = struct {
         return Window{
             .window = window,
             .clear_mask = clear_mask,
-            .resolution = zm.f32x4(width, height, 0, 0),
+            .resolution = zm.f32x4(width * scale, height * scale, 0, 0),
             .mouse_pos = null,
             .time = null,
             .delta = null,
@@ -207,7 +207,7 @@ fn cursorPosCallback(window: glfw.Window, xpos: f64, ypos: f64) void {
         std.log.err("Window user pointer not set", .{});
         return;
     };
-    ptr.mouse_pos = zm.f32x4(@floatCast(xpos), @floatCast(ypos), 0, 0);
+    ptr.mouse_pos = zm.f32x4(@floatCast(xpos), @floatCast(ptr.resolution[1] - ypos - 1), 0, 0);
 }
 
 fn scrollCallback(window: glfw.Window, xoffset: f64, yoffset: f64) void {
