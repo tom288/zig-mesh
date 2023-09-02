@@ -20,8 +20,8 @@ pub const Camera = struct {
 
     pub fn init(resolution: zm.Vec) Camera {
         var cam = Camera{
-            .position = zm.f32x4s(0),
-            .velocity = zm.f32x4s(0),
+            .position = @splat(0),
+            .velocity = @splat(0),
 
             .yaw = 0,
             .pitch = 0,
@@ -37,7 +37,7 @@ pub const Camera = struct {
         };
 
         cam.calcVecs();
-        cam.setFov(90);
+        cam.setFov(75);
 
         return cam;
     }
@@ -72,6 +72,12 @@ pub const Camera = struct {
         cam.velocity *= zm.f32x4s(std.math.pow(f32, 0.5, power));
         cam.position += cam.velocity * zm.f32x4s(time_delta);
 
+        cam.calcView();
+    }
+
+    pub fn scroll(cam: *Camera, input: zm.Vec) void {
+        if (input[1] == 0) return;
+        cam.position += cam.look * zm.f32x4s(input[1] * 0.5);
         cam.calcView();
     }
 

@@ -10,9 +10,9 @@ pub fn main() !void {
     defer window.kill();
 
     var shader = try Shader.init(
-        "glsl/perspective.vert",
+        "perspective",
         null,
-        "glsl/perspective.frag",
+        "perspective",
     );
     defer shader.kill();
 
@@ -23,8 +23,9 @@ pub fn main() !void {
 
     // Wait for the user to close the window.
     while (window.ok()) {
-        camera.step(window.input, window.delta);
         camera.mouseMouse(window.mouse_delta);
+        camera.step(window.input, window.delta);
+        camera.scroll(window.scroll_delta);
         window.clearColour(0.1, 0, 0.2, 1);
 
         shader.use();

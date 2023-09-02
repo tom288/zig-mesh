@@ -17,9 +17,7 @@ pub const Shader = struct {
             .id = null,
         };
 
-        var ok = vert != 0 and frag != 0 and (geometry == null or geom != 0);
-
-        if (ok) {
+        if (vert != 0 and frag != 0 and (geometry == null or geom != 0)) {
             shader.id = gl.createProgram();
             if (shader.id) |id| {
                 gl.attachShader(id, vert);
@@ -143,11 +141,21 @@ pub const Shader = struct {
     }
 };
 
-fn compile(comptime path: []const u8, stage: gl.GLenum) gl.GLuint {
+fn compile(comptime name: []const u8, comptime stage: gl.GLenum) gl.GLuint {
+    comptime var path = "glsl/" ++ name ++ switch (stage) {
+        gl.VERTEX_SHADER => ".vert",
+        gl.GEOMETRY_SHADER => ".geom",
+        gl.FRAGMENT_SHADER => ".frag",
+        else => {
+            std.log.err("Invalid shader stage {}", .{stage});
+            return 0;
+        },
+    };
     const buffer: [*c]const [*c]const u8 = @ptrCast(&@embedFile(path));
     const id = gl.createShader(stage);
     gl.shaderSource(id, 1, buffer, null);
     gl.compileShader(id);
+    if (compile_error(id, false, path)) return 0;
     return id;
 }
 

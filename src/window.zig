@@ -18,6 +18,7 @@ pub const Window = struct {
     bindAllocator: std.heap.ArenaAllocator,
     actionState: [@typeInfo(Action).Enum.fields.len]bool,
     input: zm.Vec,
+    scroll_delta: zm.Vec,
 
     const InitError = error{
         GlfwInitFailure,
@@ -151,15 +152,16 @@ pub const Window = struct {
         return Window{
             .window = window,
             .clear_mask = clear_mask,
-            .resolution = zm.f32x4(width * scale, height * scale, 0, 0),
+            .resolution = zm.loadArr2([2]f32{ width * scale, height * scale }),
             .time = null,
             .delta = 0,
             .mouse_pos = null,
-            .mouse_delta = zm.f32x4s(0),
+            .mouse_delta = @splat(0),
             .binds = binds,
             .bindAllocator = arena,
             .actionState = undefined,
-            .input = zm.f32x4s(0),
+            .input = @splat(0),
+            .scroll_delta = @splat(0),
         };
     }
 
@@ -173,7 +175,8 @@ pub const Window = struct {
 
     pub fn ok(win: *Window) bool {
         // Clear mouse delta
-        win.mouse_delta = zm.f32x4s(0);
+        win.mouse_delta = @splat(0);
+        win.scroll_delta = @splat(0);
 
         // Update deltaTime
         const new_time: f32 = @floatCast(glfw.getTime());
@@ -186,14 +189,22 @@ pub const Window = struct {
         }
         win.time = new_time;
 
+        // Create a closure without language support
+        const action = (struct {
+            state: @TypeOf(win.actionState),
+            fn active(self: @This(), a: Action) bool {
+                return self.state[@intFromEnum(a)];
+            }
+        }{ .state = win.actionState });
+
         glfw.pollEvents();
-        win.input = zm.f32x4s(0);
-        if (win.actionState[@intFromEnum(Action.left)]) win.input[0] += 1;
-        if (win.actionState[@intFromEnum(Action.right)]) win.input[0] -= 1;
-        if (win.actionState[@intFromEnum(Action.ascend)]) win.input[1] += 1;
-        if (win.actionState[@intFromEnum(Action.descend)]) win.input[1] -= 1;
-        if (win.actionState[@intFromEnum(Action.forward)]) win.input[2] += 1;
-        if (win.actionState[@intFromEnum(Action.backward)]) win.input[2] -= 1;
+        win.input = @splat(0);
+        if (action.active(Action.left)) win.input[0] += 1;
+        if (action.active(Action.right)) win.input[0] -= 1;
+        if (action.active(Action.ascend)) win.input[1] += 1;
+        if (action.active(Action.descend)) win.input[1] -= 1;
+        if (action.active(Action.forward)) win.input[2] += 1;
+        if (action.active(Action.backward)) win.input[2] -= 1;
         return !win.window.shouldClose();
     }
 
@@ -241,7 +252,7 @@ fn keyCallback(window: glfw.Window, key: glfw.Key, scancode: i32, action: glfw.A
         return;
     };
 
-    var target = win.binds.get(key) orelse return;
+    const target = win.binds.get(key) orelse return;
     win.actionState[@intFromEnum(target)] = action != glfw.Action.release;
 }
 
@@ -258,16 +269,19 @@ fn cursorPosCallback(window: glfw.Window, xpos: f64, ypos: f64) void {
         return;
     };
 
-    const new_pos = zm.f32x4(@floatCast(xpos), @floatCast(win.resolution[1] - ypos - 1), 0, 0);
-    if (win.mouse_pos) |pos| {
-        win.mouse_delta += new_pos - pos;
-    }
+    const new_pos = zm.loadArr2([2]f32{
+        @floatCast(xpos),
+        @floatCast(win.resolution[1] - ypos - 1),
+    });
+    if (win.mouse_pos) |pos| win.mouse_delta += new_pos - pos;
 
     win.mouse_pos = new_pos;
 }
 
 fn scrollCallback(window: glfw.Window, xoffset: f64, yoffset: f64) void {
-    _ = yoffset;
-    _ = xoffset;
-    _ = window;
+    const win = window.getUserPointer(Window) orelse {
+        std.log.err("Window user pointer not set", .{});
+        return;
+    };
+    win.scroll_delta += zm.loadArr2([2]f32{ @floatCast(xoffset), @floatCast(yoffset) });
 }
