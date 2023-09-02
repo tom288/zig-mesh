@@ -1,14 +1,15 @@
+const std = @import("std");
 const gl = @import("gl");
 const zm = @import("zmath");
-
-var vertices: [216]f32 = undefined;
 
 pub const Cube = struct {
     vao: ?gl.GLuint,
     vbo: ?gl.GLuint,
+    verts: std.ArrayList(f32),
 
-    pub fn init() Cube {
-        var pos: usize = 0;
+    pub fn init(alloc: std.mem.Allocator) !Cube {
+        var verts = std.ArrayList(f32).init(alloc);
+
         // Faces
         for (0..6) |n| {
             var centre = zm.f32x4s(0);
@@ -23,15 +24,9 @@ pub const Cube = struct {
                     vertex[(n / 2 + 1) % 3] += a - 0.5;
                     vertex[(n / 2 + 2) % 3] += b - 0.5;
                     // Vertex positions
-                    for (0..3) |d| {
-                        vertices[pos] = vertex[d];
-                        pos += 1;
-                    }
+                    for (0..3) |d| try verts.append(vertex[d]);
                     // Vertex colours
-                    for (0..3) |d| {
-                        vertices[pos] = vertex[d] + 0.5;
-                        pos += 1;
-                    }
+                    for (0..3) |d| try verts.append(vertex[d] + 0.5);
                 }
             }
         }
@@ -46,8 +41,8 @@ pub const Cube = struct {
         gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
         gl.bufferData(
             gl.ARRAY_BUFFER,
-            @sizeOf(@TypeOf(vertices)),
-            &vertices,
+            @intCast(@sizeOf(@TypeOf(verts.items[0])) * verts.items.len),
+            @ptrCast(verts.items),
             gl.STATIC_DRAW,
         );
         gl.vertexAttribPointer(
@@ -55,7 +50,7 @@ pub const Cube = struct {
             3,
             gl.FLOAT,
             gl.FALSE,
-            @sizeOf(@TypeOf(vertices[0])) * 6,
+            @sizeOf(@TypeOf(verts.items[0])) * 6,
             null,
         );
         gl.enableVertexAttribArray(0);
@@ -64,8 +59,8 @@ pub const Cube = struct {
             3,
             gl.FLOAT,
             gl.FALSE,
-            @sizeOf(@TypeOf(vertices[0])) * 6,
-            @ptrFromInt(@sizeOf(@TypeOf(vertices[0])) * 3),
+            @sizeOf(@TypeOf(verts.items[0])) * 6,
+            @ptrFromInt(@sizeOf(@TypeOf(verts.items[0])) * 3),
         );
         gl.enableVertexAttribArray(1);
         gl.bindBuffer(gl.ARRAY_BUFFER, 0);
@@ -74,6 +69,7 @@ pub const Cube = struct {
         return Cube{
             .vao = vao,
             .vbo = vbo,
+            .verts = verts,
         };
     }
 
@@ -94,7 +90,7 @@ pub const Cube = struct {
         gl.drawArrays(
             gl.TRIANGLES,
             0,
-            @sizeOf(@TypeOf(vertices)) / 6,
+            @intCast(cube.verts.items.len / 6),
         );
     }
 };

@@ -15,7 +15,6 @@ pub const Window = struct {
     mouse_pos: ?zm.Vec,
     mouse_delta: zm.Vec,
     binds: std.AutoHashMap(glfw.Key, Action),
-    bindAllocator: std.heap.ArenaAllocator,
     actionState: [@typeInfo(Action).Enum.fields.len]bool,
     input: zm.Vec,
     scroll_delta: zm.Vec,
@@ -27,7 +26,7 @@ pub const Window = struct {
         WindowCreationFailure,
     };
 
-    pub fn init() !Window {
+    pub fn init(alloc: std.mem.Allocator) !Window {
         // Ensure GLFW errors are logged
         glfw.setErrorCallback(errorCallback);
 
@@ -136,10 +135,7 @@ pub const Window = struct {
         // Update window count
         windows += 1;
 
-        var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-        errdefer arena.deinit();
-        const allocator = arena.allocator();
-        var binds = std.AutoHashMap(glfw.Key, Action).init(allocator);
+        var binds = std.AutoHashMap(glfw.Key, Action).init(alloc);
         try binds.put(glfw.Key.w, Action.forward);
         try binds.put(glfw.Key.s, Action.backward);
         try binds.put(glfw.Key.a, Action.left);
@@ -158,7 +154,6 @@ pub const Window = struct {
             .mouse_pos = null,
             .mouse_delta = @splat(0),
             .binds = binds,
-            .bindAllocator = arena,
             .actionState = undefined,
             .input = @splat(0),
             .scroll_delta = @splat(0),
@@ -170,7 +165,6 @@ pub const Window = struct {
         windows -= 1;
         // When we have no windows we have no use for GLFW
         if (windows == 0) glfw.terminate();
-        win.bindAllocator.deinit();
     }
 
     pub fn ok(win: *Window) bool {

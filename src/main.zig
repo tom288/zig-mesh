@@ -6,7 +6,11 @@ const Cube = @import("cube.zig").Cube;
 const Camera = @import("camera.zig").Camera;
 
 pub fn main() !void {
-    var window = try Window.init();
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const alloc = arena.allocator();
+
+    var window = try Window.init(alloc);
     defer window.kill();
 
     var shader = try Shader.init(
@@ -16,7 +20,7 @@ pub fn main() !void {
     );
     defer shader.kill();
 
-    var cube = Cube.init();
+    var cube = try Cube.init(alloc);
     defer cube.kill();
 
     var camera = Camera.init(window.resolution);
