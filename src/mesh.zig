@@ -2,27 +2,27 @@ const std = @import("std");
 const gl = @import("gl");
 const Shader = @import("shader.zig").Shader;
 
-pub fn Mesh(comptime vbo_num: usize) type {
+pub const Attr = struct {
+    name: ?[]const u8,
+    size: usize,
+    type: gl.GLenum,
+};
+
+pub fn Mesh(comptime attrs: [][]Attr) type {
     return struct {
         vao: ?gl.GLuint,
-        vbos: ?[vbo_num]gl.GLuint,
+        vbos: ?[attrs.len]gl.GLuint,
         ebo: ?gl.GLuint,
-        strides: [vbo_num]usize,
+        strides: [attrs.len]usize,
         vert_count: ?usize,
         index_count: ?usize,
         index_type: ?gl.GLenum,
 
-        pub const Attr = struct {
-            name: ?[]const u8,
-            size: usize,
-            type: gl.GLenum,
-        };
-
-        pub fn init(attrs: [vbo_num][]Attr, shader: ?Shader) !@This() {
+        pub fn init(shader: ?Shader) !@This() {
             var vao: gl.GLuint = undefined;
-            var vbos: [vbo_num]gl.GLuint = undefined;
+            var vbos: [attrs.len]gl.GLuint = undefined;
             gl.genVertexArrays(1, &vao);
-            gl.genBuffers(@intCast(vbo_num), @ptrCast(&vbos));
+            gl.genBuffers(@intCast(attrs.len), @ptrCast(&vbos));
             gl.bindVertexArray(vao);
             defer gl.bindVertexArray(0);
 
@@ -44,7 +44,7 @@ pub fn Mesh(comptime vbo_num: usize) type {
                 gl.bindBuffer(gl.ARRAY_BUFFER, 0);
             }
 
-            try glError();
+            try glOk();
             return mesh;
         }
 
@@ -54,7 +54,7 @@ pub fn Mesh(comptime vbo_num: usize) type {
                 mesh.ebo = null;
             }
             if (mesh.vbos) |vbos| {
-                gl.deleteBuffers(vbo_num, &vbos);
+                gl.deleteBuffers(attrs.len, &vbos);
                 mesh.vbos = null;
             }
             if (mesh.vao) |vao| {
@@ -86,8 +86,8 @@ pub fn Mesh(comptime vbo_num: usize) type {
 
         pub fn upload(mesh: *@This(), verts: anytype) !void {
             const vbos = mesh.vbos orelse unreachable;
-            if (verts.len != vbo_num and verts.len != 0) {
-                std.log.err("Mismatch between verts.len({}) and vbos.len ({})\n", .{ vbo_num, vbo_num });
+            if (verts.len != attrs.len and verts.len != 0) {
+                std.log.err("Mismatch between verts.len({}) and vbos.len ({})\n", .{ verts.len, attrs.len });
                 return error.BadVertArrCount;
             }
 
@@ -116,7 +116,7 @@ pub fn Mesh(comptime vbo_num: usize) type {
 
             gl.bindBuffer(gl.ARRAY_BUFFER, 0);
             mesh.vert_count = if (verts.len > 0) verts[0].len / mesh.strides[0] else 0;
-            try glError();
+            try glOk();
         }
 
         pub fn uploadIndices(mesh: *@This(), indices: anytype) !void {
@@ -165,18 +165,18 @@ pub fn Mesh(comptime vbo_num: usize) type {
             }
 
             mesh.index_count = indices.len;
-            mesh.index_type = if (indices.len > 0) try glIndexType(@TypeOf(indices[0])) else null;
-            try glError();
+            mesh.index_type = if (indices.len > 0) try glIndexTypeEnum(@TypeOf(indices[0])) else null;
+            try glOk();
         }
 
-        fn initAttrs(attrs: []Attr, stride: *usize, shader: ?Shader) !void {
+        fn initAttrs(attrs_slice: []Attr, stride: *usize, shader: ?Shader) !void {
             stride.* = 0;
-            for (attrs) |attr| stride.* += attr.size * try glSizeOf(attr.type);
+            for (attrs_slice) |attr| stride.* += attr.size * try glSizeOf(attr.type);
 
             var first: usize = 0;
             var location_index: gl.GLuint = 0;
 
-            for (attrs) |attr| {
+            for (attrs_slice) |attr| {
                 // Skip nameless attributes, allowing them to act as gaps
                 if (attr.name) |name| {
                     // If shader is null then use location indices instead
@@ -233,7 +233,7 @@ pub fn Mesh(comptime vbo_num: usize) type {
             );
         }
 
-        fn glError() !void {
+        fn glOk() !void {
             while (true) {
                 const error_code = gl.getError();
                 if (error_code == gl.NO_ERROR) break;
@@ -244,8 +244,8 @@ pub fn Mesh(comptime vbo_num: usize) type {
                     gl.OUT_OF_MEMORY => "OUT_OF_MEMORY",
                     gl.INVALID_FRAMEBUFFER_OPERATION => "INVALID_FRAMEBUFFER_OPERATION",
                     else => {
-                        std.log.err("OpenGL error code {} missing from glError\n", .{error_code});
-                        return error.OpenGlError;
+                        std.log.err("OpenGL error code {} missing from glOk\n", .{error_code});
+                        return error.OpenglOk;
                     },
                 };
                 std.log.err("OpenGL error {s}\n", .{error_str});
@@ -266,7 +266,7 @@ pub fn Mesh(comptime vbo_num: usize) type {
             };
         }
 
-        fn glIndexType(comptime T: type) !gl.GLenum {
+        fn glIndexTypeEnum(comptime T: type) !gl.GLenum {
             return switch (T) {
                 gl.GLubyte => gl.UNSIGNED_BYTE,
                 gl.GLushort => gl.UNSIGNED_SHORT,

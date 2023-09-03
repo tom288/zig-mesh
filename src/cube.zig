@@ -2,10 +2,18 @@ const std = @import("std");
 const gl = @import("gl");
 const zm = @import("zmath");
 const Mesh = @import("mesh.zig").Mesh;
+const Attr = @import("mesh.zig").Attr;
 
 pub const Cube = struct {
     verts: std.ArrayList(f32),
-    mesh: Mesh(1),
+    mesh: Mesh(
+        @constCast(&[_][]Attr{
+            @constCast(&[_]Attr{
+                .{ .name = "position", .size = 3, .type = gl.FLOAT },
+                .{ .name = "colour", .size = 3, .type = gl.FLOAT },
+            }),
+        }),
+    ),
 
     pub fn init(alloc: std.mem.Allocator) !Cube {
         var cube = Cube{
@@ -16,15 +24,7 @@ pub const Cube = struct {
 
         try cube.buildVerts();
 
-        cube.mesh = try @TypeOf(cube.mesh).init(
-            .{
-                @constCast(&[_]@TypeOf(cube.mesh).Attr{
-                    .{ .name = "position", .size = 3, .type = gl.FLOAT },
-                    .{ .name = "colour", .size = 3, .type = gl.FLOAT },
-                }),
-            },
-            null,
-        );
+        cube.mesh = try @TypeOf(cube.mesh).init(null);
         errdefer cube.mesh.kill();
         try cube.mesh.upload(.{cube.verts.items});
         return cube;
