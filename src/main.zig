@@ -36,8 +36,8 @@ pub fn main() !void {
         shader.set("model", f32, &zm.matToArr(zm.identity()));
         shader.set("view", f32, &zm.matToArr(camera.view));
         shader.set("projection", f32, &zm.matToArr(camera.proj));
-
         cube.draw();
+
         window.swap();
     }
 }

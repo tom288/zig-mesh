@@ -242,12 +242,7 @@ fn keyCallback(window: glfw.Window, key: glfw.Key, scancode: i32, action: glfw.A
     _ = mods;
     _ = scancode;
     if (key == glfw.Key.escape) window.setShouldClose(true);
-
-    const win = window.getUserPointer(Window) orelse {
-        std.log.err("Window user pointer not set", .{});
-        return;
-    };
-
+    const win = window.getUserPointer(Window) orelse unreachable;
     const target = win.binds.get(key) orelse return;
     win.actionState[@intFromEnum(target)] = action != glfw.Action.release;
 }
@@ -260,24 +255,16 @@ fn mouseButtonCallback(window: glfw.Window, button: glfw.MouseButton, action: gl
 }
 
 fn cursorPosCallback(window: glfw.Window, xpos: f64, ypos: f64) void {
-    const win = window.getUserPointer(Window) orelse {
-        std.log.err("Window user pointer not set", .{});
-        return;
-    };
-
+    const win = window.getUserPointer(Window) orelse unreachable;
     const new_pos = zm.loadArr2([2]f32{
         @floatCast(xpos),
         @floatCast(win.resolution[1] - ypos - 1),
     });
     if (win.mouse_pos) |pos| win.mouse_delta += new_pos - pos;
-
     win.mouse_pos = new_pos;
 }
 
 fn scrollCallback(window: glfw.Window, xoffset: f64, yoffset: f64) void {
-    const win = window.getUserPointer(Window) orelse {
-        std.log.err("Window user pointer not set", .{});
-        return;
-    };
+    const win = window.getUserPointer(Window) orelse unreachable;
     win.scroll_delta += zm.loadArr2([2]f32{ @floatCast(xoffset), @floatCast(yoffset) });
 }

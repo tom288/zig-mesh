@@ -2,13 +2,7 @@ const std = @import("std");
 const gl = @import("gl");
 const Shader = @import("shader.zig").Shader;
 
-pub const Attr = struct {
-    name: ?[]const u8,
-    size: usize,
-    type: gl.GLenum,
-};
-
-pub fn Mesh(comptime attrs: [][]Attr) type {
+pub fn Mesh(comptime attrs: anytype) type {
     return struct {
         vao: ?gl.GLuint,
         vbos: ?[attrs.len]gl.GLuint,
@@ -17,6 +11,12 @@ pub fn Mesh(comptime attrs: [][]Attr) type {
         vert_count: ?usize,
         index_count: ?usize,
         index_type: ?gl.GLenum,
+
+        const Attr = struct {
+            name: ?[]const u8,
+            size: usize,
+            type: gl.GLenum,
+        };
 
         pub fn init(shader: ?Shader) !@This() {
             var vao: gl.GLuint = undefined;
@@ -64,26 +64,27 @@ pub fn Mesh(comptime attrs: [][]Attr) type {
         }
 
         pub fn draw(mesh: @This(), mode: gl.GLenum) void {
-            if (mesh.vbos == null) return;
-
-            gl.bindVertexArray(mesh.vao orelse return);
+            gl.bindVertexArray(mesh.vao orelse unreachable);
             defer gl.bindVertexArray(0);
             if (mesh.ebo == null) {
+                if (mesh.vert_count orelse 0 == 0) return;
                 gl.drawArrays(
                     mode,
                     0,
-                    @intCast(mesh.vert_count orelse return),
+                    @intCast(mesh.vert_count orelse unreachable),
                 );
             } else {
+                if (mesh.index_count orelse 0 == 0) return;
                 gl.drawElements(
                     mode,
-                    @intCast(mesh.index_count orelse return),
-                    mesh.index_type orelse return,
+                    @intCast(mesh.index_count orelse unreachable),
+                    mesh.index_type orelse unreachable,
                     null,
                 );
             }
         }
 
+        // Expects an empty 1D array or a 2D array
         pub fn upload(mesh: *@This(), verts: anytype) !void {
             const vbos = mesh.vbos orelse unreachable;
             if (verts.len != attrs.len and verts.len != 0) {
@@ -96,7 +97,7 @@ pub fn Mesh(comptime attrs: [][]Attr) type {
             gl.bindBuffer(gl.ARRAY_BUFFER, vbos[0]);
             gl.getBufferParameteri64v(gl.ARRAY_BUFFER, gl.BUFFER_SIZE, @ptrCast(&signed_size));
             const size: usize = @intCast(signed_size);
-            const size_needed: usize = if (verts.len > 0) verts[0].len * @sizeOf(@TypeOf(verts[0][0])) else 0;
+            const size_needed: usize = if (verts.len > 0 and verts[0].len > 0) verts[0].len * @sizeOf(@TypeOf(verts[0][0])) else 0;
 
             // If we already have enough size then avoid reallocation
             // Reallocate if we have much more than we need
@@ -104,13 +105,13 @@ pub fn Mesh(comptime attrs: [][]Attr) type {
                 (size < size_needed * 2 or size - size_needed < 64);
 
             inline for (vbos, 0..) |vbo, i| {
-                const vert_size: gl.GLsizeiptr = if (verts.len > 0) @intCast(verts[i].len * @sizeOf(@TypeOf(verts[i][0]))) else 0;
+                const vert_size: gl.GLsizeiptr = if (verts.len > 0 and verts[i].len > 0) @intCast(verts[i].len * @sizeOf(@TypeOf(verts[i][0]))) else 0;
                 gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
                 if (reuse) {
-                    gl.bufferSubData(gl.ARRAY_BUFFER, 0, vert_size, if (verts.len > 0) @ptrCast(verts[i]) else null);
+                    gl.bufferSubData(gl.ARRAY_BUFFER, 0, vert_size, if (verts.len > 0 and verts[i].len > 0) @ptrCast(verts[i]) else null);
                 } else {
                     // TODO allocate a little extra to reduce resize frequency?
-                    gl.bufferData(gl.ARRAY_BUFFER, vert_size, if (verts.len > 0) @ptrCast(verts[i]) else null, gl.STATIC_DRAW);
+                    gl.bufferData(gl.ARRAY_BUFFER, vert_size, if (verts.len > 0 and verts[i].len > 0) @ptrCast(verts[i]) else null, gl.STATIC_DRAW);
                 }
             }
 
@@ -119,6 +120,7 @@ pub fn Mesh(comptime attrs: [][]Attr) type {
             try glOk();
         }
 
+        // Expects an empty 1D array or a 2D array, or null
         pub fn uploadIndices(mesh: *@This(), indices: anytype) !void {
             // Use null to delete the element buffer
             if (@TypeOf(indices) == @TypeOf(null)) {
@@ -169,16 +171,17 @@ pub fn Mesh(comptime attrs: [][]Attr) type {
             try glOk();
         }
 
-        fn initAttrs(attrs_slice: []Attr, stride: *usize, shader: ?Shader) !void {
+        fn initAttrs(attrs_slice: anytype, stride: *usize, shader: ?Shader) !void {
             stride.* = 0;
-            for (attrs_slice) |attr| stride.* += attr.size * try glSizeOf(attr.type);
+            inline for (attrs_slice) |attr| stride.* += attr.size * try glSizeOf(attr.type);
 
             var first: usize = 0;
             var location_index: gl.GLuint = 0;
 
-            for (attrs_slice) |attr| {
+            inline for (attrs_slice) |attr| {
                 // Skip nameless attributes, allowing them to act as gaps
-                if (attr.name) |name| {
+                if (@TypeOf(attr.name) != @TypeOf(null)) {
+                    comptime std.debug.assert(std.mem.trim(u8, attr.name, &std.ascii.whitespace).len > 0);
                     // If shader is null then use location indices instead
                     var index = location_index;
                     location_index += 1;
@@ -187,10 +190,10 @@ pub fn Mesh(comptime attrs: [][]Attr) type {
                         const id = s.id orelse return error.ShaderWithoutId;
                         const name_index = gl.getAttribLocation(
                             id,
-                            @ptrCast(name),
+                            @ptrCast(attr.name),
                         );
                         if (name_index == -1) {
-                            std.log.err("Failed to find {s} in shader\n", .{name});
+                            std.log.err("Failed to find {s} in shader\n", .{attr.name});
                             return error.AttrNotFound;
                         } else {
                             index = @intCast(name_index);
