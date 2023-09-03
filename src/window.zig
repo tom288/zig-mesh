@@ -136,6 +136,7 @@ pub const Window = struct {
         windows += 1;
 
         var binds = std.AutoHashMap(glfw.Key, Action).init(alloc);
+        errdefer binds.deinit();
         try binds.put(glfw.Key.w, Action.forward);
         try binds.put(glfw.Key.s, Action.backward);
         try binds.put(glfw.Key.a, Action.left);
@@ -161,6 +162,7 @@ pub const Window = struct {
     }
 
     pub fn kill(win: *Window) void {
+        win.binds.deinit();
         win.window.destroy();
         windows -= 1;
         // When we have no windows we have no use for GLFW

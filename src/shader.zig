@@ -32,7 +32,7 @@ pub const Shader = struct {
         gl.deleteShader(frag);
 
         if (shader.id) |id| {
-            if (compile_error(id, true, fragment)) {
+            if (compileError(id, true, fragment)) {
                 shader.kill();
             }
         }
@@ -155,11 +155,11 @@ fn compile(comptime name: []const u8, comptime stage: gl.GLenum) gl.GLuint {
     const id = gl.createShader(stage);
     gl.shaderSource(id, 1, buffer, null);
     gl.compileShader(id);
-    if (compile_error(id, false, path)) return 0;
+    if (compileError(id, false, path)) return 0;
     return id;
 }
 
-fn compile_error(id: gl.GLuint, comptime is_program: bool, path: []const u8) bool {
+fn compileError(id: gl.GLuint, comptime is_program: bool, path: []const u8) bool {
     const max_length = 1024;
     var ok: gl.GLint = gl.FALSE;
     var log: [max_length]gl.GLchar = undefined;
