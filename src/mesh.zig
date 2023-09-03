@@ -9,6 +9,8 @@ pub fn Mesh(comptime vbo_num: usize) type {
         ebo: ?gl.GLuint,
         strides: [vbo_num]usize,
         vert_count: ?usize,
+        index_count: ?usize,
+        index_type: ?gl.GLenum,
 
         pub const Attr = struct {
             name: ?[]const u8,
@@ -16,55 +18,33 @@ pub fn Mesh(comptime vbo_num: usize) type {
             type: gl.GLenum,
         };
 
-        pub fn init(attrs: [vbo_num][]Attr, verts: anytype, indices: ?[]gl.GLuint, shader: ?Shader) !@This() {
-            if (attrs.len == 0 or attrs.len != verts.len) return error.BadAttrs;
+        pub fn init(attrs: [vbo_num][]Attr, shader: ?Shader) !@This() {
             var vao: gl.GLuint = undefined;
+            var vbos: [vbo_num]gl.GLuint = undefined;
             gl.genVertexArrays(1, &vao);
-            errdefer gl.deleteVertexArrays(0, &vao);
+            gl.genBuffers(@intCast(vbo_num), @ptrCast(&vbos));
             gl.bindVertexArray(vao);
+            defer gl.bindVertexArray(0);
 
             var mesh = @This(){
                 .vao = vao,
-                .vbos = null,
+                .vbos = vbos,
                 .ebo = null,
                 .strides = undefined,
                 .vert_count = null,
+                .index_count = null,
+                .index_type = null,
             };
-
             errdefer mesh.kill();
-            mesh.upload(verts);
-            const vbos = mesh.vbos orelse return error.UploadFailure;
 
             inline for (0..attrs.len) |i| {
                 gl.bindBuffer(gl.ARRAY_BUFFER, vbos[i]);
-
-                try init_attrs(attrs[i], &mesh.strides[i], shader);
-
+                try initAttrs(attrs[i], &mesh.strides[i], shader);
                 mesh.strides[i] /= try glSizeOf(attrs[i][0].type);
+                gl.bindBuffer(gl.ARRAY_BUFFER, 0);
             }
-
-            if (indices) |ids| {
-                const usage: gl.GLenum = gl.STATIC_DRAW;
-                var ebo: gl.GLuint = undefined;
-                gl.genBuffers(1, &ebo);
-                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo);
-                gl.bufferData(
-                    gl.ELEMENT_ARRAY_BUFFER,
-                    @intCast(ids.len * @sizeOf(@TypeOf(ids[0]))),
-                    @ptrCast(ids),
-                    usage,
-                );
-                mesh.ebo = ebo;
-            }
-
-            mesh.vert_count = verts[0].len / mesh.strides[0];
-
-            gl.enableVertexAttribArray(0);
-            gl.bindBuffer(gl.ARRAY_BUFFER, 0);
-            gl.bindVertexArray(0);
 
             try glError();
-
             return mesh;
         }
 
@@ -84,63 +64,112 @@ pub fn Mesh(comptime vbo_num: usize) type {
         }
 
         pub fn draw(mesh: @This(), mode: gl.GLenum) void {
-            const vert_count = mesh.vert_count orelse return;
-            const vao = mesh.vao orelse return;
             if (mesh.vbos == null) return;
 
-            gl.bindVertexArray(vao);
+            gl.bindVertexArray(mesh.vao orelse return);
+            defer gl.bindVertexArray(0);
             if (mesh.ebo == null) {
                 gl.drawArrays(
                     mode,
                     0,
-                    @intCast(vert_count),
+                    @intCast(mesh.vert_count orelse return),
                 );
             } else {
                 gl.drawElements(
                     mode,
-                    @intCast(vert_count),
-                    gl.UNSIGNED_INT,
+                    @intCast(mesh.index_count orelse return),
+                    mesh.index_type orelse return,
                     null,
                 );
             }
-            gl.bindVertexArray(0);
         }
 
-        pub fn upload(mesh: *@This(), verts: anytype) void {
-            if (mesh.vbos == null) {
-                var vbos: [vbo_num]gl.GLuint = undefined;
-                gl.genBuffers(@intCast(verts.len), @ptrCast(&vbos));
-                mesh.vbos = vbos;
-            }
+        pub fn upload(mesh: *@This(), verts: anytype) !void {
             const vbos = mesh.vbos orelse unreachable;
+            if (verts.len != vbo_num and verts.len != 0) {
+                std.log.err("Mismatch between verts.len({}) and vbos.len ({})\n", .{ vbo_num, vbo_num });
+                return error.BadVertArrCount;
+            }
 
             // Get the current buffer size
             var signed_size: gl.GLint64 = undefined;
             gl.bindBuffer(gl.ARRAY_BUFFER, vbos[0]);
             gl.getBufferParameteri64v(gl.ARRAY_BUFFER, gl.BUFFER_SIZE, @ptrCast(&signed_size));
             const size: usize = @intCast(signed_size);
-            const size_needed: usize = verts[0].len * @sizeOf(@TypeOf(verts[0][0]));
+            const size_needed: usize = if (verts.len > 0) verts[0].len * @sizeOf(@TypeOf(verts[0][0])) else 0;
 
             // If we already have enough size then avoid reallocation
             // Reallocate if we have much more than we need
             const reuse = size >= size_needed and
                 (size < size_needed * 2 or size - size_needed < 64);
 
-            inline for (vbos, verts) |vbo, vert| {
-                const vert_size: gl.GLsizeiptr = @intCast(vert.len * @sizeOf(@TypeOf(vert[0])));
+            inline for (vbos, 0..) |vbo, i| {
+                const vert_size: gl.GLsizeiptr = if (verts.len > 0) @intCast(verts[i].len * @sizeOf(@TypeOf(verts[i][0]))) else 0;
                 gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
                 if (reuse) {
-                    gl.bufferSubData(gl.ARRAY_BUFFER, 0, vert_size, @ptrCast(vert));
+                    gl.bufferSubData(gl.ARRAY_BUFFER, 0, vert_size, if (verts.len > 0) @ptrCast(verts[i]) else null);
                 } else {
-                    // TODO allocate a little extra to reduce resize frequency
-                    gl.bufferData(gl.ARRAY_BUFFER, vert_size, @ptrCast(vert), gl.STATIC_DRAW);
+                    // TODO allocate a little extra to reduce resize frequency?
+                    gl.bufferData(gl.ARRAY_BUFFER, vert_size, if (verts.len > 0) @ptrCast(verts[i]) else null, gl.STATIC_DRAW);
                 }
             }
 
             gl.bindBuffer(gl.ARRAY_BUFFER, 0);
+            mesh.vert_count = if (verts.len > 0) verts[0].len / mesh.strides[0] else 0;
+            try glError();
         }
 
-        fn init_attrs(attrs: []Attr, stride: *usize, shader: ?Shader) !void {
+        pub fn uploadIndices(mesh: *@This(), indices: anytype) !void {
+            // Use null to delete the element buffer
+            if (@TypeOf(indices) == @TypeOf(null)) {
+                if (mesh.ebo) |ebo| {
+                    gl.deleteBuffers(1, &ebo);
+                    mesh.ebo = null;
+                    gl.bindVertexArray(mesh.vao orelse return);
+                    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, 0);
+                    gl.bindVertexArray(0);
+                    mesh.index_count = null;
+                    mesh.index_type = null;
+                }
+                return;
+            }
+            if (mesh.ebo == null) {
+                var ebo: gl.GLuint = undefined;
+                gl.genBuffers(1, &ebo);
+                mesh.ebo = ebo;
+                gl.bindVertexArray(mesh.vao orelse return);
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo);
+                gl.bindVertexArray(0);
+            }
+            const ebo = mesh.ebo orelse unreachable;
+
+            // Get the current buffer size
+            var signed_size: gl.GLint64 = undefined;
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo);
+            defer gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, 0);
+            gl.getBufferParameteri64v(gl.ELEMENT_ARRAY_BUFFER, gl.BUFFER_SIZE, @ptrCast(&signed_size));
+            const size: usize = @intCast(signed_size);
+            const size_needed: usize = if (indices.len > 0) indices.len * @sizeOf(@TypeOf(indices[0])) else 0;
+
+            // If we already have enough size then avoid reallocation
+            // Reallocate if we have much more than we need
+            const reuse = size >= size_needed and
+                (size < size_needed * 2 or size - size_needed < 64);
+
+            const ids_size: gl.GLsizeiptr = if (indices.len > 0) @intCast(indices.len * @sizeOf(@TypeOf(indices[0]))) else 0;
+            if (reuse) {
+                gl.bufferSubData(gl.ELEMENT_ARRAY_BUFFER, 0, ids_size, if (indices.len > 0) @ptrCast(indices) else null);
+            } else {
+                // TODO allocate a little extra to reduce resize frequency?
+                gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, ids_size, if (indices.len > 0) @ptrCast(indices) else null, gl.STATIC_DRAW);
+            }
+
+            mesh.index_count = indices.len;
+            mesh.index_type = if (indices.len > 0) try glIndexType(@TypeOf(indices[0])) else null;
+            try glError();
+        }
+
+        fn initAttrs(attrs: []Attr, stride: *usize, shader: ?Shader) !void {
             stride.* = 0;
             for (attrs) |attr| stride.* += attr.size * try glSizeOf(attr.type);
 
@@ -168,13 +197,13 @@ pub fn Mesh(comptime vbo_num: usize) type {
                         }
                     }
 
-                    init_attr(index, attr, @intCast(stride.*), first);
+                    initAttr(index, attr, @intCast(stride.*), first);
                 }
                 first += attr.size * try glSizeOf(attr.type);
             }
         }
 
-        fn init_attr(index: gl.GLuint, attr: Attr, stride: gl.GLsizei, first: usize) void {
+        fn initAttr(index: gl.GLuint, attr: Attr, stride: gl.GLsizei, first: usize) void {
             gl.enableVertexAttribArray(index);
 
             const force_cast_to_float = false;
@@ -234,6 +263,15 @@ pub fn Mesh(comptime vbo_num: usize) type {
                 gl.FIXED => @sizeOf(gl.GLfixed),
                 gl.HALF_FLOAT => @sizeOf(gl.GLhalf),
                 else => error.UnknownOpenGlEnum,
+            };
+        }
+
+        fn glIndexType(comptime T: type) !gl.GLenum {
+            return switch (T) {
+                gl.GLubyte => gl.UNSIGNED_BYTE,
+                gl.GLushort => gl.UNSIGNED_SHORT,
+                gl.GLuint => gl.UNSIGNED_INT,
+                else => error.InvalidOpenGlIndexType,
             };
         }
     };

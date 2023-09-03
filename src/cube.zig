@@ -23,12 +23,10 @@ pub const Cube = struct {
                     .{ .name = "colour", .size = 3, .type = gl.FLOAT },
                 }),
             },
-            .{cube.verts.items},
-            null,
             null,
         );
         errdefer cube.mesh.kill();
-
+        try cube.mesh.upload(.{cube.verts.items});
         return cube;
     }
 
