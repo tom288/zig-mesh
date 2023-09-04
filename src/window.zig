@@ -3,34 +3,38 @@ const glfw = @import("mach-glfw");
 const gl = @import("gl");
 const zm = @import("zmath");
 
-const log = std.log.scoped(.Engine);
-var windows: usize = 0;
-
 pub const Window = struct {
+    var windows: usize = 0;
+
     window: glfw.Window,
     clear_mask: gl.GLbitfield,
     resolution: zm.Vec,
+    new_viewport: ?glfw.Window.Size,
     time: ?f32,
     delta: f32,
     mouse_pos: ?zm.Vec,
     mouse_delta: zm.Vec,
+    scroll_delta: zm.Vec,
     binds: std.AutoHashMap(glfw.Key, Action),
     actionState: [@typeInfo(Action).Enum.fields.len]bool,
     input: zm.Vec,
-    scroll_delta: zm.Vec,
 
-    const InitError = error{
-        GlfwInitFailure,
-        MonitorUnobtainable,
-        VideoModeUnobtainable,
-        WindowCreationFailure,
+    const Action = enum {
+        left,
+        right,
+        ascend,
+        descend,
+        forward,
+        backward,
+        attack1,
+        attack2,
     };
 
     pub fn init(alloc: std.mem.Allocator) !Window {
         // Ensure GLFW errors are logged
         glfw.setErrorCallback(errorCallback);
 
-        const fullscreen = false;
+        const windowed = true;
         const resizable = false;
         const show_cursor = false;
         const raw_input = true;
@@ -43,35 +47,25 @@ pub const Window = struct {
 
         // If we currently have no windows then initialise GLFW
         if (windows == 0 and !glfw.init(.{})) {
-            std.log.err("failed to initialize GLFW: {?s}", .{glfw.getErrorString()});
-            return InitError.GlfwInitFailure;
+            std.log.err("Failed to initialize GLFW: {?s}", .{glfw.getErrorString()});
+            return error.GlfwInitFailure;
         }
         errdefer if (windows == 0) glfw.terminate();
 
         // Obtain primary monitor
         const monitor = glfw.Monitor.getPrimary() orelse {
-            std.log.err("failed to get primary monitor: {?s}", .{glfw.getErrorString()});
-            return InitError.MonitorUnobtainable;
+            std.log.err("Failed to get primary monitor: {?s}", .{glfw.getErrorString()});
+            return error.MonitorUnobtainable;
         };
 
-        // Obtain video mode of monitor
-        const mode = glfw.Monitor.getVideoMode(monitor) orelse {
-            std.log.err("failed to get video mode of primary monitor: {?s}", .{glfw.getErrorString()});
-            return InitError.VideoModeUnobtainable;
-        };
-
-        // Use scale to make window smaller than primary monitor
-        const scale: f32 = if (fullscreen) 1 else 900.0 / 1080.0;
-        const scale_gap = (1 - scale) / 2;
-        const width: f32 = @floatFromInt(mode.getWidth());
-        const height: f32 = @floatFromInt(mode.getHeight());
+        const resolution = try calcResolution(windowed);
 
         // Create our window
         const window = glfw.Window.create(
-            @intFromFloat(width * scale),
-            @intFromFloat(height * scale),
+            @intFromFloat(resolution[0]),
+            @intFromFloat(resolution[1]),
             "zig-mesh",
-            if (fullscreen) monitor else null,
+            if (windowed) null else monitor,
             null,
             .{
                 .opengl_profile = .opengl_core_profile,
@@ -79,18 +73,14 @@ pub const Window = struct {
                 .context_version_minor = 1,
                 .resizable = resizable,
                 .samples = msaa_samples,
+                .position_x = @intFromFloat(resolution[2]),
+                .position_y = @intFromFloat(resolution[3]),
             },
         ) orelse {
-            std.log.err("failed to create GLFW window: {?s}", .{glfw.getErrorString()});
-            return InitError.WindowCreationFailure;
+            std.log.err("Failed to create GLFW window: {?s}", .{glfw.getErrorString()});
+            return error.WindowCreationFailure;
         };
         errdefer window.destroy();
-
-        // Centre the window
-        if (!fullscreen) window.setPos(.{
-            @intFromFloat(width * scale_gap),
-            @intFromFloat(height * scale_gap),
-        });
 
         // Listen to window input
         window.setKeyCallback(keyCallback);
@@ -110,7 +100,7 @@ pub const Window = struct {
 
         const proc: glfw.GLProc = undefined;
         gl.load(proc, glGetProcAddress) catch |err| {
-            std.log.err("failed to load OpenGL: {}", .{err});
+            std.log.err("Failed to load OpenGL: {}", .{err});
             return err;
         };
 
@@ -149,15 +139,16 @@ pub const Window = struct {
         return Window{
             .window = window,
             .clear_mask = clear_mask,
-            .resolution = zm.loadArr2([2]f32{ width * scale, height * scale }),
+            .resolution = resolution,
+            .new_viewport = null,
             .time = null,
             .delta = 0,
             .mouse_pos = null,
             .mouse_delta = @splat(0),
+            .scroll_delta = @splat(0),
             .binds = binds,
             .actionState = undefined,
             .input = @splat(0),
-            .scroll_delta = @splat(0),
         };
     }
 
@@ -201,6 +192,10 @@ pub const Window = struct {
         if (action.active(Action.ascend)) win.input[1] += 1;
         if (action.active(Action.backward)) win.input[2] -= 1;
         if (action.active(Action.forward)) win.input[2] += 1;
+        if (win.new_viewport) |size| {
+            gl.viewport(0, 0, @intCast(size.width), @intCast(size.height));
+            win.mouse_pos = null;
+        }
         return !win.window.shouldClose();
     }
 
@@ -216,55 +211,98 @@ pub const Window = struct {
     pub fn swap(win: Window) void {
         win.window.swapBuffers();
     }
+
+    fn toggleWindowed(win: *Window) !void {
+        const windowed = win.window.getMonitor() == null;
+        const resolution = try calcResolution(!windowed);
+
+        const monitor = if (windowed) (glfw.Monitor.getPrimary() orelse {
+            std.log.err("Failed to get primary monitor: {?s}", .{glfw.getErrorString()});
+            return error.MonitorUnobtainable;
+        }) else null;
+
+        win.resolution = resolution;
+        win.window.setMonitor(
+            monitor,
+            @intFromFloat(resolution[2]),
+            @intFromFloat(resolution[3]),
+            @intFromFloat(resolution[0]),
+            @intFromFloat(resolution[1]),
+            null,
+        );
+
+        const size = win.window.getFramebufferSize();
+        if (size.width == 0 or size.height == 0) {
+            std.log.err("Failed to get primary monitor: {?s}", .{glfw.getErrorString()});
+            return error.FramebufferUnobtainable;
+        }
+        win.new_viewport = size;
+    }
+
+    fn calcResolution(windowed: bool) !zm.Vec {
+        // Obtain primary monitor
+        const monitor = glfw.Monitor.getPrimary() orelse {
+            std.log.err("Failed to get primary monitor: {?s}", .{glfw.getErrorString()});
+            return error.MonitorUnobtainable;
+        };
+
+        // Obtain video mode of monitor
+        const mode = glfw.Monitor.getVideoMode(monitor) orelse {
+            std.log.err("Failed to get video mode of primary monitor: {?s}", .{glfw.getErrorString()});
+            return error.VideoModeUnobtainable;
+        };
+
+        // Use scale to make window smaller than primary monitor
+        const scale: f32 = if (windowed) 900.0 / 1080.0 else 1;
+        const scale_gap = (1 - scale) / 2;
+        const size = zm.f32x4(
+            @floatFromInt(mode.getWidth()),
+            @floatFromInt(mode.getHeight()),
+            @floatFromInt(mode.getWidth()),
+            @floatFromInt(mode.getHeight()),
+        );
+        return size * zm.f32x4(scale, scale, scale_gap, scale_gap);
+    }
+
+    fn glGetProcAddress(p: glfw.GLProc, proc: [:0]const u8) ?gl.FunctionPointer {
+        _ = p;
+        return glfw.getProcAddress(proc);
+    }
+
+    fn errorCallback(error_code: glfw.ErrorCode, description: [:0]const u8) void {
+        std.log.err("GLFW: {}: {s}", .{ error_code, description });
+    }
+
+    fn keyCallback(window: glfw.Window, key: glfw.Key, scancode: i32, action: glfw.Action, mods: glfw.Mods) void {
+        _ = scancode;
+        if (key == glfw.Key.escape) window.setShouldClose(true);
+        const win = window.getUserPointer(Window) orelse unreachable;
+        if ((key == glfw.Key.enter or key == glfw.Key.enter) and action == glfw.Action.press and mods.alt) {
+            win.toggleWindowed() catch return;
+        }
+        const target = win.binds.get(key) orelse return;
+        win.actionState[@intFromEnum(target)] = action != glfw.Action.release;
+    }
+
+    fn mouseButtonCallback(window: glfw.Window, button: glfw.MouseButton, action: glfw.Action, mods: glfw.Mods) void {
+        _ = mods;
+        _ = action;
+        _ = button;
+        _ = window;
+    }
+
+    fn cursorPosCallback(window: glfw.Window, xpos: f64, ypos: f64) void {
+        const win = window.getUserPointer(Window) orelse unreachable;
+        const new_pos = zm.loadArr2([2]f32{
+            @floatCast(xpos),
+            @floatCast(win.resolution[1] - ypos - 1),
+        });
+        if (win.mouse_pos) |pos| win.mouse_delta += new_pos - pos;
+        win.mouse_pos = new_pos;
+    }
+
+    fn scrollCallback(window: glfw.Window, xoffset: f64, yoffset: f64) void {
+        const win = window.getUserPointer(Window) orelse unreachable;
+        win.scroll_delta += zm.loadArr2([2]f32{ @floatCast(xoffset), @floatCast(yoffset) });
+    }
 };
-
-const Action = enum {
-    left,
-    right,
-    ascend,
-    descend,
-    forward,
-    backward,
-    attack1,
-    attack2,
-};
-
-fn glGetProcAddress(p: glfw.GLProc, proc: [:0]const u8) ?gl.FunctionPointer {
-    _ = p;
-    return glfw.getProcAddress(proc);
-}
-
-fn errorCallback(error_code: glfw.ErrorCode, description: [:0]const u8) void {
-    std.log.err("glfw: {}: {s}", .{ error_code, description });
-}
-
-fn keyCallback(window: glfw.Window, key: glfw.Key, scancode: i32, action: glfw.Action, mods: glfw.Mods) void {
-    _ = mods;
-    _ = scancode;
-    if (key == glfw.Key.escape) window.setShouldClose(true);
-    const win = window.getUserPointer(Window) orelse unreachable;
-    const target = win.binds.get(key) orelse return;
-    win.actionState[@intFromEnum(target)] = action != glfw.Action.release;
-}
-
-fn mouseButtonCallback(window: glfw.Window, button: glfw.MouseButton, action: glfw.Action, mods: glfw.Mods) void {
-    _ = mods;
-    _ = action;
-    _ = button;
-    _ = window;
-}
-
-fn cursorPosCallback(window: glfw.Window, xpos: f64, ypos: f64) void {
-    const win = window.getUserPointer(Window) orelse unreachable;
-    const new_pos = zm.loadArr2([2]f32{
-        @floatCast(xpos),
-        @floatCast(win.resolution[1] - ypos - 1),
-    });
-    if (win.mouse_pos) |pos| win.mouse_delta += new_pos - pos;
-    win.mouse_pos = new_pos;
-}
-
-fn scrollCallback(window: glfw.Window, xoffset: f64, yoffset: f64) void {
-    const win = window.getUserPointer(Window) orelse unreachable;
-    win.scroll_delta += zm.loadArr2([2]f32{ @floatCast(xoffset), @floatCast(yoffset) });
-}
