@@ -20,9 +20,9 @@ pub const Chunk = struct {
         var chunk = Chunk{
             .alloc = alloc,
             .offset = zm.f32x4(
-                0.5 - 0.5 * @as(comptime_float, SIZE),
-                0.5 - 0.5 * @as(comptime_float, SIZE),
-                0.5 - 1.5 * @as(comptime_float, SIZE),
+                0.5 * -@as(comptime_float, SIZE),
+                0.5 * -@as(comptime_float, SIZE),
+                1.5 * -@as(comptime_float, SIZE),
                 0,
             ),
             .density = &.{},
@@ -59,7 +59,7 @@ pub const Chunk = struct {
     }
 
     fn genDensity(chunk: *Chunk) !void {
-        const variant = 5;
+        const variant = 7;
         var timer = try std.time.Timer.start();
         switch (variant) {
             0, 1 => { // Empty, Full
@@ -73,14 +73,9 @@ pub const Chunk = struct {
                 }
             },
             3 => { // Max vertex density
-                var index: usize = 0;
-                for (0..SIZE) |z| {
-                    for (0..SIZE) |y| {
-                        for (0..SIZE) |x| {
-                            chunk.density[index] = @floatFromInt((x + y + z) % 2);
-                            index += 1;
-                        }
-                    }
+                for (0..chunk.density.len) |i| {
+                    const pos = posFromIndex(i);
+                    chunk.density[i] = @mod(pos[0] + pos[1] + pos[2] - 0.5, 2);
                 }
             },
             4 => { // Gradient noise (perlin)
@@ -100,6 +95,24 @@ pub const Chunk = struct {
                 for (0..chunk.density.len) |i| {
                     const pos = posFromIndex(i);
                     chunk.density[i] = gen.noise3(pos[0], pos[1], pos[2]);
+                }
+            },
+            6 => { // Smooth sphere
+                const rad = @as(f32, SIZE) / 2;
+                for (0..chunk.density.len) |i| {
+                    const pos = posFromIndex(i);
+                    chunk.density[i] = rad - zm.length3(pos - zm.f32x4s(rad))[0];
+                }
+            },
+            7 => { // Splattered sphere
+                const gen = znoise.FnlGenerator{
+                    .frequency = 8 / @as(f32, SIZE),
+                };
+                const rad = @as(f32, SIZE) / 2;
+                for (0..chunk.density.len) |i| {
+                    const pos = posFromIndex(i);
+                    chunk.density[i] = rad - zm.length3(pos - zm.f32x4s(rad))[0] - rad * 0.08;
+                    chunk.density[i] += gen.noise3(pos[0], pos[1], pos[2]) * rad * 0.1;
                 }
             },
             else => unreachable,
@@ -154,7 +167,7 @@ pub const Chunk = struct {
     }
 
     fn indexFromPos(pos: zm.Vec) !usize {
-        const floor = zm.floor(pos + zm.f32x4s(0.5));
+        const floor = zm.floor(pos);
         var index: usize = 0;
         for (0..3) |d| {
             const i = 2 - d;
@@ -180,6 +193,6 @@ pub const Chunk = struct {
             @floatFromInt(index / SIZE % SIZE),
             @floatFromInt(index / SIZE / SIZE),
             0,
-        );
+        ) + zm.f32x4(0.5, 0.5, 0.5, 0);
     }
 };
