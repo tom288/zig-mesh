@@ -2,7 +2,7 @@ const std = @import("std");
 const zm = @import("zmath");
 const Window = @import("window.zig").Window;
 const Shader = @import("shader.zig").Shader;
-const Cube = @import("cube.zig").Cube;
+const Chunk = @import("chunk.zig").Chunk;
 const Camera = @import("camera.zig").Camera;
 
 pub fn main() !void {
@@ -20,8 +20,8 @@ pub fn main() !void {
     );
     defer shader.kill();
 
-    var cube = try Cube.init(alloc);
-    defer cube.kill();
+    var chunk = try Chunk.init(alloc);
+    defer chunk.kill();
 
     var camera = Camera.init(window.resolution);
 
@@ -33,10 +33,11 @@ pub fn main() !void {
         window.clearColour(0.1, 0, 0.2, 1);
 
         shader.use();
-        shader.set("model", f32, &zm.matToArr(zm.identity()));
         shader.set("view", f32, &zm.matToArr(camera.view));
         shader.set("projection", f32, &zm.matToArr(camera.proj));
-        cube.draw();
+
+        shader.set("model", f32, &zm.matToArr(zm.translationV(chunk.offset)));
+        chunk.draw();
 
         window.swap();
     }

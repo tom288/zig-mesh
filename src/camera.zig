@@ -1,5 +1,6 @@
 const std = @import("std");
 const zm = @import("zmath");
+const Chunk = @import("chunk.zig").Chunk;
 
 pub const Camera = struct {
     // Kinematics
@@ -69,7 +70,7 @@ pub const Camera = struct {
         }
 
         const power = time_delta * (1 - zm.length3(acc)[0]) * FRICTION;
-        cam.velocity *= zm.f32x4s(std.math.pow(f32, 2, -power));
+        cam.velocity *= @splat(std.math.pow(f32, 2, -power));
         cam.position += cam.velocity * zm.f32x4s(time_delta);
 
         cam.calcView();
@@ -111,7 +112,7 @@ pub const Camera = struct {
     }
 };
 
-const SPEED = 3.2;
+const SPEED = @as(comptime_float, Chunk.SIZE) / 2.0;
 const SCROLL = 0.2;
 const ACC_TIME = 0.1;
 const FRICTION = 12.5;
