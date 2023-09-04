@@ -24,7 +24,7 @@ pub const Camera = struct {
             .position = @splat(0),
             .velocity = @splat(0),
 
-            .yaw = 0,
+            .yaw = -90,
             .pitch = 0,
             .aspect = resolution[0] / resolution[1],
             .fov = undefined,
@@ -89,7 +89,7 @@ pub const Camera = struct {
     }
 
     fn calcVecs(cam: *Camera) void {
-        const y = std.math.degreesToRadians(f32, 90 - cam.yaw);
+        const y = std.math.degreesToRadians(f32, cam.yaw);
         const p = std.math.degreesToRadians(f32, cam.pitch);
         const c = @cos(p);
         cam.look = zm.normalize3(zm.f32x4(@cos(y) * c, @sin(p), @sin(y) * c, 0));
@@ -104,11 +104,11 @@ pub const Camera = struct {
     }
 
     fn calcView(cam: *Camera) void {
-        cam.view = zm.lookToLh(cam.position, cam.look, UP);
+        cam.view = zm.lookToRh(cam.position, cam.look, UP);
     }
 
     fn calcProj(cam: *Camera) void {
-        cam.proj = zm.perspectiveFovLhGl(cam.fov, cam.aspect, NEAR, FAR);
+        cam.proj = zm.perspectiveFovRhGl(cam.fov, cam.aspect, NEAR, FAR);
     }
 };
 

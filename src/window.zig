@@ -195,12 +195,12 @@ pub const Window = struct {
 
         glfw.pollEvents();
         win.input = @splat(0);
-        if (action.active(Action.left)) win.input[0] += 1;
-        if (action.active(Action.right)) win.input[0] -= 1;
-        if (action.active(Action.ascend)) win.input[1] += 1;
+        if (action.active(Action.left)) win.input[0] -= 1;
+        if (action.active(Action.right)) win.input[0] += 1;
         if (action.active(Action.descend)) win.input[1] -= 1;
-        if (action.active(Action.forward)) win.input[2] += 1;
+        if (action.active(Action.ascend)) win.input[1] += 1;
         if (action.active(Action.backward)) win.input[2] -= 1;
+        if (action.active(Action.forward)) win.input[2] += 1;
         return !win.window.shouldClose();
     }
 

@@ -18,9 +18,9 @@ pub const Chunk = struct {
     pub fn init(alloc: std.mem.Allocator) !Chunk {
         var chunk = Chunk{
             .offset = zm.f32x4(
-                0.5 - @as(comptime_float, SIZE) / 2.0,
-                0.5 - @as(comptime_float, SIZE) / 2.0,
-                @as(comptime_float, SIZE) / 2.0 + 0.5,
+                0.5 - 0.5 * @as(comptime_float, SIZE),
+                0.5 - 0.5 * @as(comptime_float, SIZE),
+                0.5 - 1.5 * @as(comptime_float, SIZE),
                 0,
             ),
             .density = undefined,
@@ -49,7 +49,7 @@ pub const Chunk = struct {
     }
 
     fn genDensity(chunk: *Chunk) !void {
-        const variant = 2;
+        const variant = 5;
         var timer = try std.time.Timer.start();
         switch (variant) {
             0, 1 => { // Empty, Full
@@ -85,7 +85,6 @@ pub const Chunk = struct {
             },
             5 => { // Gradient noise (opensimplex2)
                 const gen = znoise.FnlGenerator{
-                    .seed = 10,
                     .frequency = 1.7 / @as(f32, SIZE),
                 };
                 for (0..chunk.density.len) |i| {
@@ -118,8 +117,8 @@ pub const Chunk = struct {
                 // Vertices
                 for (0..3) |v| {
                     var vert = (pos + neighbour) / zm.f32x4s(2);
-                    vert[(f / 2 + 1) % 3] += if ((t + v + f % 2) % 2 == 0) -0.5 else 0.5;
-                    vert[(f / 2 + 2) % 3] += if (v / 2 == t) -0.5 else 0.5;
+                    vert[(f / 2 + 1) % 3] += if ((t + v + f) % 2 == 0) -0.5 else 0.5;
+                    vert[(f / 2 + 2) % 3] += if (v / 2 != t) -0.5 else 0.5;
                     // Vertex positions
                     for (0..3) |d| try chunk.verts.append(vert[d]);
                     // Vertex colours
@@ -142,7 +141,7 @@ pub const Chunk = struct {
     }
 
     fn indexFromPos(pos: zm.Vec) !usize {
-        const floor = zm.floor(pos);
+        const floor = zm.floor(pos + zm.f32x4s(0.5));
         var index: usize = 0;
         for (0..3) |d| {
             const i = 2 - d;
