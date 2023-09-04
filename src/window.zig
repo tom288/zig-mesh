@@ -70,7 +70,7 @@ pub const Window = struct {
         const window = glfw.Window.create(
             @intFromFloat(width * scale),
             @intFromFloat(height * scale),
-            "mach-glfw + zig-opengl",
+            "zig-mesh",
             if (fullscreen) monitor else null,
             null,
             .{

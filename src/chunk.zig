@@ -5,10 +5,11 @@ const znoise = @import("znoise");
 const Mesh = @import("mesh.zig").Mesh;
 
 pub const Chunk = struct {
-    pub const SIZE = 32;
+    pub const SIZE = 128;
 
+    alloc: std.mem.Allocator,
     offset: zm.Vec,
-    density: [SIZE * SIZE * SIZE]f32,
+    density: []f32,
     verts: std.ArrayList(f32),
     mesh: Mesh(.{.{
         .{ .name = "position", .size = 3, .type = gl.FLOAT },
@@ -17,16 +18,23 @@ pub const Chunk = struct {
 
     pub fn init(alloc: std.mem.Allocator) !Chunk {
         var chunk = Chunk{
+            .alloc = alloc,
             .offset = zm.f32x4(
                 0.5 - 0.5 * @as(comptime_float, SIZE),
                 0.5 - 0.5 * @as(comptime_float, SIZE),
                 0.5 - 1.5 * @as(comptime_float, SIZE),
                 0,
             ),
-            .density = undefined,
-            .verts = std.ArrayList(f32).init(alloc),
+            .density = &.{},
+            .verts = undefined,
             .mesh = undefined,
         };
+
+        chunk.density = try alloc.alloc(f32, SIZE * SIZE * SIZE);
+        errdefer chunk.density = &.{};
+        errdefer alloc.free(chunk.density);
+
+        chunk.verts = std.ArrayList(f32).init(alloc);
         errdefer chunk.verts.deinit();
 
         try chunk.genDensity();
@@ -42,6 +50,8 @@ pub const Chunk = struct {
     pub fn kill(chunk: *Chunk) void {
         chunk.mesh.kill();
         chunk.verts.deinit();
+        chunk.alloc.free(chunk.density);
+        chunk.density = &.{};
     }
 
     pub fn draw(chunk: Chunk) void {
@@ -85,7 +95,7 @@ pub const Chunk = struct {
             },
             5 => { // Gradient noise (opensimplex2)
                 const gen = znoise.FnlGenerator{
-                    .frequency = 1.7 / @as(f32, SIZE),
+                    .frequency = 2 / @as(f32, SIZE),
                 };
                 for (0..chunk.density.len) |i| {
                     const pos = posFromIndex(i);
@@ -95,13 +105,16 @@ pub const Chunk = struct {
             else => unreachable,
         }
         const ns: f32 = @floatFromInt(timer.read());
-        std.debug.print("Variant {} took {d:.3} ms", .{ variant, ns / 1_000_000 });
+        std.debug.print("Density variant {} took {d:.3} ms\n", .{ variant, ns / 1_000_000 });
     }
 
     fn genVerts(chunk: *Chunk) !void {
+        var timer = try std.time.Timer.start();
         for (0..chunk.density.len) |i| {
             try chunk.cubeVerts(posFromIndex(i));
         }
+        const ns: f32 = @floatFromInt(timer.read());
+        std.debug.print("Vertex generation took {d:.3} ms\n", .{ns / 1_000_000});
     }
 
     // Cubes are centered around their position, which is assumed to be integer
@@ -120,9 +133,9 @@ pub const Chunk = struct {
                     vert[(f / 2 + 1) % 3] += if ((t + v + f) % 2 == 0) -0.5 else 0.5;
                     vert[(f / 2 + 2) % 3] += if (v / 2 != t) -0.5 else 0.5;
                     // Vertex positions
-                    for (0..3) |d| try chunk.verts.append(vert[d]);
+                    try chunk.verts.appendSlice(&zm.vecToArr3(vert));
                     // Vertex colours
-                    for (0..3) |d| try chunk.verts.append(vert[d] - pos[d] + 0.5);
+                    try chunk.verts.appendSlice(&zm.vecToArr3(vert - pos + zm.f32x4s(0.5)));
                 }
             }
         }

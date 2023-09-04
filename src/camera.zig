@@ -122,4 +122,4 @@ const PITCH_MAX = 89;
 const UP = zm.f32x4(0, 1, 0, 0);
 
 const NEAR = std.math.pow(f32, 2, -4);
-const FAR = std.math.pow(f32, 2, 10);
+const FAR = std.math.pow(f32, 2, 12);
