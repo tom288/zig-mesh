@@ -138,17 +138,43 @@ pub const Chunk = struct {
             var neighbour = pos;
             neighbour[f / 2] += if (f % 2 == 0) -1 else 1;
             if (chunk.full(neighbour) orelse false) continue;
+            // Sample voxel occlusion
+            var occlusion: [8]bool = undefined;
+            for (0..4) |e| {
+                // Voxels that share edges
+                var occluder = neighbour;
+                occluder[(e / 2 + f / 2 + 1) % 3] += if (e % 2 > 0) 1.0 else -1.0;
+                occlusion[e] = chunk.full(occluder) orelse false;
+                // Voxels that share corners
+                var corner = neighbour;
+                corner[(f / 2 + 1) % 3] += if (e % 2 > 0) 1.0 else -1.0;
+                corner[(f / 2 + 2) % 3] += if (e / 2 > 0) 1.0 else -1.0;
+                occlusion[e + 4] = chunk.full(corner) orelse false;
+            }
             // Triangles
             for (0..2) |t| {
                 // Vertices
                 for (0..3) |v| {
                     var vert = (pos + neighbour) / zm.f32x4s(2);
-                    vert[(f / 2 + 1) % 3] += if ((t + v + f) % 2 == 0) -0.5 else 0.5;
-                    vert[(f / 2 + 2) % 3] += if (v / 2 != t) -0.5 else 0.5;
+                    const x = (t + v + f) % 2 > 0;
+                    const y = v / 2 == t;
+                    vert[(f / 2 + 1) % 3] += if (x) 0.5 else -0.5;
+                    vert[(f / 2 + 2) % 3] += if (y) 0.5 else -0.5;
                     // Vertex positions
                     try chunk.verts.appendSlice(&zm.vecToArr3(vert));
                     // Vertex colours
-                    try chunk.verts.appendSlice(&zm.vecToArr3(vert - pos + zm.f32x4s(0.5)));
+                    var colour = vert / zm.f32x4s(@floatFromInt(SIZE));
+                    // Accumulate occlusion
+                    var occ: usize = 0;
+                    if (occlusion[if (x) 1 else 0]) occ += 1;
+                    if (occlusion[if (y) 3 else 2]) occ += 1;
+                    if (occlusion[
+                        4 + @as(usize, if (x) 1 else 0) +
+                            @as(usize, if (y) 2 else 0)
+                    ]) occ += 1;
+                    // Darken occluded vertices
+                    for (0..occ) |_| colour /= zm.f32x4s(1.1);
+                    try chunk.verts.appendSlice(&zm.vecToArr3(colour));
                 }
             }
         }
