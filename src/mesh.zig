@@ -22,7 +22,7 @@ pub fn Mesh(comptime attrs: anytype) type {
             var vao: gl.GLuint = undefined;
             var vbos: [attrs.len]gl.GLuint = undefined;
             gl.genVertexArrays(1, &vao);
-            gl.genBuffers(@intCast(attrs.len), @ptrCast(&vbos));
+            gl.genBuffers(@intCast(attrs.len), &vbos);
             gl.bindVertexArray(vao);
             defer gl.bindVertexArray(0);
 
@@ -49,6 +49,9 @@ pub fn Mesh(comptime attrs: anytype) type {
         }
 
         pub fn kill(mesh: *@This()) void {
+            mesh.vert_count = null;
+            mesh.index_count = null;
+            mesh.index_type = null;
             if (mesh.ebo) |ebo| {
                 gl.deleteBuffers(1, &ebo);
                 mesh.ebo = null;
@@ -64,21 +67,21 @@ pub fn Mesh(comptime attrs: anytype) type {
         }
 
         pub fn draw(mesh: @This(), mode: gl.GLenum) void {
-            gl.bindVertexArray(mesh.vao orelse unreachable);
+            gl.bindVertexArray(mesh.vao.?);
             defer gl.bindVertexArray(0);
             if (mesh.ebo == null) {
                 if (mesh.vert_count orelse 0 == 0) return;
                 gl.drawArrays(
                     mode,
                     0,
-                    @intCast(mesh.vert_count orelse unreachable),
+                    @intCast(mesh.vert_count.?),
                 );
             } else {
                 if (mesh.index_count orelse 0 == 0) return;
                 gl.drawElements(
                     mode,
-                    @intCast(mesh.index_count orelse unreachable),
-                    mesh.index_type orelse unreachable,
+                    @intCast(mesh.index_count.?),
+                    mesh.index_type.?,
                     null,
                 );
             }
@@ -86,7 +89,7 @@ pub fn Mesh(comptime attrs: anytype) type {
 
         // Expects an empty 1D array or a 2D array
         pub fn upload(mesh: *@This(), verts: anytype) !void {
-            const vbos = mesh.vbos orelse unreachable;
+            const vbos = mesh.vbos.?;
             if (verts.len != attrs.len and verts.len != 0) {
                 std.log.err("Mismatch between verts.len({}) and vbos.len ({})\n", .{ verts.len, attrs.len });
                 return error.BadVertArrCount;
@@ -95,7 +98,7 @@ pub fn Mesh(comptime attrs: anytype) type {
             // Get the current buffer size
             var signed_size: gl.GLint64 = undefined;
             gl.bindBuffer(gl.ARRAY_BUFFER, vbos[0]);
-            gl.getBufferParameteri64v(gl.ARRAY_BUFFER, gl.BUFFER_SIZE, @ptrCast(&signed_size));
+            gl.getBufferParameteri64v(gl.ARRAY_BUFFER, gl.BUFFER_SIZE, &signed_size);
             const size: usize = @intCast(signed_size);
             const size_needed: usize = if (verts.len > 0 and verts[0].len > 0) verts[0].len * @sizeOf(@TypeOf(verts[0][0])) else 0;
 
@@ -104,14 +107,14 @@ pub fn Mesh(comptime attrs: anytype) type {
             const reuse = size >= size_needed and
                 (size < size_needed * 2 or size - size_needed < 64);
 
-            inline for (vbos, 0..) |vbo, i| {
+            inline for (0.., vbos) |i, vbo| {
                 const vert_size: gl.GLsizeiptr = if (verts.len > 0 and verts[i].len > 0) @intCast(verts[i].len * @sizeOf(@TypeOf(verts[i][0]))) else 0;
                 gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
                 if (reuse) {
-                    gl.bufferSubData(gl.ARRAY_BUFFER, 0, vert_size, if (verts.len > 0 and verts[i].len > 0) @ptrCast(verts[i]) else null);
+                    gl.bufferSubData(gl.ARRAY_BUFFER, 0, vert_size, if (verts.len > 0 and verts[i].len > 0) &verts[i][0] else null);
                 } else {
                     // TODO allocate a little extra to reduce resize frequency?
-                    gl.bufferData(gl.ARRAY_BUFFER, vert_size, if (verts.len > 0 and verts[i].len > 0) @ptrCast(verts[i]) else null, gl.STATIC_DRAW);
+                    gl.bufferData(gl.ARRAY_BUFFER, vert_size, if (verts.len > 0 and verts[i].len > 0) &verts[i][0] else null, gl.STATIC_DRAW);
                 }
             }
 
@@ -143,13 +146,13 @@ pub fn Mesh(comptime attrs: anytype) type {
                 gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo);
                 gl.bindVertexArray(0);
             }
-            const ebo = mesh.ebo orelse unreachable;
+            const ebo = mesh.ebo.?;
 
             // Get the current buffer size
             var signed_size: gl.GLint64 = undefined;
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo);
             defer gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, 0);
-            gl.getBufferParameteri64v(gl.ELEMENT_ARRAY_BUFFER, gl.BUFFER_SIZE, @ptrCast(&signed_size));
+            gl.getBufferParameteri64v(gl.ELEMENT_ARRAY_BUFFER, gl.BUFFER_SIZE, &signed_size);
             const size: usize = @intCast(signed_size);
             const size_needed: usize = if (indices.len > 0) indices.len * @sizeOf(@TypeOf(indices[0])) else 0;
 
@@ -160,10 +163,10 @@ pub fn Mesh(comptime attrs: anytype) type {
 
             const ids_size: gl.GLsizeiptr = if (indices.len > 0) @intCast(indices.len * @sizeOf(@TypeOf(indices[0]))) else 0;
             if (reuse) {
-                gl.bufferSubData(gl.ELEMENT_ARRAY_BUFFER, 0, ids_size, if (indices.len > 0) @ptrCast(indices) else null);
+                gl.bufferSubData(gl.ELEMENT_ARRAY_BUFFER, 0, ids_size, if (indices.len > 0) indices else null);
             } else {
                 // TODO allocate a little extra to reduce resize frequency?
-                gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, ids_size, if (indices.len > 0) @ptrCast(indices) else null, gl.STATIC_DRAW);
+                gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, ids_size, if (indices.len > 0) indices else null, gl.STATIC_DRAW);
             }
 
             mesh.index_count = indices.len;
@@ -190,7 +193,7 @@ pub fn Mesh(comptime attrs: anytype) type {
                         const id = s.id orelse return error.ShaderWithoutId;
                         const name_index = gl.getAttribLocation(
                             id,
-                            @ptrCast(attr.name),
+                            attr.name,
                         );
                         if (name_index == -1) {
                             std.log.err("Failed to find {s} in shader\n", .{attr.name});

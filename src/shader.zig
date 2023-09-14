@@ -54,7 +54,7 @@ pub const Shader = struct {
     }
 
     pub fn set(shader: Shader, name: [:0]const u8, comptime T: type, value: anytype) void {
-        const id = shader.id orelse unreachable;
+        const id = shader.id.?;
         const location = gl.getUniformLocation(id, name);
         if (location == -1) {
             std.log.err("Failed to find uniform {s}", .{name});
@@ -63,7 +63,7 @@ pub const Shader = struct {
         comptime var indexable = std.meta.trait.isIndexable(@TypeOf(value));
         if (indexable) {
             const vec = @as([]const T, value);
-            const ptr: [*c]const T = @ptrCast(vec);
+            const ptr: [*c]const T = &vec[0];
             switch (vec.len) {
                 1 => (switch (T) {
                     gl.GLfloat => gl.uniform1fv,
@@ -152,7 +152,7 @@ fn compile(comptime name: []const u8, comptime stage: gl.GLenum) gl.GLuint {
             return 0;
         },
     };
-    const buffer: [*c]const [*c]const u8 = @ptrCast(&@embedFile(path));
+    const buffer: [*c]const [*c]const u8 = &&@embedFile(path)[0];
     const id = gl.createShader(stage);
     gl.shaderSource(id, 1, buffer, null);
     gl.compileShader(id);

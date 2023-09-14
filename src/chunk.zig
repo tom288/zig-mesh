@@ -5,10 +5,13 @@ const znoise = @import("znoise");
 const Mesh = @import("mesh.zig").Mesh;
 
 pub const Chunk = struct {
+    pub const EMPTY = Chunk{
+        .density = &.{},
+        .verts = undefined,
+        .mesh = undefined,
+    };
     pub const SIZE = 128;
 
-    alloc: std.mem.Allocator,
-    offset: zm.Vec,
     density: []f32,
     verts: std.ArrayList(f32),
     mesh: Mesh(.{.{
@@ -16,19 +19,8 @@ pub const Chunk = struct {
         .{ .name = "colour", .size = 3, .type = gl.FLOAT },
     }}),
 
-    pub fn init(alloc: std.mem.Allocator) !Chunk {
-        var chunk = Chunk{
-            .alloc = alloc,
-            .offset = zm.f32x4(
-                0.5 * -@as(comptime_float, SIZE),
-                0.5 * -@as(comptime_float, SIZE),
-                1.5 * -@as(comptime_float, SIZE),
-                0,
-            ),
-            .density = &.{},
-            .verts = undefined,
-            .mesh = undefined,
-        };
+    pub fn init(alloc: std.mem.Allocator, offset: zm.Vec) !Chunk {
+        var chunk = EMPTY;
 
         chunk.density = try alloc.alloc(f32, SIZE * SIZE * SIZE);
         errdefer chunk.density = &.{};
@@ -37,8 +29,9 @@ pub const Chunk = struct {
         chunk.verts = std.ArrayList(f32).init(alloc);
         errdefer chunk.verts.deinit();
 
-        try chunk.genDensity();
+        try chunk.genDensity(offset);
         try chunk.genVerts();
+        chunk.verts.shrinkAndFree(chunk.verts.items.len);
 
         chunk.mesh = try @TypeOf(chunk.mesh).init(null);
         errdefer chunk.mesh.kill();
@@ -47,10 +40,10 @@ pub const Chunk = struct {
         return chunk;
     }
 
-    pub fn kill(chunk: *Chunk) void {
+    pub fn kill(chunk: *Chunk, alloc: std.mem.Allocator) void {
         chunk.mesh.kill();
         chunk.verts.deinit();
-        chunk.alloc.free(chunk.density);
+        alloc.free(chunk.density);
         chunk.density = &.{};
     }
 
@@ -58,7 +51,7 @@ pub const Chunk = struct {
         chunk.mesh.draw(gl.TRIANGLES);
     }
 
-    fn genDensity(chunk: *Chunk) !void {
+    fn genDensity(chunk: *Chunk, offset: zm.Vec) !void {
         const variant = 7;
         var timer = try std.time.Timer.start();
         switch (variant) {
@@ -84,7 +77,7 @@ pub const Chunk = struct {
                     .noise_type = znoise.FnlGenerator.NoiseType.perlin,
                 };
                 for (0..chunk.density.len) |i| {
-                    const pos = posFromIndex(i);
+                    const pos = posFromIndex(i) + offset;
                     chunk.density[i] = gen.noise3(pos[0], pos[1], pos[2]);
                 }
             },
@@ -93,14 +86,14 @@ pub const Chunk = struct {
                     .frequency = 2 / @as(f32, SIZE),
                 };
                 for (0..chunk.density.len) |i| {
-                    const pos = posFromIndex(i);
+                    const pos = posFromIndex(i) + offset;
                     chunk.density[i] = gen.noise3(pos[0], pos[1], pos[2]);
                 }
             },
             6 => { // Smooth sphere
                 const rad = @as(f32, SIZE) / 2;
                 for (0..chunk.density.len) |i| {
-                    const pos = posFromIndex(i);
+                    const pos = posFromIndex(i) + offset;
                     chunk.density[i] = rad - zm.length3(pos - zm.f32x4s(rad))[0];
                 }
             },
@@ -110,7 +103,7 @@ pub const Chunk = struct {
                 };
                 const rad = @as(f32, SIZE) / 2;
                 for (0..chunk.density.len) |i| {
-                    const pos = posFromIndex(i);
+                    const pos = posFromIndex(i) + offset;
                     chunk.density[i] = rad - zm.length3(pos - zm.f32x4s(rad))[0] - rad * 0.08;
                     chunk.density[i] += gen.noise3(pos[0], pos[1], pos[2]) * rad * 0.1;
                 }

@@ -127,14 +127,14 @@ pub const Window = struct {
 
         var binds = std.AutoHashMap(glfw.Key, Action).init(alloc);
         errdefer binds.deinit();
-        try binds.put(glfw.Key.w, Action.forward);
-        try binds.put(glfw.Key.s, Action.backward);
-        try binds.put(glfw.Key.a, Action.left);
-        try binds.put(glfw.Key.d, Action.right);
-        try binds.put(glfw.Key.space, Action.ascend);
-        try binds.put(glfw.Key.caps_lock, Action.descend);
-        try binds.put(glfw.Key.left_shift, Action.descend);
-        try binds.put(glfw.Key.left_control, Action.descend);
+        try binds.put(.w, .forward);
+        try binds.put(.s, .backward);
+        try binds.put(.a, .left);
+        try binds.put(.d, .right);
+        try binds.put(.space, .ascend);
+        try binds.put(.caps_lock, .descend);
+        try binds.put(.left_shift, .descend);
+        try binds.put(.left_control, .descend);
 
         return Window{
             .window = window,
@@ -186,12 +186,12 @@ pub const Window = struct {
 
         glfw.pollEvents();
         win.input = @splat(0);
-        if (action.active(Action.left)) win.input[0] -= 1;
-        if (action.active(Action.right)) win.input[0] += 1;
-        if (action.active(Action.descend)) win.input[1] -= 1;
-        if (action.active(Action.ascend)) win.input[1] += 1;
-        if (action.active(Action.backward)) win.input[2] -= 1;
-        if (action.active(Action.forward)) win.input[2] += 1;
+        if (action.active(.left)) win.input[0] -= 1;
+        if (action.active(.right)) win.input[0] += 1;
+        if (action.active(.descend)) win.input[1] -= 1;
+        if (action.active(.ascend)) win.input[1] += 1;
+        if (action.active(.backward)) win.input[2] -= 1;
+        if (action.active(.forward)) win.input[2] += 1;
         if (win.new_viewport) |size| {
             gl.viewport(0, 0, @intCast(size.width), @intCast(size.height));
             win.mouse_pos = null;
@@ -275,13 +275,13 @@ pub const Window = struct {
 
     fn keyCallback(window: glfw.Window, key: glfw.Key, scancode: i32, action: glfw.Action, mods: glfw.Mods) void {
         _ = scancode;
-        if (key == glfw.Key.escape) window.setShouldClose(true);
-        const win = window.getUserPointer(Window) orelse unreachable;
-        if ((key == glfw.Key.enter or key == glfw.Key.enter) and action == glfw.Action.press and mods.alt) {
+        if (key == .escape) window.setShouldClose(true);
+        const win = window.getUserPointer(Window).?;
+        if ((key == .enter or key == .kp_enter) and action == .press and mods.alt) {
             win.toggleWindowed() catch return;
         }
         const target = win.binds.get(key) orelse return;
-        win.actionState[@intFromEnum(target)] = action != glfw.Action.release;
+        win.actionState[@intFromEnum(target)] = action != .release;
     }
 
     fn mouseButtonCallback(window: glfw.Window, button: glfw.MouseButton, action: glfw.Action, mods: glfw.Mods) void {
@@ -292,7 +292,7 @@ pub const Window = struct {
     }
 
     fn cursorPosCallback(window: glfw.Window, xpos: f64, ypos: f64) void {
-        const win = window.getUserPointer(Window) orelse unreachable;
+        const win = window.getUserPointer(Window).?;
         const new_pos = zm.loadArr2([2]f32{
             @floatCast(xpos),
             @floatCast(win.resolution[1] - ypos - 1),
@@ -302,7 +302,7 @@ pub const Window = struct {
     }
 
     fn scrollCallback(window: glfw.Window, xoffset: f64, yoffset: f64) void {
-        const win = window.getUserPointer(Window) orelse unreachable;
+        const win = window.getUserPointer(Window).?;
         win.scroll_delta += zm.loadArr2([2]f32{ @floatCast(xoffset), @floatCast(yoffset) });
     }
 };

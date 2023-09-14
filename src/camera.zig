@@ -1,6 +1,6 @@
 const std = @import("std");
 const zm = @import("zmath");
-const Chunk = @import("chunk.zig").Chunk;
+const World = @import("world.zig").World;
 
 pub const Camera = struct {
     // Kinematics
@@ -21,7 +21,7 @@ pub const Camera = struct {
 
     pub fn init(resolution: zm.Vec) Camera {
         var cam = Camera{
-            .position = @splat(0),
+            .position = zm.f32x4(0.5, 0.5, 1.5, 0) * zm.f32x4s(World.SIZE),
             .velocity = @splat(0),
 
             .yaw = -90,
@@ -112,9 +112,9 @@ pub const Camera = struct {
     }
 };
 
-const SPEED = @as(comptime_float, Chunk.SIZE) / 2.0;
+const SPEED = @as(comptime_float, World.SIZE) / 2.0;
 const SCROLL = 0.2;
-const ACC_TIME = 0.1;
+const ACC_TIME = 0.125;
 const FRICTION = 12.5;
 
 const SENS = 0.022 * 4;

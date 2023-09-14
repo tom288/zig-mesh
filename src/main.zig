@@ -2,7 +2,7 @@ const std = @import("std");
 const zm = @import("zmath");
 const Window = @import("window.zig").Window;
 const Shader = @import("shader.zig").Shader;
-const Chunk = @import("chunk.zig").Chunk;
+const World = @import("world.zig").World;
 const Camera = @import("camera.zig").Camera;
 
 pub fn main() !void {
@@ -20,8 +20,8 @@ pub fn main() !void {
     );
     defer shader.kill();
 
-    var chunk = try Chunk.init(alloc);
-    defer chunk.kill();
+    var world = try World.init(alloc);
+    defer world.kill();
 
     var camera = Camera.init(window.resolution);
 
@@ -35,9 +35,7 @@ pub fn main() !void {
         shader.use();
         shader.set("view", f32, &zm.matToArr(camera.view));
         shader.set("projection", f32, &zm.matToArr(camera.proj));
-
-        shader.set("model", f32, &zm.matToArr(zm.translationV(chunk.offset)));
-        chunk.draw();
+        world.draw(shader);
 
         window.swap();
     }
