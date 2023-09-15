@@ -85,15 +85,15 @@ pub const World = struct {
 
     pub fn draw(world: World, shader: Shader) void {
         for (0.., world.chunks) |i, chunk| {
-            if (chunk.density.len == 0) return; // The chunk is not initialised
-            if (chunk.verts.items.len == 0) return; // The chunk has 0 vertices
+            if (chunk.density.len == 0) continue; // The chunk has no densities
+            if (chunk.verts.items.len == 0) continue; // The chunk has no verts
             shader.set("model", f32, &zm.matToArr(zm.translationV(offsetFromIndex(i))));
             chunk.mesh.draw(gl.TRIANGLES);
         }
     }
 
-    fn indexFromOffset(pos: zm.Vec) !usize {
-        const floor = zm.floor(pos / Chunk.SIZE);
+    pub fn indexFromOffset(pos: zm.Vec) !usize {
+        const floor = zm.floor(pos / zm.f32x4s(Chunk.SIZE));
         var index: usize = 0;
         for (0..3) |d| {
             const i = 2 - d;
@@ -113,7 +113,7 @@ pub const World = struct {
         }
     }
 
-    fn offsetFromIndex(index: usize) zm.Vec {
+    pub fn offsetFromIndex(index: usize) zm.Vec {
         return (zm.f32x4(
             @floatFromInt(index % CHUNKS),
             @floatFromInt(index / CHUNKS % CHUNKS),

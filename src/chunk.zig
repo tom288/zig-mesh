@@ -106,28 +106,24 @@ pub const Chunk = struct {
 
     // Cubes are centered around their position, which is assumed to be integer
     fn cubeVerts(chunk: *Chunk, world: World, pos: zm.Vec, offset: zm.Vec) !void {
-        if (chunk.empty(pos) orelse return logBadPos(pos)) return;
+        if (chunk.empty(world, pos, offset) orelse return logBadPos(pos)) return;
         // Faces
         for (0..6) |f| {
             var neighbour = pos;
             neighbour[f / 2] += if (f % 2 == 0) -1 else 1;
-            if (chunk.full(neighbour)) |skip| {
-                if (skip) continue;
-            } else {
-                _ = world; // TODO check neighbouring chunks
-            }
+            if (chunk.full(world, neighbour, offset) orelse false) continue;
             // Sample voxel occlusion
             var occlusion: [8]bool = undefined;
             for (0..4) |e| {
                 // Voxels that share edges
                 var occluder = neighbour;
                 occluder[(e / 2 + f / 2 + 1) % 3] += if (e % 2 > 0) 1.0 else -1.0;
-                occlusion[e] = chunk.full(occluder) orelse false;
+                occlusion[e] = chunk.full(world, occluder, offset) orelse false;
                 // Voxels that share corners
                 var corner = neighbour;
                 corner[(f / 2 + 1) % 3] += if (e % 2 > 0) 1.0 else -1.0;
                 corner[(f / 2 + 2) % 3] += if (e / 2 > 0) 1.0 else -1.0;
-                occlusion[e + 4] = chunk.full(corner) orelse false;
+                occlusion[e + 4] = chunk.full(world, corner, offset) orelse false;
             }
             // Triangles
             for (0..2) |t| {
@@ -158,12 +154,15 @@ pub const Chunk = struct {
         }
     }
 
-    fn full(chunk: *Chunk, pos: zm.Vec) ?bool {
-        return if (chunk.densityFromPos(pos)) |p| p > 0 else null;
+    fn full(chunk: *Chunk, world: World, pos: zm.Vec, offset: zm.Vec) ?bool {
+        if (chunk.densityFromPos(pos)) |p| return p > 0;
+        const i = World.indexFromOffset(pos + offset) catch return null;
+        const off = World.offsetFromIndex(i);
+        return world.chunks[i].full(world, pos + offset - off, off);
     }
 
-    fn empty(chunk: *Chunk, pos: zm.Vec) ?bool {
-        return if (chunk.full(pos)) |e| !e else null;
+    fn empty(chunk: *Chunk, world: World, pos: zm.Vec, offset: zm.Vec) ?bool {
+        return if (chunk.full(world, pos, offset)) |e| !e else null;
     }
 
     fn densityFromPos(chunk: *Chunk, pos: zm.Vec) ?f32 {
