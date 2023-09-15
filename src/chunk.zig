@@ -15,30 +15,6 @@ pub const Chunk = struct {
         .{ .name = "colour", .size = 3, .type = gl.FLOAT },
     }}),
 
-    pub fn init(alloc: std.mem.Allocator, offset: zm.Vec) !Chunk {
-        var chunk = Chunk{
-            .density = &.{},
-            .verts = undefined,
-            .mesh = undefined,
-        };
-
-        chunk.density = try alloc.alloc(f32, SIZE * SIZE * SIZE);
-        errdefer chunk.density = &.{};
-        errdefer alloc.free(chunk.density);
-        try chunk.genDensity(offset);
-
-        chunk.verts = std.ArrayList(f32).init(alloc);
-        errdefer chunk.verts.deinit();
-        try chunk.genVerts(offset);
-        chunk.verts.shrinkAndFree(chunk.verts.items.len);
-
-        chunk.mesh = try @TypeOf(chunk.mesh).init(null);
-        errdefer chunk.mesh.kill();
-        try chunk.mesh.upload(.{chunk.verts.items});
-
-        return chunk;
-    }
-
     pub fn kill(chunk: *Chunk, alloc: std.mem.Allocator) void {
         chunk.mesh.kill();
         chunk.verts.deinit();
@@ -50,9 +26,9 @@ pub const Chunk = struct {
         chunk.mesh.draw(gl.TRIANGLES);
     }
 
-    fn genDensity(chunk: *Chunk, offset: zm.Vec) !void {
+    pub fn genDensity(chunk: *Chunk, offset: zm.Vec) !void {
         const variant = 7;
-        var timer = try std.time.Timer.start();
+        // var timer = try std.time.Timer.start();
         switch (variant) {
             0, 1 => { // Empty, Full
                 for (0..chunk.density.len) |i| {
@@ -115,17 +91,17 @@ pub const Chunk = struct {
             },
             else => unreachable,
         }
-        const ns: f32 = @floatFromInt(timer.read());
-        std.debug.print("Density variant {} took {d:.3} ms\n", .{ variant, ns / 1_000_000 });
+        // const ns: f32 = @floatFromInt(timer.read());
+        // std.debug.print("Density variant {} took {d:.3} ms\n", .{ variant, ns / 1_000_000 });
     }
 
-    fn genVerts(chunk: *Chunk, offset: zm.Vec) !void {
-        var timer = try std.time.Timer.start();
+    pub fn genVerts(chunk: *Chunk, offset: zm.Vec) !void {
+        // var timer = try std.time.Timer.start();
         for (0..chunk.density.len) |i| {
             try chunk.cubeVerts(posFromIndex(i), offset);
         }
-        const ns: f32 = @floatFromInt(timer.read());
-        std.debug.print("Vertex generation took {d:.3} ms\n", .{ns / 1_000_000});
+        // const ns: f32 = @floatFromInt(timer.read());
+        // std.debug.print("Vertex generation took {d:.3} ms\n", .{ns / 1_000_000});
     }
 
     // Cubes are centered around their position, which is assumed to be integer
