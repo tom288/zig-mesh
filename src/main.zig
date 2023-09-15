@@ -20,14 +20,14 @@ pub fn main() !void {
     );
     defer shader.kill();
 
-    var world = try World.init(alloc);
+    var world = try World.init(alloc, shader);
     defer world.kill();
 
     var camera = Camera.init(window.resolution);
 
     // Wait for the user to close the window.
     while (window.ok()) {
-        camera.mouseMouse(window.mouse_delta);
+        camera.turn(window.mouse_delta);
         camera.step(window.input, window.delta);
         camera.scroll(window.scroll_delta);
         window.clearColour(0.1, 0, 0.2, 1);

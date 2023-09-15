@@ -95,23 +95,27 @@ pub const Chunk = struct {
         // std.debug.print("Density variant {} took {d:.3} ms\n", .{ variant, ns / 1_000_000 });
     }
 
-    pub fn genVerts(chunk: *Chunk, offset: zm.Vec) !void {
+    pub fn genVerts(chunk: *Chunk, world: World, offset: zm.Vec) !void {
         // var timer = try std.time.Timer.start();
         for (0..chunk.density.len) |i| {
-            try chunk.cubeVerts(posFromIndex(i), offset);
+            try chunk.cubeVerts(world, posFromIndex(i), offset);
         }
         // const ns: f32 = @floatFromInt(timer.read());
         // std.debug.print("Vertex generation took {d:.3} ms\n", .{ns / 1_000_000});
     }
 
     // Cubes are centered around their position, which is assumed to be integer
-    fn cubeVerts(chunk: *Chunk, pos: zm.Vec, offset: zm.Vec) !void {
+    fn cubeVerts(chunk: *Chunk, world: World, pos: zm.Vec, offset: zm.Vec) !void {
         if (chunk.empty(pos) orelse return logBadPos(pos)) return;
         // Faces
         for (0..6) |f| {
             var neighbour = pos;
             neighbour[f / 2] += if (f % 2 == 0) -1 else 1;
-            if (chunk.full(neighbour) orelse false) continue;
+            if (chunk.full(neighbour)) |skip| {
+                if (skip) continue;
+            } else {
+                _ = world; // TODO check neighbouring chunks
+            }
             // Sample voxel occlusion
             var occlusion: [8]bool = undefined;
             for (0..4) |e| {
@@ -178,12 +182,12 @@ pub const Chunk = struct {
         return index;
     }
 
-    fn logBadPos(pos: zm.Vec) !void {
+    fn logBadPos(pos: zm.Vec) void {
         const half = @as(f32, SIZE) / 2;
         for (0..3) |d| {
             if (pos[d] < -half or pos[d] >= half) {
                 std.log.err("Arg component {} of indexFromPos({}) is outside range -{}..{}", .{ d, pos, half, half });
-                return error.PositionOutsideChunk;
+                unreachable;
             }
         }
     }

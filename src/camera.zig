@@ -43,7 +43,7 @@ pub const Camera = struct {
         return cam;
     }
 
-    pub fn mouseMouse(cam: *Camera, mouse_delta: zm.Vec) void {
+    pub fn turn(cam: *Camera, mouse_delta: zm.Vec) void {
         if (mouse_delta[0] == 0 and mouse_delta[1] == 0) return;
         cam.setAngle(
             cam.yaw + mouse_delta[0] * SENS,
@@ -67,7 +67,7 @@ pub const Camera = struct {
             if (zm.length3(cam.velocity)[0] > SPEED) {
                 cam.velocity = zm.normalize3(cam.velocity) * zm.f32x4s(SPEED);
             }
-        }
+        } else if (zm.lengthSq3(cam.velocity)[0] == 0) return;
 
         const power = time_delta * (1 - zm.length3(acc)[0]) * FRICTION;
         cam.velocity *= @splat(std.math.pow(f32, 2, -power));

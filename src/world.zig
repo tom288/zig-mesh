@@ -10,6 +10,7 @@ pub const World = struct {
     const CHUNKS = 4;
 
     alloc: std.mem.Allocator,
+    shader: ?Shader,
 
     // Chunks are just 128 bytes ignoring memory allocated for density & verts
     // With a render distance of 128 chunks we would use 268 MB RAM, 32 = 4 MB
@@ -19,9 +20,10 @@ pub const World = struct {
     // We are likely to use 70% or so of the chunks anyway, so are wasting 30%
     chunks: []Chunk,
 
-    pub fn init(alloc: std.mem.Allocator) !World {
+    pub fn init(alloc: std.mem.Allocator, shader: ?Shader) !World {
         var world = World{
             .alloc = alloc,
+            .shader = shader,
             .chunks = undefined,
         };
 
@@ -44,7 +46,7 @@ pub const World = struct {
                 .mesh = undefined,
             };
             errdefer chunk.verts.deinit();
-            chunk.mesh = try @TypeOf(chunk.mesh).init(null); // TODO pass shader
+            chunk.mesh = try @TypeOf(chunk.mesh).init(shader);
             count += 1;
         }
 
@@ -62,7 +64,7 @@ pub const World = struct {
 
         // Generate vertices for all chunks TODO only do this for closest chunks
         for (0.., world.chunks) |i, *chunk| {
-            try chunk.genVerts(offsetFromIndex(i));
+            try chunk.genVerts(world, offsetFromIndex(i));
             chunk.verts.shrinkAndFree(chunk.verts.items.len);
             try chunk.mesh.upload(.{chunk.verts.items});
         }
