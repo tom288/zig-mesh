@@ -112,7 +112,7 @@ pub const Camera = struct {
     }
 };
 
-const SPEED = @as(comptime_float, World.SIZE) / 2.0;
+const SPEED = @as(f32, World.SIZE) / 2.0;
 const SCROLL = 0.2;
 const ACC_TIME = 0.125;
 const FRICTION = 12.5;

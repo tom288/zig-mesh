@@ -3,14 +3,10 @@ const gl = @import("gl");
 const zm = @import("zmath");
 const znoise = @import("znoise");
 const Mesh = @import("mesh.zig").Mesh;
+const World = @import("world.zig").World;
 
 pub const Chunk = struct {
-    pub const EMPTY = Chunk{
-        .density = &.{},
-        .verts = undefined,
-        .mesh = undefined,
-    };
-    pub const SIZE = 128;
+    pub const SIZE = 32;
 
     density: []f32,
     verts: std.ArrayList(f32),
@@ -20,17 +16,20 @@ pub const Chunk = struct {
     }}),
 
     pub fn init(alloc: std.mem.Allocator, offset: zm.Vec) !Chunk {
-        var chunk = EMPTY;
+        var chunk = Chunk{
+            .density = &.{},
+            .verts = undefined,
+            .mesh = undefined,
+        };
 
         chunk.density = try alloc.alloc(f32, SIZE * SIZE * SIZE);
         errdefer chunk.density = &.{};
         errdefer alloc.free(chunk.density);
+        try chunk.genDensity(offset);
 
         chunk.verts = std.ArrayList(f32).init(alloc);
         errdefer chunk.verts.deinit();
-
-        try chunk.genDensity(offset);
-        try chunk.genVerts();
+        try chunk.genVerts(offset);
         chunk.verts.shrinkAndFree(chunk.verts.items.len);
 
         chunk.mesh = try @TypeOf(chunk.mesh).init(null);
@@ -73,7 +72,7 @@ pub const Chunk = struct {
             },
             4 => { // Gradient noise (perlin)
                 const gen = znoise.FnlGenerator{
-                    .frequency = 2.7 / @as(f32, SIZE),
+                    .frequency = 2.7 / @as(f32, World.SIZE),
                     .noise_type = znoise.FnlGenerator.NoiseType.perlin,
                 };
                 for (0..chunk.density.len) |i| {
@@ -83,7 +82,7 @@ pub const Chunk = struct {
             },
             5 => { // Gradient noise (opensimplex2)
                 const gen = znoise.FnlGenerator{
-                    .frequency = 2 / @as(f32, SIZE),
+                    .frequency = 2 / @as(f32, World.SIZE),
                 };
                 for (0..chunk.density.len) |i| {
                     const pos = posFromIndex(i) + offset;
@@ -91,7 +90,7 @@ pub const Chunk = struct {
                 }
             },
             6 => { // Smooth sphere
-                const rad = @as(f32, SIZE) / 2;
+                const rad = @as(f32, World.SIZE) / 2;
                 for (0..chunk.density.len) |i| {
                     const pos = posFromIndex(i) + offset;
                     chunk.density[i] = rad - zm.length3(pos - zm.f32x4s(rad))[0];
@@ -99,13 +98,19 @@ pub const Chunk = struct {
             },
             7 => { // Splattered sphere
                 const gen = znoise.FnlGenerator{
-                    .frequency = 8 / @as(f32, SIZE),
+                    .frequency = 8 / @as(f32, World.SIZE),
                 };
-                const rad = @as(f32, SIZE) / 2;
+                const rad = @as(f32, World.SIZE) / 2;
                 for (0..chunk.density.len) |i| {
                     const pos = posFromIndex(i) + offset;
                     chunk.density[i] = rad - zm.length3(pos - zm.f32x4s(rad))[0] - rad * 0.08;
                     chunk.density[i] += gen.noise3(pos[0], pos[1], pos[2]) * rad * 0.1;
+                }
+            },
+            8 => { // Chunk visualisation
+                for (0..chunk.density.len) |i| {
+                    chunk.density[i] = if (zm.any(@fabs(posFromIndex(i)) >
+                        zm.f32x4s(@as(f32, SIZE) / 2 - 1), 3)) 0 else 1;
                 }
             },
             else => unreachable,
@@ -114,17 +119,17 @@ pub const Chunk = struct {
         std.debug.print("Density variant {} took {d:.3} ms\n", .{ variant, ns / 1_000_000 });
     }
 
-    fn genVerts(chunk: *Chunk) !void {
+    fn genVerts(chunk: *Chunk, offset: zm.Vec) !void {
         var timer = try std.time.Timer.start();
         for (0..chunk.density.len) |i| {
-            try chunk.cubeVerts(posFromIndex(i));
+            try chunk.cubeVerts(posFromIndex(i), offset);
         }
         const ns: f32 = @floatFromInt(timer.read());
         std.debug.print("Vertex generation took {d:.3} ms\n", .{ns / 1_000_000});
     }
 
     // Cubes are centered around their position, which is assumed to be integer
-    fn cubeVerts(chunk: *Chunk, pos: zm.Vec) !void {
+    fn cubeVerts(chunk: *Chunk, pos: zm.Vec, offset: zm.Vec) !void {
         if (chunk.empty(pos) orelse return logBadPos(pos)) return;
         // Faces
         for (0..6) |f| {
@@ -156,7 +161,7 @@ pub const Chunk = struct {
                     // Vertex positions
                     try chunk.verts.appendSlice(&zm.vecToArr3(vert));
                     // Vertex colours
-                    var colour = vert / zm.f32x4s(@floatFromInt(SIZE));
+                    var colour = (vert + offset) / zm.f32x4s(@as(f32, World.SIZE));
                     // Accumulate occlusion
                     var occ: usize = 0;
                     if (occlusion[if (x) 1 else 0]) occ += 1;
@@ -186,11 +191,11 @@ pub const Chunk = struct {
     }
 
     fn indexFromPos(pos: zm.Vec) !usize {
-        const floor = zm.floor(pos);
+        const floor = zm.floor(pos + zm.f32x4s(@as(f32, SIZE) / 2));
         var index: usize = 0;
         for (0..3) |d| {
             const i = 2 - d;
-            if (pos[i] < 0 or pos[i] >= SIZE) return error.PositionOutsideChunk;
+            if (floor[i] < 0 or floor[i] >= SIZE) return error.PositionOutsideChunk;
             index *= SIZE;
             index += @intFromFloat(floor[i]);
         }
@@ -198,20 +203,27 @@ pub const Chunk = struct {
     }
 
     fn logBadPos(pos: zm.Vec) !void {
+        const half = @as(f32, SIZE) / 2;
         for (0..3) |d| {
-            if (pos[d] < 0 or pos[d] >= SIZE) {
-                std.log.err("Arg component {} of indexFromPos({}) is outside range 0..{}", .{ d, pos, SIZE });
+            if (pos[d] < -half or pos[d] >= half) {
+                std.log.err("Arg component {} of indexFromPos({}) is outside range -{}..{}", .{ d, pos, half, half });
                 return error.PositionOutsideChunk;
             }
         }
     }
 
     fn posFromIndex(index: usize) zm.Vec {
+        const half = @as(f32, SIZE) / 2;
         return zm.f32x4(
             @floatFromInt(index % SIZE),
             @floatFromInt(index / SIZE % SIZE),
             @floatFromInt(index / SIZE / SIZE),
             0,
-        ) + zm.f32x4(0.5, 0.5, 0.5, 0);
+        ) - zm.f32x4(
+            half - 0.5,
+            half - 0.5,
+            half - 0.5,
+            0,
+        );
     }
 };
