@@ -7,7 +7,7 @@ const Shader = @import("shader.zig").Shader;
 
 pub const World = struct {
     pub const SIZE = Chunk.SIZE * CHUNKS;
-    const CHUNKS = 4;
+    pub const CHUNKS = 4;
 
     alloc: std.mem.Allocator,
     shader: ?Shader,
@@ -19,12 +19,14 @@ pub const World = struct {
     // Therefore it makes sense to have a large []chunk rather than a []*chunk
     // We are likely to use 70% or so of the chunks anyway, so are wasting 30%
     chunks: []Chunk,
+    splits: zm.Vec,
 
     pub fn init(alloc: std.mem.Allocator, shader: ?Shader) !World {
         var world = World{
             .alloc = alloc,
             .shader = shader,
             .chunks = undefined,
+            .splits = @splat(CHUNKS / 2),
         };
 
         world.chunks = try alloc.alloc(Chunk, CHUNKS * CHUNKS * CHUNKS);
@@ -56,7 +58,7 @@ pub const World = struct {
         // Generate density for all chunks TODO only do this for closest chunks
         for (0.., world.chunks) |i, *chunk| {
             chunk.density = try alloc.alloc(f32, Chunk.SIZE * Chunk.SIZE * Chunk.SIZE);
-            try chunk.genDensity(offsetFromIndex(i));
+            try chunk.genDensity(world.offsetFromIndex(i));
         }
 
         ns = @floatFromInt(timer.lap());
@@ -64,7 +66,7 @@ pub const World = struct {
 
         // Generate vertices for all chunks TODO only do this for closest chunks
         for (0.., world.chunks) |i, *chunk| {
-            try chunk.genVerts(world, offsetFromIndex(i));
+            try chunk.genVerts(world, world.offsetFromIndex(i));
             chunk.verts.shrinkAndFree(chunk.verts.items.len);
             try chunk.mesh.upload(.{chunk.verts.items});
         }
@@ -87,38 +89,37 @@ pub const World = struct {
         for (0.., world.chunks) |i, chunk| {
             if (chunk.density.len == 0) continue; // The chunk has no densities
             if (chunk.verts.items.len == 0) continue; // The chunk has no verts
-            shader.set("model", f32, &zm.matToArr(zm.translationV(offsetFromIndex(i))));
+            shader.set("model", f32, &zm.matToArr(zm.translationV(world.offsetFromIndex(i))));
             chunk.mesh.draw(gl.TRIANGLES);
         }
     }
 
-    pub fn indexFromOffset(pos: zm.Vec) !usize {
+    pub fn indexFromOffset(world: World, pos: zm.Vec) !usize {
         const floor = zm.floor(pos / zm.f32x4s(Chunk.SIZE));
         var index: usize = 0;
         for (0..3) |d| {
             const i = 2 - d;
-            if (floor[i] < 0 or floor[i] >= CHUNKS) return error.PositionOutsideWorld;
+            var f = floor[i] - @floor(world.splits[i] / CHUNKS) * CHUNKS;
+            if (@mod(f, CHUNKS) >=
+                @mod(world.splits[i], CHUNKS)) f += CHUNKS;
+            if (f < 0 or f >= CHUNKS) return error.PositionOutsideWorld;
             index *= CHUNKS;
-            index += @intFromFloat(floor[i]);
+            index += @intFromFloat(f);
         }
         return index;
     }
 
-    fn logBadOffset(pos: zm.Vec) !void {
-        for (0..3) |d| {
-            if (pos[d] < 0 or pos[d] >= SIZE) {
-                std.log.err("Arg component {} of indexFromOffset({}) is outside range 0..{}", .{ d, pos, SIZE });
-                return error.PositionOutsideWorld;
-            }
-        }
-    }
-
-    pub fn offsetFromIndex(index: usize) zm.Vec {
-        return (zm.f32x4(
+    pub fn offsetFromIndex(world: World, index: usize) zm.Vec {
+        var offset = (zm.f32x4(
             @floatFromInt(index % CHUNKS),
             @floatFromInt(index / CHUNKS % CHUNKS),
             @floatFromInt(index / CHUNKS / CHUNKS),
             0,
-        ) + zm.f32x4(0.5, 0.5, 0.5, 0)) * zm.f32x4s(Chunk.SIZE);
+        ) + zm.f32x4(0.5, 0.5, 0.5, 0));
+        for (0..3) |i| {
+            offset[i] += @floor(world.splits[i] / CHUNKS) * CHUNKS;
+            if (@mod(offset[i], CHUNKS) >= @mod(world.splits[i], CHUNKS)) offset[i] -= CHUNKS;
+        }
+        return offset * zm.f32x4s(Chunk.SIZE);
     }
 };

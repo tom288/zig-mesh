@@ -22,10 +22,6 @@ pub const Chunk = struct {
         chunk.density = &.{};
     }
 
-    pub fn draw(chunk: Chunk) void {
-        chunk.mesh.draw(gl.TRIANGLES);
-    }
-
     pub fn genDensity(chunk: *Chunk, offset: zm.Vec) !void {
         const variant = 7;
         // var timer = try std.time.Timer.start();
@@ -69,7 +65,7 @@ pub const Chunk = struct {
                 const rad = @as(f32, World.SIZE) / 2;
                 for (0..chunk.density.len) |i| {
                     const pos = posFromIndex(i) + offset;
-                    chunk.density[i] = rad - zm.length3(pos - zm.f32x4s(rad))[0];
+                    chunk.density[i] = rad - zm.length3(pos)[0];
                 }
             },
             7 => { // Splattered sphere
@@ -79,7 +75,7 @@ pub const Chunk = struct {
                 const rad = @as(f32, World.SIZE) / 2;
                 for (0..chunk.density.len) |i| {
                     const pos = posFromIndex(i) + offset;
-                    chunk.density[i] = rad - zm.length3(pos - zm.f32x4s(rad))[0] - rad * 0.08;
+                    chunk.density[i] = rad * 0.92 - zm.length3(pos)[0];
                     chunk.density[i] += gen.noise3(pos[0], pos[1], pos[2]) * rad * 0.1;
                 }
             },
@@ -96,16 +92,19 @@ pub const Chunk = struct {
     }
 
     pub fn genVerts(chunk: *Chunk, world: World, offset: zm.Vec) !void {
+        const gen = znoise.FnlGenerator{
+            .frequency = 1 / @as(f32, World.SIZE),
+        };
         // var timer = try std.time.Timer.start();
         for (0..chunk.density.len) |i| {
-            try chunk.cubeVerts(world, posFromIndex(i), offset);
+            try chunk.cubeVerts(world, gen, posFromIndex(i), offset);
         }
         // const ns: f32 = @floatFromInt(timer.read());
         // std.debug.print("Vertex generation took {d:.3} ms\n", .{ns / 1_000_000});
     }
 
     // Cubes are centered around their position, which is assumed to be integer
-    fn cubeVerts(chunk: *Chunk, world: World, pos: zm.Vec, offset: zm.Vec) !void {
+    fn cubeVerts(chunk: *Chunk, world: World, gen: znoise.FnlGenerator, pos: zm.Vec, offset: zm.Vec) !void {
         if (chunk.empty(world, pos, offset) orelse return logBadPos(pos)) return;
         // Faces
         for (0..6) |f| {
@@ -137,7 +136,12 @@ pub const Chunk = struct {
                     // Vertex positions
                     try chunk.verts.appendSlice(&zm.vecToArr3(vert));
                     // Vertex colours
-                    var colour = (vert + offset) / zm.f32x4s(@as(f32, World.SIZE));
+                    var colour = zm.f32x4s(0);
+                    for (0..3) |c| {
+                        var c_pos = vert + offset;
+                        c_pos[c] += World.SIZE * 9;
+                        colour[c] += (gen.noise3(c_pos[0], c_pos[1], c_pos[2]) + 1) / 2;
+                    }
                     // Accumulate occlusion
                     var occ: usize = 0;
                     if (occlusion[if (x) 1 else 0]) occ += 1;
@@ -147,7 +151,7 @@ pub const Chunk = struct {
                             @as(usize, if (y) 2 else 0)
                     ]) occ += 1;
                     // Darken occluded vertices
-                    for (0..occ) |_| colour /= zm.f32x4s(1.1);
+                    for (0..occ) |_| colour /= @splat(1.1);
                     try chunk.verts.appendSlice(&zm.vecToArr3(colour));
                 }
             }
@@ -156,8 +160,8 @@ pub const Chunk = struct {
 
     fn full(chunk: *Chunk, world: World, pos: zm.Vec, offset: zm.Vec) ?bool {
         if (chunk.densityFromPos(pos)) |p| return p > 0;
-        const i = World.indexFromOffset(pos + offset) catch return null;
-        const off = World.offsetFromIndex(i);
+        const i = world.indexFromOffset(pos + offset) catch return null;
+        const off = world.offsetFromIndex(i);
         return world.chunks[i].full(world, pos + offset - off, off);
     }
 
