@@ -22,11 +22,10 @@ pub const Camera = struct {
 
     pub fn init(resolution: zm.Vec) Camera {
         var cam = Camera{
-            .position = zm.f32x4(0, 0, World.SIZE, 0) -
-                zm.f32x4s(Chunk.SIZE * @as(f32, World.CHUNKS % 2) / World.CHUNKS / 2),
+            .position = zm.f32x4(2, 0, -2, 0),
             .velocity = @splat(0),
 
-            .yaw = -90,
+            .yaw = 135,
             .pitch = 0,
             .aspect = resolution[0] / resolution[1],
             .fov = undefined,
@@ -114,7 +113,7 @@ pub const Camera = struct {
     }
 };
 
-const SPEED = @as(f32, World.SIZE) / 2.0;
+const SPEED = 3;
 const SCROLL = 0.2;
 const ACC_TIME = 0.125;
 const FRICTION = 12.5;

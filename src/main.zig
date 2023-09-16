@@ -1,8 +1,9 @@
 const std = @import("std");
 const zm = @import("zmath");
+const gl = @import("gl");
 const Window = @import("window.zig").Window;
 const Shader = @import("shader.zig").Shader;
-const World = @import("world.zig").World;
+const Mesh = @import("mesh.zig").Mesh;
 const Camera = @import("camera.zig").Camera;
 
 pub fn main() !void {
@@ -14,14 +15,26 @@ pub fn main() !void {
     defer window.kill();
 
     var shader = try Shader.init(
-        "perspective",
+        "white",
         null,
-        "perspective",
+        "mandelbulb",
     );
     defer shader.kill();
 
-    var world = try World.init(alloc, shader);
-    defer world.kill();
+    var mesh = try Mesh(.{.{
+        .{ .name = "position", .size = 3, .type = gl.FLOAT },
+    }}).init(shader);
+    const verts = [_]f32{
+        -1.0, -1.0, 0.0,
+        1.0,  1.0,  0.0,
+        -1.0, 1.0,  1.0,
+
+        1.0,  1.0,  0.0,
+        -1.0, -1.0, 0.0,
+        1.0,  -1.0, 1.0,
+    };
+    try mesh.upload(.{&verts});
+    defer mesh.kill();
 
     var camera = Camera.init(window.resolution);
 
@@ -33,9 +46,30 @@ pub fn main() !void {
         window.clearColour(0.1, 0, 0.2, 1);
 
         shader.use();
-        shader.set("view", f32, &zm.matToArr(camera.view));
-        shader.set("projection", f32, &zm.matToArr(camera.proj));
-        world.draw(shader);
+        shader.set("POSITION", f32, &[3]f32{
+            camera.position[0],
+            camera.position[1],
+            camera.position[2],
+        });
+        shader.set("LOOK", f32, &[3]f32{
+            camera.look[0],
+            camera.look[1],
+            camera.look[2],
+        });
+        shader.set("RIGHT", f32, &[3]f32{
+            camera.right[0],
+            camera.right[1],
+            camera.right[2],
+        });
+        shader.set("ABOVE", f32, &[3]f32{
+            camera.above[0],
+            camera.above[1],
+            camera.above[2],
+        });
+        shader.set("WIDTH", f32, window.resolution[0]);
+        shader.set("HEIGHT", f32, window.resolution[1]);
+        shader.set("POWER", f32, (@sin(window.time orelse 0) + 2) * 4);
+        mesh.draw(gl.TRIANGLES);
 
         window.swap();
     }
