@@ -10,6 +10,10 @@ pub fn main() !void {
     defer arena.deinit();
     const alloc = arena.allocator();
 
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer if (gpa.deinit() == .leak) unreachable;
+    const chunk_alloc = gpa.allocator();
+
     var window = try Window.init(alloc);
     defer window.kill();
 
@@ -19,11 +23,9 @@ pub fn main() !void {
         "perspective",
     );
     defer shader.kill();
-
-    var world = try World.init(alloc, shader);
-    defer world.kill();
-
     var camera = Camera.init(window.resolution);
+    var world = try World.init(alloc, chunk_alloc, shader, camera.position);
+    defer world.kill();
 
     // Wait for the user to close the window.
     while (window.ok()) {
@@ -31,6 +33,8 @@ pub fn main() !void {
         camera.step(window.input, window.delta);
         camera.scroll(window.scroll_delta);
         window.clearColour(0.1, 0, 0.2, 1);
+
+        try world.focus(camera.position);
 
         shader.use();
         shader.set("view", f32, &zm.matToArr(camera.view));

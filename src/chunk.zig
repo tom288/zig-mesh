@@ -6,10 +6,10 @@ const Mesh = @import("mesh.zig").Mesh;
 const World = @import("world.zig").World;
 
 pub const Chunk = struct {
-    pub const SIZE = 32;
+    pub const SIZE = 16;
 
     density: []f32,
-    verts: std.ArrayList(f32),
+    verts: ?std.ArrayList(f32),
     mesh: Mesh(.{.{
         .{ .name = "position", .size = 3, .type = gl.FLOAT },
         .{ .name = "colour", .size = 3, .type = gl.FLOAT },
@@ -17,13 +17,14 @@ pub const Chunk = struct {
 
     pub fn kill(chunk: *Chunk, alloc: std.mem.Allocator) void {
         chunk.mesh.kill();
-        chunk.verts.deinit();
+        if (chunk.verts) |verts| verts.deinit();
+        chunk.verts = null;
         alloc.free(chunk.density);
         chunk.density = &.{};
     }
 
     pub fn genDensity(chunk: *Chunk, offset: zm.Vec) !void {
-        const variant = 7;
+        const variant = 8;
         // var timer = try std.time.Timer.start();
         switch (variant) {
             0, 1 => { // Empty, Full
@@ -33,13 +34,18 @@ pub const Chunk = struct {
             },
             2 => { // Medium vertex density
                 for (0..chunk.density.len) |i| {
-                    chunk.density[i] = if (i % 9 == 0) 1 else 0;
+                    chunk.density[i] = if (i % 9 > 0) 0 else 1;
                 }
             },
             3 => { // Max vertex density
                 for (0..chunk.density.len) |i| {
                     const pos = posFromIndex(i);
-                    chunk.density[i] = @mod(pos[0] + pos[1] + pos[2] - 0.5, 2);
+                    chunk.density[i] = @mod(
+                        pos[0] + pos[1] + pos[2] +
+                            if (Chunk.SIZE % 4 != 1) 0 else 1 -
+                            if (Chunk.SIZE % 2 > 0) 0 else 0.5,
+                        2,
+                    );
                 }
             },
             4 => { // Gradient noise (perlin)
@@ -79,10 +85,11 @@ pub const Chunk = struct {
                     chunk.density[i] += gen.noise3(pos[0], pos[1], pos[2]) * rad * 0.1;
                 }
             },
-            8 => { // Chunk visualisation
+            8 => { // Chunk corner visualisation
                 for (0..chunk.density.len) |i| {
-                    chunk.density[i] = if (zm.any(@fabs(posFromIndex(i)) >
-                        zm.f32x4s(@as(f32, SIZE) / 2 - 1), 3)) 0 else 1;
+                    const pos = @fabs(posFromIndex(i));
+                    const bools = pos != zm.f32x4s(@as(f32, SIZE - 1) / 2);
+                    chunk.density[i] = if (zm.any(bools, 3)) 0 else 1;
                 }
             },
             else => unreachable,
@@ -109,7 +116,7 @@ pub const Chunk = struct {
         // Faces
         for (0..6) |f| {
             var neighbour = pos;
-            neighbour[f / 2] += if (f % 2 == 0) -1 else 1;
+            neighbour[f / 2] += if (f % 2 > 0) 1 else -1;
             if (chunk.full(world, neighbour, offset) orelse false) continue;
             // Sample voxel occlusion
             var occlusion: [8]bool = undefined;
@@ -134,7 +141,7 @@ pub const Chunk = struct {
                     vert[(f / 2 + 1) % 3] += if (x) 0.5 else -0.5;
                     vert[(f / 2 + 2) % 3] += if (y) 0.5 else -0.5;
                     // Vertex positions
-                    try chunk.verts.appendSlice(&zm.vecToArr3(vert));
+                    try chunk.verts.?.appendSlice(&zm.vecToArr3(vert));
                     // Vertex colours
                     var colour = zm.f32x4s(0);
                     for (0..3) |c| {
@@ -152,7 +159,7 @@ pub const Chunk = struct {
                     ]) occ += 1;
                     // Darken occluded vertices
                     for (0..occ) |_| colour /= @splat(1.1);
-                    try chunk.verts.appendSlice(&zm.vecToArr3(colour));
+                    try chunk.verts.?.appendSlice(&zm.vecToArr3(colour));
                 }
             }
         }
@@ -160,7 +167,7 @@ pub const Chunk = struct {
 
     fn full(chunk: *Chunk, world: World, pos: zm.Vec, offset: zm.Vec) ?bool {
         if (chunk.densityFromPos(pos)) |p| return p > 0;
-        const i = world.indexFromOffset(pos + offset) catch return null;
+        const i = world.indexFromOffset(pos + offset) catch unreachable;
         const off = world.offsetFromIndex(i);
         return world.chunks[i].full(world, pos + offset - off, off);
     }
