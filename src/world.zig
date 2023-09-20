@@ -60,6 +60,7 @@ pub const World = struct {
                 .mesh = try @TypeOf(chunk.mesh).init(shader),
                 .density_wip = false,
                 .vertices_wip = false,
+                .must_free = false,
             };
             count += 1;
         }
@@ -106,15 +107,19 @@ pub const World = struct {
                 // Reset worker state
                 wait_bool.store(false, .Unordered);
                 world.pool.busy_bools[i] = false;
-                // If the task was to generate vertices
                 var chunk = &world.chunks[world.pool.chunks[i]];
+                if (chunk.must_free) {
+                    chunk.free(world.chunk_alloc);
+                    try chunk.mesh.upload(.{});
+                }
+                // If the task was to generate vertices
                 if (world.pool.vert_bools[i]) {
                     // Upload the vertices
                     if (chunk.verts) |*verts| {
                         verts.shrinkAndFree(verts.items.len);
                         try chunk.mesh.upload(.{verts.items});
-                        chunk.vertices_wip = false;
-                    } else unreachable;
+                    }
+                    chunk.vertices_wip = false;
                 } else {
                     chunk.density_wip = false;
                 }
@@ -123,10 +128,9 @@ pub const World = struct {
 
         const pos = position orelse world.old_pos;
         // const same_pos = if (position) |p| p == world.old_pos else pos != pos;
-        // if (position) |_| if (zm.all(same_pos, 3)) return;
 
         const new_splits = splitsFromPos(pos);
-        const print = true; // TODO revert
+        const bench = false;
         const thread = true;
         var timer = try std.time.Timer.start();
         var ns: f32 = undefined;
@@ -145,22 +149,20 @@ pub const World = struct {
                     const old_splits = world.splits;
                     // Update splits TODO make this update minimal
                     world.splits = new_splits;
-                    if (print) std.debug.print("{any}\n", .{world.splits});
                     // Free invalidated chunks
                     var free_timer = try std.time.Timer.start();
                     for (0.., world.chunks) |j, *c| {
                         // TODO avoid this check by only looping over invalidated chunks
                         if (zm.all(world.offsetFromIndex(j) == offsetFromIndexAndSplits(j, old_splits), 3)) continue;
-                        if (c.verts) |verts| {
-                            verts.deinit();
-                            c.verts = null;
+                        if (c.density_wip or c.vertices_wip) {
+                            c.must_free = true;
+                        } else {
+                            c.free(world.chunk_alloc);
                             try c.mesh.upload(.{});
                         }
-                        world.chunk_alloc.free(c.density);
-                        c.density = &.{};
                     }
                     free_ns = @floatFromInt(free_timer.read());
-                    if (print) std.debug.print("Frees took {d:.3} ms\n", .{free_ns / 1_000_000});
+                    if (bench) std.debug.print("Frees took {d:.3} ms\n", .{free_ns / 1_000_000});
                 }
                 chunk.density = try world.chunk_alloc.alloc(f32, Chunk.SIZE * Chunk.SIZE * Chunk.SIZE);
                 if (thread) {
@@ -178,11 +180,9 @@ pub const World = struct {
             }
             ns = @floatFromInt(timer.read());
             ns -= free_ns;
-            if (print) std.debug.print("Density took {d:.3} ms\n", .{ns / 1_000_000});
+            if (bench) std.debug.print("Density took {d:.3} ms\n", .{ns / 1_000_000});
             timer.reset();
         }
-
-        std.debug.print("2: {} {}\n", .{ world.pool.busy(.density), world.pool.busy(.vertices) }); // TODO remove
 
         if (!world.pool.busy(.density)) {
             chunk_loop: for (0.., world.chunks) |i, *chunk| {
@@ -225,7 +225,7 @@ pub const World = struct {
                 }
             }
             ns = @floatFromInt(timer.read());
-            if (print) std.debug.print("Vertices took {d:.3} ms\n", .{ns / 1_000_000});
+            if (bench) std.debug.print("Vertices took {d:.3} ms\n", .{ns / 1_000_000});
         }
     }
 

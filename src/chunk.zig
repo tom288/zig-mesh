@@ -6,7 +6,7 @@ const Mesh = @import("mesh.zig").Mesh;
 const World = @import("world.zig").World;
 
 pub const Chunk = struct {
-    pub const SIZE = 16;
+    pub const SIZE = 32;
 
     density: []f32,
     verts: ?std.ArrayList(f32),
@@ -16,13 +16,19 @@ pub const Chunk = struct {
     }}),
     density_wip: bool,
     vertices_wip: bool,
+    must_free: bool,
 
-    pub fn kill(chunk: *Chunk, alloc: std.mem.Allocator) void {
-        chunk.mesh.kill();
+    pub fn free(chunk: *Chunk, alloc: std.mem.Allocator) void {
         if (chunk.verts) |verts| verts.deinit();
         chunk.verts = null;
         alloc.free(chunk.density);
         chunk.density = &.{};
+        chunk.must_free = false;
+    }
+
+    pub fn kill(chunk: *Chunk, alloc: std.mem.Allocator) void {
+        chunk.mesh.kill();
+        chunk.free(alloc);
     }
 
     pub fn genDensity(chunk: *Chunk, offset: zm.Vec) !void {
@@ -100,7 +106,7 @@ pub const Chunk = struct {
 
     pub fn genVerts(chunk: *Chunk, world: World, offset: zm.Vec) !void {
         const gen = znoise.FnlGenerator{
-            .frequency = 0.2 / @as(f32, SIZE),
+            .frequency = 0.25 / @as(f32, SIZE),
         };
         // var timer = try std.time.Timer.start();
         for (0..chunk.density.len) |i| {
