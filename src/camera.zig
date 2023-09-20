@@ -1,6 +1,6 @@
 const std = @import("std");
 const zm = @import("zmath");
-const World = @import("world.zig").World;
+const Chunk = @import("chunk.zig").Chunk;
 
 pub const Camera = struct {
     // Kinematics
@@ -112,7 +112,7 @@ pub const Camera = struct {
     }
 };
 
-const SPEED = @as(f32, World.SIZE) / 2.0;
+const SPEED = @as(f32, Chunk.SIZE) * 2.5;
 const SCROLL = 0.2;
 const ACC_TIME = 0.125;
 const FRICTION = 12.5;

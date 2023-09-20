@@ -136,7 +136,7 @@ pub const Window = struct {
         try binds.put(.left_shift, .descend);
         try binds.put(.left_control, .descend);
 
-        return Window{
+        return .{
             .window = window,
             .clear_mask = clear_mask,
             .resolution = resolution,

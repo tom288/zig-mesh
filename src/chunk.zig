@@ -14,6 +14,8 @@ pub const Chunk = struct {
         .{ .name = "position", .size = 3, .type = gl.FLOAT },
         .{ .name = "colour", .size = 3, .type = gl.FLOAT },
     }}),
+    density_wip: bool,
+    vertices_wip: bool,
 
     pub fn kill(chunk: *Chunk, alloc: std.mem.Allocator) void {
         chunk.mesh.kill();
@@ -24,7 +26,7 @@ pub const Chunk = struct {
     }
 
     pub fn genDensity(chunk: *Chunk, offset: zm.Vec) !void {
-        const variant = 8;
+        const variant = 5;
         // var timer = try std.time.Timer.start();
         switch (variant) {
             0, 1 => { // Empty, Full
@@ -50,7 +52,7 @@ pub const Chunk = struct {
             },
             4 => { // Gradient noise (perlin)
                 const gen = znoise.FnlGenerator{
-                    .frequency = 2.7 / @as(f32, World.SIZE),
+                    .frequency = 0.8 / @as(f32, SIZE),
                     .noise_type = znoise.FnlGenerator.NoiseType.perlin,
                 };
                 for (0..chunk.density.len) |i| {
@@ -60,7 +62,7 @@ pub const Chunk = struct {
             },
             5 => { // Gradient noise (opensimplex2)
                 const gen = znoise.FnlGenerator{
-                    .frequency = 2 / @as(f32, World.SIZE),
+                    .frequency = 0.6 / @as(f32, SIZE),
                 };
                 for (0..chunk.density.len) |i| {
                     const pos = posFromIndex(i) + offset;
@@ -68,19 +70,17 @@ pub const Chunk = struct {
                 }
             },
             6 => { // Smooth sphere
-                const rad = @as(f32, World.SIZE) / 2;
+                const rad = @as(f32, SIZE) * 2.5;
                 for (0..chunk.density.len) |i| {
-                    const pos = posFromIndex(i) + offset;
+                    const pos = posFromIndex(i) + offset + zm.f32x4(0, 0, rad + SIZE, 0);
                     chunk.density[i] = rad - zm.length3(pos)[0];
                 }
             },
             7 => { // Splattered sphere
-                const gen = znoise.FnlGenerator{
-                    .frequency = 8 / @as(f32, World.SIZE),
-                };
-                const rad = @as(f32, World.SIZE) / 2;
+                const rad = @as(f32, SIZE) * 2.5;
+                const gen = znoise.FnlGenerator{ .frequency = 4 / rad };
                 for (0..chunk.density.len) |i| {
-                    const pos = posFromIndex(i) + offset;
+                    const pos = posFromIndex(i) + offset + zm.f32x4(0, 0, rad + SIZE, 0);
                     chunk.density[i] = rad * 0.92 - zm.length3(pos)[0];
                     chunk.density[i] += gen.noise3(pos[0], pos[1], pos[2]) * rad * 0.1;
                 }
@@ -100,7 +100,7 @@ pub const Chunk = struct {
 
     pub fn genVerts(chunk: *Chunk, world: World, offset: zm.Vec) !void {
         const gen = znoise.FnlGenerator{
-            .frequency = 1 / @as(f32, World.SIZE),
+            .frequency = 0.2 / @as(f32, SIZE),
         };
         // var timer = try std.time.Timer.start();
         for (0..chunk.density.len) |i| {
@@ -141,12 +141,14 @@ pub const Chunk = struct {
                     vert[(f / 2 + 1) % 3] += if (x) 0.5 else -0.5;
                     vert[(f / 2 + 2) % 3] += if (y) 0.5 else -0.5;
                     // Vertex positions
-                    try chunk.verts.?.appendSlice(&zm.vecToArr3(vert));
+                    if (chunk.verts) |*verts| {
+                        try verts.appendSlice(&zm.vecToArr3(vert));
+                    } else unreachable;
                     // Vertex colours
                     var colour = zm.f32x4s(0);
                     for (0..3) |c| {
                         var c_pos = vert + offset;
-                        c_pos[c] += World.SIZE * 9;
+                        c_pos[c] += Chunk.SIZE * 99;
                         colour[c] += (gen.noise3(c_pos[0], c_pos[1], c_pos[2]) + 1) / 2;
                     }
                     // Accumulate occlusion
@@ -159,7 +161,9 @@ pub const Chunk = struct {
                     ]) occ += 1;
                     // Darken occluded vertices
                     for (0..occ) |_| colour /= @splat(1.1);
-                    try chunk.verts.?.appendSlice(&zm.vecToArr3(colour));
+                    if (chunk.verts) |*verts| {
+                        try verts.appendSlice(&zm.vecToArr3(colour));
+                    } else unreachable;
                 }
             }
         }
