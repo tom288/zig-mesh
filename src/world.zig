@@ -58,14 +58,15 @@ pub const World = struct {
                 .density = &.{},
                 .verts = null,
                 .mesh = try @TypeOf(chunk.mesh).init(shader),
-                .density_wip = false,
-                .vertices_wip = false,
                 .must_free = false,
+                .density_mip = null,
+                .vertices_mip = null,
+                .wip_mip = null,
             };
             count += 1;
         }
 
-        try world.focus(null);
+        try world.gen(null);
 
         return world;
     }
@@ -99,7 +100,11 @@ pub const World = struct {
         }
     }
 
-    pub fn focus(world: *World, position: ?zm.Vec) !void {
+    pub fn gen(world: *World, position: ?zm.Vec) !void {
+        const bench = false;
+        var timer = try std.time.Timer.start();
+        var ns: f32 = undefined;
+
         // Iterate over pool workers
         for (0.., world.pool.wait_bools) |i, *wait_bool| {
             // If a worker has finished
@@ -119,21 +124,22 @@ pub const World = struct {
                         verts.shrinkAndFree(verts.items.len);
                         try chunk.mesh.upload(.{verts.items});
                     }
-                    chunk.vertices_wip = false;
+                    chunk.vertices_mip = chunk.wip_mip;
                 } else {
-                    chunk.density_wip = false;
+                    chunk.density_mip = chunk.wip_mip;
                 }
+                chunk.wip_mip = null;
             }
         }
+        ns = @floatFromInt(timer.read());
+        // if (bench) std.debug.print("Pool took {d:.3} ms\n", .{ns / 1_000_000});
+        timer.reset();
 
         const pos = position orelse world.old_pos;
         // const same_pos = if (position) |p| p == world.old_pos else pos != pos;
 
         const new_splits = splitsFromPos(pos);
-        const bench = false;
         const thread = true;
-        var timer = try std.time.Timer.start();
-        var ns: f32 = undefined;
         var free_ns: f32 = 0;
 
         if (!world.pool.busy(.vertices)) {
@@ -141,7 +147,7 @@ pub const World = struct {
             // TODO use early exit to reduce complexity even further
             // - e.g. some version of 'if the next closest is too far then quit looping'
             for (0.., world.chunks) |i, *chunk| {
-                if (chunk.density_wip or chunk.density.len > 0) continue;
+                if (chunk.wip_mip != null or chunk.density.len > 0) continue;
                 const old_offset = world.offsetFromIndex(i);
                 const offset = offsetFromIndexAndSplits(i, new_splits);
                 if (zm.length3(offset - pos)[0] > DENSITY_DIST) continue;
@@ -154,7 +160,7 @@ pub const World = struct {
                     for (0.., world.chunks) |j, *c| {
                         // TODO avoid this check by only looping over invalidated chunks
                         if (zm.all(world.offsetFromIndex(j) == offsetFromIndexAndSplits(j, old_splits), 3)) continue;
-                        if (c.density_wip or c.vertices_wip) {
+                        if (c.wip_mip) |_| {
                             c.must_free = true;
                         } else {
                             c.free(world.chunk_alloc);
@@ -173,7 +179,8 @@ pub const World = struct {
                     };
                     if (!try world.pool.work(world.*, i, .density)) break;
                     free = false;
-                    chunk.density_wip = true;
+                    chunk.density_mip = null;
+                    chunk.wip_mip = 0;
                 } else {
                     try chunk.genDensity(offset);
                 }
@@ -186,7 +193,7 @@ pub const World = struct {
 
         if (!world.pool.busy(.density)) {
             chunk_loop: for (0.., world.chunks) |i, *chunk| {
-                if (chunk.vertices_wip or chunk.verts != null) continue;
+                if (chunk.wip_mip != null or chunk.verts != null) continue;
                 const offset = world.offsetFromIndex(i);
                 if (zm.lengthSq3(offset - pos)[0] > VERTICES_DIST * VERTICES_DIST) continue;
                 for (0..3) |z| {
@@ -202,7 +209,7 @@ pub const World = struct {
                             v -= zm.f32x4(1, 1, 1, 0);
                             v *= zm.f32x4s(Chunk.SIZE);
                             const neighbour = world.chunks[world.indexFromOffset(v + offset) catch continue :chunk_loop];
-                            if (neighbour.density_wip or neighbour.density.len == 0) continue :chunk_loop;
+                            if (neighbour.wip_mip != null or neighbour.density.len == 0) continue :chunk_loop;
                         }
                     }
                 }
@@ -215,7 +222,8 @@ pub const World = struct {
                     };
                     if (!try world.pool.work(world.*, i, .vertices)) break;
                     free = false;
-                    chunk.vertices_wip = true;
+                    chunk.vertices_mip = null;
+                    chunk.wip_mip = 0;
                 } else {
                     try chunk.genVerts(world, offset);
                     if (chunk.verts) |*verts| {

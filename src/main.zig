@@ -34,7 +34,7 @@ pub fn main() !void {
         camera.scroll(window.scroll_delta);
         window.clearColour(0.1, 0, 0.2, 1);
 
-        try world.focus(camera.position);
+        try world.gen(camera.position);
 
         shader.use();
         shader.set("view", f32, &zm.matToArr(camera.view));

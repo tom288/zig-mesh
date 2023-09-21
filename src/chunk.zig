@@ -14,9 +14,10 @@ pub const Chunk = struct {
         .{ .name = "position", .size = 3, .type = gl.FLOAT },
         .{ .name = "colour", .size = 3, .type = gl.FLOAT },
     }}),
-    density_wip: bool,
-    vertices_wip: bool,
     must_free: bool,
+    density_mip: ?usize,
+    vertices_mip: ?usize,
+    wip_mip: ?usize,
 
     pub fn free(chunk: *Chunk, alloc: std.mem.Allocator) void {
         if (chunk.verts) |verts| verts.deinit();
