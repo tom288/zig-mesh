@@ -98,6 +98,31 @@ pub const Chunk = struct {
                     chunk.density[i] = if (zm.any(bools, 3)) 0 else 1;
                 }
             },
+            9 => { // Alan
+                const rad = @as(f32, SIZE) * 1.25;
+                const planet_smoothness = 0.06;
+                // ---
+                const gen = znoise.FnlGenerator{ .frequency = 0.4 / @as(f32, SIZE) };
+                for (0..chunk.density.len) |i| {
+                    chunk.density[i] = 0;
+                    const pos = posFromIndex(i) + offset + zm.f32x4(0, 0, rad + SIZE, 0);
+                    var feature_size: f32 = 1;
+                    var feature_depth: f32 = 0.01;
+                    var pass: f32 = 0;
+                    for (0..10) |_| {
+                        pass += 1;
+                        feature_size *= 0.5;
+                        feature_depth *= 0.5;
+                        chunk.density[i] += gen.noise3(
+                            pos[0] / feature_size,
+                            pos[1] / feature_size,
+                            pos[2] / feature_size,
+                        ) * feature_depth * SIZE;
+                    }
+                    chunk.density[i] +=
+                        (rad - zm.length3(pos)[0]) * planet_smoothness;
+                }
+            },
             else => unreachable,
         }
         // const ns: f32 = @floatFromInt(timer.read());
