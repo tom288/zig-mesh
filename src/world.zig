@@ -56,7 +56,7 @@ pub const World = struct {
         for (world.chunks) |*chunk| {
             chunk.* = .{
                 .density = &.{},
-                .verts = null,
+                .verts = undefined,
                 .mesh = try @TypeOf(chunk.mesh).init(shader),
                 .must_free = false,
                 .density_mip = null,
@@ -71,13 +71,17 @@ pub const World = struct {
         return world;
     }
 
-    pub fn kill(world: *World) void {
+    pub fn kill(world: *World) !void {
         // Wait for the other threads
+        var checked: usize = 0;
         outer: while (true) {
-            for (world.pool.busy_bools, world.pool.wait_bools) |busy_bool, wait_bool| {
-                if (busy_bool and !wait_bool.load(.Unordered)) {
+            for (checked..world.pool.busy_bools.len) |i| {
+                if (world.pool.busy_bools[i]) {
+                    try world.sync();
                     std.time.sleep(100_000); // 0.1 ms
                     continue :outer;
+                } else {
+                    checked += 1;
                 }
             }
             break;
@@ -93,8 +97,7 @@ pub const World = struct {
 
     pub fn draw(world: World, shader: Shader) void {
         for (0.., world.chunks) |i, chunk| {
-            if (chunk.density.len == 0) continue; // The chunk has no densities
-            if (chunk.verts == null) continue; // The chunk has no verts
+            if (chunk.vertices_mip == null) continue; // The chunk has no verts
             shader.set("model", f32, &zm.matToArr(zm.translationV(world.offsetFromIndex(i))));
             chunk.mesh.draw(gl.TRIANGLES);
         }
@@ -105,32 +108,7 @@ pub const World = struct {
         var timer = try std.time.Timer.start();
         var ns: f32 = undefined;
 
-        // Iterate over pool workers
-        for (0.., world.pool.wait_bools) |i, *wait_bool| {
-            // If a worker has finished
-            if (wait_bool.load(.Unordered)) {
-                // Reset worker state
-                wait_bool.store(false, .Unordered);
-                world.pool.busy_bools[i] = false;
-                var chunk = &world.chunks[world.pool.chunks[i]];
-                if (chunk.must_free) {
-                    chunk.free(world.chunk_alloc);
-                    try chunk.mesh.upload(.{});
-                }
-                // If the task was to generate vertices
-                if (world.pool.vert_bools[i]) {
-                    // Upload the vertices
-                    if (chunk.verts) |*verts| {
-                        verts.shrinkAndFree(verts.items.len);
-                        try chunk.mesh.upload(.{verts.items});
-                    }
-                    chunk.vertices_mip = chunk.wip_mip;
-                } else {
-                    chunk.density_mip = chunk.wip_mip;
-                }
-                chunk.wip_mip = null;
-            }
-        }
+        try world.sync();
         ns = @floatFromInt(timer.read());
         // if (bench) std.debug.print("Pool took {d:.3} ms\n", .{ns / 1_000_000});
         timer.reset();
@@ -147,7 +125,7 @@ pub const World = struct {
             // TODO use early exit to reduce complexity even further
             // - e.g. some version of 'if the next closest is too far then quit looping'
             for (0.., world.chunks) |i, *chunk| {
-                if (chunk.wip_mip != null or chunk.density.len > 0) continue;
+                if (chunk.wip_mip != null or chunk.density_mip != null) continue;
                 const old_offset = world.offsetFromIndex(i);
                 const offset = offsetFromIndexAndSplits(i, new_splits);
                 if (zm.length3(offset - pos)[0] > DENSITY_DIST) continue;
@@ -172,13 +150,11 @@ pub const World = struct {
                 }
                 chunk.density = try world.chunk_alloc.alloc(f32, Chunk.SIZE * Chunk.SIZE * Chunk.SIZE);
                 if (thread) {
-                    var free = true;
-                    defer if (free) {
+                    if (!try world.pool.work(world.*, i, .density)) {
                         world.chunk_alloc.free(chunk.density);
                         chunk.density = &.{};
-                    };
-                    if (!try world.pool.work(world.*, i, .density)) break;
-                    free = false;
+                        break;
+                    }
                     chunk.density_mip = null;
                     chunk.wip_mip = 0;
                 } else {
@@ -193,7 +169,7 @@ pub const World = struct {
 
         if (!world.pool.busy(.density)) {
             chunk_loop: for (0.., world.chunks) |i, *chunk| {
-                if (chunk.wip_mip != null or chunk.verts != null) continue;
+                if (chunk.wip_mip != null or chunk.vertices_mip != null) continue;
                 const offset = world.offsetFromIndex(i);
                 if (zm.lengthSq3(offset - pos)[0] > VERTICES_DIST * VERTICES_DIST) continue;
                 for (0..3) |z| {
@@ -209,31 +185,52 @@ pub const World = struct {
                             v -= zm.f32x4(1, 1, 1, 0);
                             v *= zm.f32x4s(Chunk.SIZE);
                             const neighbour = world.chunks[world.indexFromOffset(v + offset) catch continue :chunk_loop];
-                            if (neighbour.wip_mip != null or neighbour.density.len == 0) continue :chunk_loop;
+                            if (neighbour.wip_mip != null or neighbour.density_mip == null) continue :chunk_loop;
                         }
                     }
                 }
                 chunk.verts = std.ArrayList(f32).init(world.chunk_alloc);
                 if (thread) {
-                    var free = true;
-                    defer if (free) {
-                        if (chunk.verts) |verts| verts.deinit();
-                        chunk.verts = null;
-                    };
-                    if (!try world.pool.work(world.*, i, .vertices)) break;
-                    free = false;
+                    if (!try world.pool.work(world.*, i, .vertices)) {
+                        if (chunk.vertices_mip) |_| chunk.verts.deinit();
+                        break;
+                    }
                     chunk.vertices_mip = null;
                     chunk.wip_mip = 0;
                 } else {
                     try chunk.genVerts(world, offset);
-                    if (chunk.verts) |*verts| {
-                        verts.shrinkAndFree(verts.items.len);
-                        try chunk.mesh.upload(.{verts.items});
-                    }
+                    chunk.verts.shrinkAndFree(chunk.verts.items.len);
+                    try chunk.mesh.upload(.{chunk.verts.items});
                 }
             }
             ns = @floatFromInt(timer.read());
             if (bench) std.debug.print("Vertices took {d:.3} ms\n", .{ns / 1_000_000});
+        }
+    }
+
+    fn sync(world: *World) !void {
+        // Iterate over pool workers
+        for (0.., world.pool.wait_bools) |i, *wait_bool| {
+            // Look for workers who are finished and waiting for a sync
+            if (!wait_bool.load(.Unordered)) continue;
+            // Reset worker state
+            wait_bool.store(false, .Unordered);
+            world.pool.busy_bools[i] = false;
+            var chunk = &world.chunks[world.pool.chunks[i]];
+            if (chunk.must_free) {
+                chunk.free(world.chunk_alloc);
+                try chunk.mesh.upload(.{});
+            }
+            // If the task was to generate vertices
+            if (world.pool.vert_bools[i]) {
+                // Upload the vertices
+                chunk.verts.shrinkAndFree(chunk.verts.items.len);
+                try chunk.mesh.upload(.{chunk.verts.items});
+                chunk.vertices_mip = chunk.wip_mip;
+            } else {
+                chunk.density_mip = chunk.wip_mip;
+            }
+            chunk.wip_mip = null;
         }
     }
 

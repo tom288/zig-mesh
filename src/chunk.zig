@@ -9,7 +9,7 @@ pub const Chunk = struct {
     pub const SIZE = 32;
 
     density: []f32,
-    verts: ?std.ArrayList(f32),
+    verts: std.ArrayList(f32),
     mesh: Mesh(.{.{
         .{ .name = "position", .size = 3, .type = gl.FLOAT },
         .{ .name = "colour", .size = 3, .type = gl.FLOAT },
@@ -20,10 +20,12 @@ pub const Chunk = struct {
     wip_mip: ?usize,
 
     pub fn free(chunk: *Chunk, alloc: std.mem.Allocator) void {
-        if (chunk.verts) |verts| verts.deinit();
-        chunk.verts = null;
+        if (chunk.wip_mip) |_| unreachable;
+        if (chunk.vertices_mip) |_| chunk.verts.deinit();
+        chunk.vertices_mip = null;
         alloc.free(chunk.density);
         chunk.density = &.{};
+        chunk.density_mip = null;
         chunk.must_free = false;
     }
 
@@ -173,9 +175,7 @@ pub const Chunk = struct {
                     vert[(f / 2 + 1) % 3] += if (x) 0.5 else -0.5;
                     vert[(f / 2 + 2) % 3] += if (y) 0.5 else -0.5;
                     // Vertex positions
-                    if (chunk.verts) |*verts| {
-                        try verts.appendSlice(&zm.vecToArr3(vert));
-                    } else unreachable;
+                    try chunk.verts.appendSlice(&zm.vecToArr3(vert));
                     // Vertex colours
                     var colour = zm.f32x4s(0);
                     for (0..3) |c| {
@@ -193,9 +193,7 @@ pub const Chunk = struct {
                     ]) occ += 1;
                     // Darken occluded vertices
                     for (0..occ) |_| colour /= @splat(1.1);
-                    if (chunk.verts) |*verts| {
-                        try verts.appendSlice(&zm.vecToArr3(colour));
-                    } else unreachable;
+                    try chunk.verts.appendSlice(&zm.vecToArr3(colour));
                 }
             }
         }

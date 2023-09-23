@@ -25,7 +25,7 @@ pub fn main() !void {
     defer shader.kill();
     var camera = Camera.init(window.resolution);
     var world = try World.init(alloc, chunk_alloc, shader, camera.position);
-    defer world.kill();
+    defer world.kill() catch {};
 
     // Wait for the user to close the window.
     while (window.ok()) {
