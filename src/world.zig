@@ -148,17 +148,27 @@ pub const World = struct {
                     free_ns = @floatFromInt(free_timer.read());
                     if (bench) std.debug.print("Frees took {d:.3} ms\n", .{free_ns / 1_000_000});
                 }
-                chunk.density = try world.chunk_alloc.alloc(f32, Chunk.SIZE * Chunk.SIZE * Chunk.SIZE);
+                const mip_level = 0;
+                const mip_scale = std.math.pow(f32, 2, @floatFromInt(mip_level));
+                const size = Chunk.SIZE / @as(usize, @intFromFloat(mip_scale));
+                chunk.density = try world.chunk_alloc.alloc(f32, size * size * size);
                 if (thread) {
+                    const old_mip = chunk.density_mip;
+                    chunk.density_mip = null;
+                    chunk.wip_mip = mip_level;
                     if (!try world.pool.work(world.*, i, .density)) {
                         world.chunk_alloc.free(chunk.density);
                         chunk.density = &.{};
+                        chunk.density_mip = old_mip;
+                        chunk.wip_mip = null;
                         break;
                     }
-                    chunk.density_mip = null;
-                    chunk.wip_mip = 0;
                 } else {
+                    chunk.density_mip = null;
+                    chunk.wip_mip = mip_level;
                     try chunk.genDensity(offset);
+                    chunk.density_mip = chunk.wip_mip;
+                    chunk.wip_mip = null;
                 }
             }
             ns = @floatFromInt(timer.read());
@@ -169,7 +179,7 @@ pub const World = struct {
 
         if (!world.pool.busy(.density)) {
             chunk_loop: for (0.., world.chunks) |i, *chunk| {
-                if (chunk.wip_mip != null or chunk.vertices_mip != null) continue;
+                if (chunk.wip_mip != null or chunk.density_mip == null or chunk.vertices_mip != null) continue;
                 const offset = world.offsetFromIndex(i);
                 if (zm.lengthSq3(offset - pos)[0] > VERTICES_DIST * VERTICES_DIST) continue;
                 for (0..3) |z| {
@@ -191,16 +201,23 @@ pub const World = struct {
                 }
                 chunk.verts = std.ArrayList(f32).init(world.chunk_alloc);
                 if (thread) {
+                    const old_mip = chunk.vertices_mip;
+                    chunk.vertices_mip = null;
+                    chunk.wip_mip = chunk.density_mip;
                     if (!try world.pool.work(world.*, i, .vertices)) {
                         if (chunk.vertices_mip) |_| chunk.verts.deinit();
+                        chunk.vertices_mip = old_mip;
+                        chunk.wip_mip = null;
                         break;
                     }
-                    chunk.vertices_mip = null;
-                    chunk.wip_mip = 0;
                 } else {
-                    try chunk.genVerts(world, offset);
+                    chunk.vertices_mip = null;
+                    chunk.wip_mip = chunk.density_mip;
+                    try chunk.genVerts(world.*, offset);
                     chunk.verts.shrinkAndFree(chunk.verts.items.len);
                     try chunk.mesh.upload(.{chunk.verts.items});
+                    chunk.vertices_mip = chunk.wip_mip;
+                    chunk.wip_mip = null;
                 }
             }
             ns = @floatFromInt(timer.read());

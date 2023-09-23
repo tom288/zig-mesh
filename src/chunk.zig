@@ -36,7 +36,6 @@ pub const Chunk = struct {
 
     pub fn genDensity(chunk: *Chunk, offset: zm.Vec) !void {
         const variant = 5;
-        // var timer = try std.time.Timer.start();
         switch (variant) {
             0, 1 => { // Empty, Full
                 for (0..chunk.density.len) |i| {
@@ -50,7 +49,7 @@ pub const Chunk = struct {
             },
             3 => { // Max vertex density
                 for (0..chunk.density.len) |i| {
-                    const pos = posFromIndex(i);
+                    const pos = chunk.posFromIndex(i);
                     chunk.density[i] = @mod(
                         pos[0] + pos[1] + pos[2] +
                             if (Chunk.SIZE % 4 != 1) 0 else 1 -
@@ -65,7 +64,7 @@ pub const Chunk = struct {
                     .noise_type = znoise.FnlGenerator.NoiseType.perlin,
                 };
                 for (0..chunk.density.len) |i| {
-                    const pos = posFromIndex(i) + offset;
+                    const pos = chunk.posFromIndex(i) + offset;
                     chunk.density[i] = gen.noise3(pos[0], pos[1], pos[2]);
                 }
             },
@@ -74,14 +73,14 @@ pub const Chunk = struct {
                     .frequency = 0.6 / @as(f32, SIZE),
                 };
                 for (0..chunk.density.len) |i| {
-                    const pos = posFromIndex(i) + offset;
+                    const pos = chunk.posFromIndex(i) + offset;
                     chunk.density[i] = gen.noise3(pos[0], pos[1], pos[2]);
                 }
             },
             6 => { // Smooth sphere
                 const rad = @as(f32, SIZE) * 2.5;
                 for (0..chunk.density.len) |i| {
-                    const pos = posFromIndex(i) + offset + zm.f32x4(0, 0, rad + SIZE, 0);
+                    const pos = chunk.posFromIndex(i) + offset + zm.f32x4(0, 0, rad + SIZE, 0);
                     chunk.density[i] = rad - zm.length3(pos)[0];
                 }
             },
@@ -89,14 +88,14 @@ pub const Chunk = struct {
                 const rad = @as(f32, SIZE) * 2.5;
                 const gen = znoise.FnlGenerator{ .frequency = 4 / rad };
                 for (0..chunk.density.len) |i| {
-                    const pos = posFromIndex(i) + offset + zm.f32x4(0, 0, rad + SIZE, 0);
+                    const pos = chunk.posFromIndex(i) + offset + zm.f32x4(0, 0, rad + SIZE, 0);
                     chunk.density[i] = rad * 0.92 - zm.length3(pos)[0];
                     chunk.density[i] += gen.noise3(pos[0], pos[1], pos[2]) * rad * 0.1;
                 }
             },
             8 => { // Chunk corner visualisation
                 for (0..chunk.density.len) |i| {
-                    const pos = @fabs(posFromIndex(i));
+                    const pos = @fabs(chunk.posFromIndex(i));
                     const bools = pos != zm.f32x4s(@as(f32, SIZE - 1) / 2);
                     chunk.density[i] = if (zm.any(bools, 3)) 0 else 1;
                 }
@@ -108,7 +107,7 @@ pub const Chunk = struct {
                 const gen = znoise.FnlGenerator{ .frequency = 0.4 / @as(f32, SIZE) };
                 for (0..chunk.density.len) |i| {
                     chunk.density[i] = 0;
-                    const pos = posFromIndex(i) + offset + zm.f32x4(0, 0, rad + SIZE, 0);
+                    const pos = chunk.posFromIndex(i) + offset + zm.f32x4(0, 0, rad + SIZE, 0);
                     var feature_size: f32 = 1;
                     var feature_depth: f32 = 0.01;
                     var pass: f32 = 0;
@@ -128,41 +127,38 @@ pub const Chunk = struct {
             },
             else => unreachable,
         }
-        // const ns: f32 = @floatFromInt(timer.read());
-        // std.debug.print("Density variant {} took {d:.3} ms\n", .{ variant, ns / 1_000_000 });
     }
 
     pub fn genVerts(chunk: *Chunk, world: World, offset: zm.Vec) !void {
         const gen = znoise.FnlGenerator{
             .frequency = 0.25 / @as(f32, SIZE),
         };
-        // var timer = try std.time.Timer.start();
         for (0..chunk.density.len) |i| {
-            try chunk.cubeVerts(world, gen, posFromIndex(i), offset);
+            try chunk.cubeVerts(world, gen, chunk.posFromIndex(i), offset);
         }
-        // const ns: f32 = @floatFromInt(timer.read());
-        // std.debug.print("Vertex generation took {d:.3} ms\n", .{ns / 1_000_000});
     }
 
     // Cubes are centered around their position, which is assumed to be integer
     fn cubeVerts(chunk: *Chunk, world: World, gen: znoise.FnlGenerator, pos: zm.Vec, offset: zm.Vec) !void {
         if (chunk.empty(world, pos, offset) orelse return logBadPos(pos)) return;
+        const mip_level = chunk.wip_mip orelse unreachable;
+        const mip_scale = std.math.pow(f32, 2, @floatFromInt(mip_level));
         // Faces
         for (0..6) |f| {
             var neighbour = pos;
-            neighbour[f / 2] += if (f % 2 > 0) 1 else -1;
+            neighbour[f / 2] += if (f % 2 > 0) mip_scale else -mip_scale;
             if (chunk.full(world, neighbour, offset) orelse false) continue;
             // Sample voxel occlusion
             var occlusion: [8]bool = undefined;
             for (0..4) |e| {
                 // Voxels that share edges
                 var occluder = neighbour;
-                occluder[(e / 2 + f / 2 + 1) % 3] += if (e % 2 > 0) 1.0 else -1.0;
+                occluder[(e / 2 + f / 2 + 1) % 3] += if (e % 2 > 0) mip_scale else -mip_scale;
                 occlusion[e] = chunk.full(world, occluder, offset) orelse false;
                 // Voxels that share corners
                 var corner = neighbour;
-                corner[(f / 2 + 1) % 3] += if (e % 2 > 0) 1.0 else -1.0;
-                corner[(f / 2 + 2) % 3] += if (e / 2 > 0) 1.0 else -1.0;
+                corner[(f / 2 + 1) % 3] += if (e % 2 > 0) mip_scale else -mip_scale;
+                corner[(f / 2 + 2) % 3] += if (e / 2 > 0) mip_scale else -mip_scale;
                 occlusion[e + 4] = chunk.full(world, corner, offset) orelse false;
             }
             // Triangles
@@ -172,8 +168,8 @@ pub const Chunk = struct {
                     var vert = (pos + neighbour) / zm.f32x4s(2);
                     const x = (t + v + f) % 2 > 0;
                     const y = v / 2 == t;
-                    vert[(f / 2 + 1) % 3] += if (x) 0.5 else -0.5;
-                    vert[(f / 2 + 2) % 3] += if (y) 0.5 else -0.5;
+                    vert[(f / 2 + 1) % 3] += if (x) mip_scale * 0.5 else mip_scale * -0.5;
+                    vert[(f / 2 + 2) % 3] += if (y) mip_scale * 0.5 else mip_scale * -0.5;
                     // Vertex positions
                     try chunk.verts.appendSlice(&zm.vecToArr3(vert));
                     // Vertex colours
@@ -211,16 +207,20 @@ pub const Chunk = struct {
     }
 
     fn densityFromPos(chunk: *Chunk, pos: zm.Vec) ?f32 {
-        return chunk.density[indexFromPos(pos) catch return null];
+        return chunk.density[chunk.indexFromPos(pos) catch return null];
     }
 
-    fn indexFromPos(pos: zm.Vec) !usize {
-        const floor = zm.floor(pos + zm.f32x4s(@as(f32, SIZE) / 2));
+    fn indexFromPos(chunk: Chunk, pos: zm.Vec) !usize {
+        const mip_level = chunk.wip_mip orelse chunk.density_mip orelse unreachable;
+        const mip_scale = std.math.pow(f32, 2, @floatFromInt(mip_level));
+        const size = SIZE / @as(usize, @intFromFloat(mip_scale));
+
+        const floor = zm.floor((pos + zm.f32x4s(@as(f32, SIZE) / 2)) / zm.f32x4s(mip_scale));
         var index: usize = 0;
         for (0..3) |d| {
             const i = 2 - d;
-            if (floor[i] < 0 or floor[i] >= SIZE) return error.PositionOutsideChunk;
-            index *= SIZE;
+            if (floor[i] < 0 or floor[i] >= @as(f32, @floatFromInt(size))) return error.PositionOutsideChunk;
+            index *= size;
             index += @intFromFloat(floor[i]);
         }
         return index;
@@ -236,18 +236,21 @@ pub const Chunk = struct {
         }
     }
 
-    fn posFromIndex(index: usize) zm.Vec {
-        const half = @as(f32, SIZE) / 2;
-        return zm.f32x4(
-            @floatFromInt(index % SIZE),
-            @floatFromInt(index / SIZE % SIZE),
-            @floatFromInt(index / SIZE / SIZE),
+    fn posFromIndex(chunk: Chunk, index: usize) zm.Vec {
+        const mip_level = chunk.wip_mip orelse chunk.density_mip orelse unreachable;
+        const mip_scale = std.math.pow(f32, 2, @floatFromInt(mip_level));
+        const size = SIZE / @as(usize, @intFromFloat(mip_scale));
+        const half = @as(f32, @floatFromInt(size)) / 2;
+        return (zm.f32x4(
+            @floatFromInt(index % size),
+            @floatFromInt(index / size % size),
+            @floatFromInt(index / size / size),
             0,
         ) - zm.f32x4(
             half - 0.5,
             half - 0.5,
             half - 0.5,
             0,
-        );
+        )) * zm.f32x4s(mip_scale);
     }
 };
