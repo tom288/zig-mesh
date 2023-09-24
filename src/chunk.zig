@@ -18,6 +18,7 @@ pub const Chunk = struct {
     density_mip: ?usize,
     vertices_mip: ?usize,
     wip_mip: ?usize,
+    density_refs: usize,
 
     pub fn free(chunk: *Chunk, alloc: std.mem.Allocator) void {
         if (chunk.wip_mip) |_| unreachable;

@@ -62,6 +62,7 @@ pub const World = struct {
                 .density_mip = null,
                 .vertices_mip = null,
                 .wip_mip = null,
+                .density_refs = 0,
             };
             count += 1;
         }
@@ -138,7 +139,7 @@ pub const World = struct {
                     for (0.., world.chunks) |j, *c| {
                         // TODO avoid this check by only looping over invalidated chunks
                         if (zm.all(world.offsetFromIndex(j) == offsetFromIndexAndSplits(j, old_splits), 3)) continue;
-                        if (c.wip_mip) |_| {
+                        if (c.wip_mip != null or chunk.density_refs > 0) {
                             c.must_free = true;
                         } else {
                             c.free(world.chunk_alloc);
@@ -189,10 +190,9 @@ pub const World = struct {
                                 @floatFromInt(x),
                                 @floatFromInt(y),
                                 @floatFromInt(z),
-                                0,
-                            );
+                                1,
+                            ) - zm.f32x4s(1);
                             if (zm.lengthSq3(v)[0] == 1) continue;
-                            v -= zm.f32x4(1, 1, 1, 0);
                             v *= zm.f32x4s(Chunk.SIZE);
                             const neighbour = world.chunks[world.indexFromOffset(v + offset) catch continue :chunk_loop];
                             if (neighbour.wip_mip != null or neighbour.density_mip == null) continue :chunk_loop;
@@ -209,6 +209,22 @@ pub const World = struct {
                         chunk.vertices_mip = old_mip;
                         chunk.wip_mip = null;
                         break;
+                    }
+                    for (0..3) |z| {
+                        for (0..3) |y| {
+                            for (0..3) |x| {
+                                var v = zm.f32x4(
+                                    @floatFromInt(x),
+                                    @floatFromInt(y),
+                                    @floatFromInt(z),
+                                    1,
+                                ) - zm.f32x4s(1);
+                                v *= zm.f32x4s(Chunk.SIZE);
+                                v += world.offsetFromIndex(i);
+                                const n = try world.indexFromOffset(v);
+                                world.chunks[n].density_refs += 1;
+                            }
+                        }
                     }
                 } else {
                     chunk.vertices_mip = null;
@@ -234,10 +250,31 @@ pub const World = struct {
             wait_bool.store(false, .Unordered);
             world.pool.busy_bools[i] = false;
             var chunk = &world.chunks[world.pool.chunks[i]];
-            if (chunk.must_free) {
-                chunk.free(world.chunk_alloc);
-                try chunk.mesh.upload(.{});
+            if (world.pool.vert_bools[i]) {
+                for (0..3) |z| {
+                    for (0..3) |y| {
+                        for (0..3) |x| {
+                            var v = zm.f32x4(
+                                @floatFromInt(x),
+                                @floatFromInt(y),
+                                @floatFromInt(z),
+                                1,
+                            ) - zm.f32x4s(1);
+                            v *= zm.f32x4s(Chunk.SIZE);
+                            const neighbour_pos = v + world.offsetFromIndex(world.pool.chunks[i]);
+                            const neighbour = &world.chunks[try world.indexFromOffset(neighbour_pos)];
+                            neighbour.density_refs -= 1;
+                            if (neighbour.must_free and neighbour.density_refs == 0) {
+                                if (zm.lengthSq3(v)[0] == 0) chunk.wip_mip = null;
+                                neighbour.free(world.chunk_alloc);
+                                try neighbour.mesh.upload(.{});
+                            }
+                        }
+                    }
+                }
             }
+            if (chunk.wip_mip == null) continue; // Already freed
+
             // If the task was to generate vertices
             if (world.pool.vert_bools[i]) {
                 // Upload the vertices
@@ -252,13 +289,17 @@ pub const World = struct {
     }
 
     pub fn indexFromOffset(world: World, pos: zm.Vec) !usize {
+        return indexFromOffsetAndSplits(pos, world.splits);
+    }
+
+    pub fn indexFromOffsetAndSplits(pos: zm.Vec, splits: zm.Vec) !usize {
         const floor = zm.floor(pos / zm.f32x4s(Chunk.SIZE));
         var index: usize = 0;
         for (0..3) |d| {
             const i = 2 - d;
-            var f = floor[i] - @floor(world.splits[i] / CHUNKS) * CHUNKS;
+            var f = floor[i] - @floor(splits[i] / CHUNKS) * CHUNKS;
             if (@mod(f, CHUNKS) >=
-                @mod(world.splits[i], CHUNKS)) f += CHUNKS;
+                @mod(splits[i], CHUNKS)) f += CHUNKS;
             if (f < 0 or f >= CHUNKS) return error.PositionOutsideWorld;
             index *= CHUNKS;
             index += @intFromFloat(f);
