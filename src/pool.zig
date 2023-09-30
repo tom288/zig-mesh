@@ -77,7 +77,10 @@ pub const Pool = struct {
             wait_bool.store(false, .Unordered);
             pool.chunks[i] = chunk_index;
 
-            const offset = world.offsetFromIndex(chunk_index);
+            const offset = world.offsetFromIndex(
+                chunk_index,
+                world.chunks[chunk_index].splits_copy orelse unreachable,
+            );
             (try std.Thread.spawn(
                 .{},
                 function,

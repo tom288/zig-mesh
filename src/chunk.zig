@@ -6,7 +6,7 @@ const Mesh = @import("mesh.zig").Mesh;
 const World = @import("world.zig").World;
 
 pub const Chunk = struct {
-    pub const SIZE = 32;
+    pub const SIZE = 16;
 
     density: []f32,
     verts: std.ArrayList(f32),
@@ -19,15 +19,18 @@ pub const Chunk = struct {
     vertices_mip: ?usize,
     wip_mip: ?usize,
     density_refs: usize,
+    splits_copy: ?zm.Vec,
 
     pub fn free(chunk: *Chunk, alloc: std.mem.Allocator) void {
         if (chunk.wip_mip) |_| unreachable;
+        if (chunk.density_refs > 0) unreachable;
         if (chunk.vertices_mip) |_| chunk.verts.deinit();
         chunk.vertices_mip = null;
         alloc.free(chunk.density);
         chunk.density = &.{};
         chunk.density_mip = null;
         chunk.must_free = false;
+        chunk.splits_copy = null;
     }
 
     pub fn kill(chunk: *Chunk, alloc: std.mem.Allocator) void {
@@ -141,26 +144,26 @@ pub const Chunk = struct {
 
     // Cubes are centered around their position, which is assumed to be integer
     fn cubeVerts(chunk: *Chunk, world: World, gen: znoise.FnlGenerator, pos: zm.Vec, offset: zm.Vec) !void {
-        if (chunk.empty(world, pos, offset) orelse return logBadPos(pos)) return;
+        if (chunk.empty(world, pos, offset, false, null) orelse return logBadPos(pos)) return;
         const mip_level = chunk.wip_mip orelse unreachable;
         const mip_scale = std.math.pow(f32, 2, @floatFromInt(mip_level));
         // Faces
         for (0..6) |f| {
             var neighbour = pos;
             neighbour[f / 2] += if (f % 2 > 0) mip_scale else -mip_scale;
-            if (chunk.full(world, neighbour, offset) orelse false) continue;
+            if (chunk.full(world, neighbour, offset, false, null) orelse false) continue;
             // Sample voxel occlusion
             var occlusion: [8]bool = undefined;
             for (0..4) |e| {
                 // Voxels that share edges
                 var occluder = neighbour;
                 occluder[(e / 2 + f / 2 + 1) % 3] += if (e % 2 > 0) mip_scale else -mip_scale;
-                occlusion[e] = chunk.full(world, occluder, offset) orelse false;
+                occlusion[e] = chunk.full(world, occluder, offset, true, null) orelse false;
                 // Voxels that share corners
                 var corner = neighbour;
                 corner[(f / 2 + 1) % 3] += if (e % 2 > 0) mip_scale else -mip_scale;
                 corner[(f / 2 + 2) % 3] += if (e / 2 > 0) mip_scale else -mip_scale;
-                occlusion[e + 4] = chunk.full(world, corner, offset) orelse false;
+                occlusion[e + 4] = chunk.full(world, corner, offset, true, null) orelse false;
             }
             // Triangles
             for (0..2) |t| {
@@ -181,7 +184,7 @@ pub const Chunk = struct {
                         colour[c] += (gen.noise3(c_pos[0], c_pos[1], c_pos[2]) + 1) / 2;
                     }
                     // Accumulate occlusion
-                    var occ: usize = 0;
+                    var occ: f32 = 0;
                     if (occlusion[if (x) 1 else 0]) occ += 1;
                     if (occlusion[if (y) 3 else 2]) occ += 1;
                     if (occlusion[
@@ -189,22 +192,24 @@ pub const Chunk = struct {
                             @as(usize, if (y) 2 else 0)
                     ]) occ += 1;
                     // Darken occluded vertices
-                    for (0..occ) |_| colour /= @splat(1.1);
+                    colour /= @splat(std.math.pow(f32, 1.1, occ));
                     try chunk.verts.appendSlice(&zm.vecToArr3(colour));
                 }
             }
         }
     }
 
-    fn full(chunk: *Chunk, world: World, pos: zm.Vec, offset: zm.Vec) ?bool {
+    fn full(chunk: *Chunk, world: World, pos: zm.Vec, offset: zm.Vec, occ: bool, splits: ?zm.Vec) ?bool {
+        const spl = splits orelse chunk.splits_copy orelse unreachable;
         if (chunk.densityFromPos(pos)) |p| return p > 0;
-        const i = world.indexFromOffset(pos + offset) catch unreachable;
-        const off = world.offsetFromIndex(i);
-        return world.chunks[i].full(world, pos + offset - off, off);
+        if (chunk.wip_mip != 0 and !occ) return false;
+        const i = world.indexFromOffset(pos + offset, spl) catch unreachable;
+        const off = world.offsetFromIndex(i, spl);
+        return world.chunks[i].full(world, pos + offset - off, off, occ, spl);
     }
 
-    fn empty(chunk: *Chunk, world: World, pos: zm.Vec, offset: zm.Vec) ?bool {
-        return if (chunk.full(world, pos, offset)) |e| !e else null;
+    fn empty(chunk: *Chunk, world: World, pos: zm.Vec, offset: zm.Vec, occ: bool, splits: ?zm.Vec) ?bool {
+        return if (chunk.full(world, pos, offset, occ, splits)) |e| !e else null;
     }
 
     fn densityFromPos(chunk: *Chunk, pos: zm.Vec) ?f32 {
