@@ -24,8 +24,8 @@ pub const World = struct {
     // Therefore it makes sense to have a large []chunk rather than a []*chunk
     // We are likely to use 70% or so of the chunks anyway, so are wasting 30%
     chunks: []Chunk,
+    cam_pos: zm.Vec,
     splits: zm.Vec,
-    old_pos: zm.Vec,
     pool: Pool,
 
     pub fn init(alloc: std.mem.Allocator, chunk_alloc: std.mem.Allocator, shader: ?Shader, cam_pos: ?zm.Vec) !World {
@@ -35,8 +35,8 @@ pub const World = struct {
             .chunk_alloc = chunk_alloc,
             .shader = shader,
             .chunks = try alloc.alloc(Chunk, CHUNKS * CHUNKS * CHUNKS),
+            .cam_pos = pos,
             .splits = splitsFromPos(pos),
-            .old_pos = pos,
             .pool = undefined,
         };
 
@@ -93,7 +93,6 @@ pub const World = struct {
             chunk.kill(world.chunk_alloc);
         }
         world.pool.kill(world.alloc);
-        world.alloc.free(world.chunks);
         world.chunks = &.{};
     }
 
@@ -105,145 +104,208 @@ pub const World = struct {
         }
     }
 
-    pub fn gen(world: *World, position: ?zm.Vec) !void {
+    // Chunk boundaries occur at multiples of Chunk.SIZE
+    // The group of closest chunks changes halfway between these boundaries
+    pub fn gen(world: *World, cam_pos: ?zm.Vec) !void {
         const bench = false;
+        if (cam_pos) |pos| {
+            world.cam_pos = (pos / zm.f32x4s(Chunk.SIZE)) - zm.f32x4s(0.5);
+            world.cam_pos = zm.ceil(world.cam_pos) * zm.f32x4s(Chunk.SIZE);
+            world.cam_pos[3] = 0;
+        }
+        const new_splits = splitsFromPos(world.cam_pos);
+        const bound = CHUNKS / 2;
         var timer = try std.time.Timer.start();
         var ns: f32 = undefined;
 
         try world.sync();
+
+        outer: for (0..bound) |dist| {
+            const edge = dist + 1 == bound;
+            for (0..2) |s| {
+                var other: isize = @intCast(dist);
+                if (s == 0) other = -other - 1;
+
+                // YZ plane
+                const usmall = dist;
+                const small: isize = @intCast(usmall);
+                const ubig = usmall + 1;
+                const big: isize = small + 1;
+                for (0..ubig * 2) |z| {
+                    for (0..ubig * 2) |y| {
+                        if (!try world.genChunk(
+                            world.cam_pos + zm.f32x4(
+                                @floatFromInt(other),
+                                @floatFromInt(@as(isize, @intCast(y)) - big),
+                                @floatFromInt(@as(isize, @intCast(z)) - big),
+                                0,
+                            ) * zm.f32x4s(Chunk.SIZE),
+                            dist,
+                            edge,
+                            new_splits,
+                        )) break :outer;
+                    }
+                }
+
+                // XZ plane
+                for (0..usmall * 2) |x| {
+                    for (0..ubig * 2) |z| {
+                        if (!try world.genChunk(
+                            world.cam_pos + zm.f32x4(
+                                @floatFromInt(@as(isize, @intCast(x)) - small),
+                                @floatFromInt(other),
+                                @floatFromInt(@as(isize, @intCast(z)) - big),
+                                0,
+                            ) * zm.f32x4s(Chunk.SIZE),
+                            dist,
+                            edge,
+                            new_splits,
+                        )) break :outer;
+                    }
+                }
+
+                // XY plane
+                for (0..usmall * 2) |y| {
+                    for (0..usmall * 2) |x| {
+                        if (!try world.genChunk(
+                            world.cam_pos + zm.f32x4(
+                                @floatFromInt(@as(isize, @intCast(x)) - small),
+                                @floatFromInt(@as(isize, @intCast(y)) - small),
+                                @floatFromInt(other),
+                                0,
+                            ) * zm.f32x4s(Chunk.SIZE),
+                            dist,
+                            edge,
+                            new_splits,
+                        )) break :outer;
+                    }
+                }
+            }
+        }
         ns = @floatFromInt(timer.read());
-        // if (bench) std.debug.print("Pool took {d:.3} ms\n", .{ns / 1_000_000});
-        timer.reset();
+        if (bench) std.debug.print("Gen took {d:.3} ms\n", .{ns / 1_000_000});
+    }
 
-        const pos = position orelse world.old_pos;
-        // const same_pos = if (position) |p| p == world.old_pos else pos != pos;
+    // Return false if we have ran out of threads so that the caller can break
+    // Otherwise return true
+    pub fn genChunk(world: *World, pos: zm.Vec, dist: usize, edge: bool, new_splits: zm.Vec) !bool {
+        _ = dist; // TODO use this for LOD?
 
-        const new_splits = splitsFromPos(pos);
         const thread = true;
-        var free_ns: f32 = 0;
+        const mip_level = 0;
+        const chunk_index = try world.indexFromOffsetWithNewSplits(
+            pos,
+            new_splits,
+        );
+        var chunk = &world.chunks[chunk_index];
 
-        // TODO use components of same_pos to reduce complexity by CHUNKS
-        // TODO use early exit to reduce complexity even further
-        // - e.g. some version of 'if the next closest is too far then quit looping'
-        for (0.., world.chunks) |i, *chunk| {
-            if (chunk.wip_mip != null or chunk.density_mip != null) continue;
-            const old_offset = world.offsetFromIndex(i, null);
-            const offset = world.offsetFromIndex(i, new_splits);
-            if (zm.length3(offset - pos)[0] > DENSITY_DIST) continue;
-            if (zm.any(old_offset != offset, 3)) {
-                const old_splits = world.splits;
-                // Update splits TODO make this update minimal
-                world.splits = new_splits;
-                // Free invalidated chunks
-                var free_timer = try std.time.Timer.start();
-                for (0.., world.chunks) |j, *c| {
-                    // TODO avoid this check by only looping over invalidated chunks
-                    if (zm.all(world.offsetFromIndex(j, null) == world.offsetFromIndex(j, old_splits), 3)) continue;
-                    if (c.wip_mip != null or chunk.density_refs > 0) {
-                        c.must_free = true;
-                    } else {
-                        c.free(world.chunk_alloc);
-                        try c.mesh.upload(.{});
-                    }
-                }
-                free_ns = @floatFromInt(free_timer.read());
-                if (bench) std.debug.print("Frees took {d:.3} ms\n", .{free_ns / 1_000_000});
-            }
-            var mip_level: usize = 0;
-            const mip_scale = std.math.pow(f32, 2, @floatFromInt(mip_level));
-            const size = Chunk.SIZE / @as(usize, @intFromFloat(mip_scale));
-            chunk.density = try world.chunk_alloc.alloc(f32, size * size * size);
-            if (thread) {
-                const old_mip = chunk.density_mip;
-                chunk.density_mip = null;
-                chunk.wip_mip = mip_level;
-                chunk.splits_copy = world.splits;
-                if (!try world.pool.work(world.*, i, .density)) {
-                    world.chunk_alloc.free(chunk.density);
-                    chunk.density = &.{};
-                    chunk.density_mip = old_mip;
-                    chunk.wip_mip = null;
-                    chunk.splits_copy = null;
-                    break;
-                }
-            } else {
-                chunk.density_mip = null;
-                chunk.wip_mip = mip_level;
-                chunk.splits_copy = world.splits;
-                try chunk.genDensity(offset);
-                chunk.density_mip = chunk.wip_mip;
-                chunk.wip_mip = null;
-                chunk.splits_copy = null;
-            }
-        }
-        ns = @floatFromInt(timer.read());
-        ns -= free_ns;
-        if (bench) std.debug.print("Density took {d:.3} ms\n", .{ns / 1_000_000});
-        timer.reset();
+        // Skip chunks which are already being processed
+        if (chunk.wip_mip) |_| return true;
+        // Skip chunks on the edge
+        if (edge) return true;
+        // Skip chunks which are already generated
+        if (chunk.vertices_mip) |mip| if (mip <= mip_level) return true;
 
-        chunk_loop: for (0.., world.chunks) |i, *chunk| {
-            if (chunk.wip_mip != null or chunk.density_mip == null or chunk.vertices_mip != null) continue;
-            const offset = world.offsetFromIndex(i, chunk.splits_copy);
-            if (zm.lengthSq3(offset - pos)[0] > VERTICES_DIST * VERTICES_DIST) continue;
-            for (0..3) |z| {
-                for (0..3) |y| {
-                    for (0..3) |x| {
-                        var v = zm.f32x4(
-                            @floatFromInt(x),
-                            @floatFromInt(y),
-                            @floatFromInt(z),
-                            1,
-                        ) - zm.f32x4s(1);
-                        if (zm.lengthSq3(v)[0] == 1) continue;
-                        v *= zm.f32x4s(Chunk.SIZE);
-                        const neighbour = world.chunks[world.indexFromOffset(v + offset, chunk.splits_copy) catch continue :chunk_loop];
-                        if (neighbour.wip_mip != null or neighbour.density_mip == null) continue :chunk_loop;
+        // Whether all chunks ine surrounding 3x3 region have sufficity densities
+        var all_ready = true;
+
+        // Iterate over 3x3 region and generate any missing densities
+        for (0..3) |k| {
+            for (0..3) |j| {
+                for (0..3) |i| {
+                    // Find the chunk in the 3x3 neighbourhood
+                    var neighbour_pos = (zm.f32x4(
+                        @floatFromInt(i),
+                        @floatFromInt(j),
+                        @floatFromInt(k),
+                        1,
+                    ) - zm.f32x4s(1)) * zm.f32x4s(Chunk.SIZE) + pos;
+                    const neighbour_index = try world.indexFromOffsetWithNewSplits(
+                        neighbour_pos,
+                        new_splits,
+                    );
+                    var neighbour = &world.chunks[neighbour_index];
+
+                    // Skip neighbours which are already being processed
+                    if (neighbour.wip_mip) |_| {
+                        all_ready = false;
+                        continue;
                     }
-                }
-            }
-            chunk.verts = std.ArrayList(f32).init(world.chunk_alloc);
-            if (thread) {
-                const old_mip = chunk.vertices_mip;
-                chunk.vertices_mip = null;
-                chunk.wip_mip = chunk.density_mip;
-                chunk.splits_copy = world.splits;
-                if (!try world.pool.work(world.*, i, .vertices)) {
-                    if (chunk.vertices_mip) |_| chunk.verts.deinit();
-                    chunk.vertices_mip = old_mip;
-                    chunk.wip_mip = null;
-                    chunk.splits_copy = null;
-                    break;
-                }
-                for (0..3) |z| {
-                    for (0..3) |y| {
-                        for (0..3) |x| {
-                            var v = zm.f32x4(
-                                @floatFromInt(x),
-                                @floatFromInt(y),
-                                @floatFromInt(z),
-                                1,
-                            ) - zm.f32x4s(1);
-                            v *= zm.f32x4s(Chunk.SIZE);
-                            v += world.offsetFromIndex(i, chunk.splits_copy);
-                            const n = try world.indexFromOffset(v, chunk.splits_copy);
-                            world.chunks[n].density_refs += 1;
+
+                    // If the neighbour is already finished then move on
+                    if (neighbour.density_mip) |mip| if (mip <= mip_level) continue;
+
+                    if (thread) all_ready = false;
+
+                    // Skip chunks currently being used for their densities
+                    if (neighbour.density_refs > 0) continue;
+
+                    neighbour.free(world.chunk_alloc);
+                    const mip_scale = std.math.pow(f32, 2, @floatFromInt(mip_level));
+                    const size = Chunk.SIZE / @as(usize, @intFromFloat(mip_scale));
+                    neighbour.density = try world.chunk_alloc.alloc(f32, size * size * size);
+
+                    const old_mip = neighbour.density_mip;
+                    neighbour.density_mip = null;
+                    neighbour.wip_mip = mip_level;
+                    neighbour.splits_copy = world.splits;
+                    if (thread) {
+                        if (!try world.pool.work(world.*, neighbour_index, .density)) {
+                            world.chunk_alloc.free(neighbour.density);
+                            neighbour.density = &.{};
+                            neighbour.density_mip = old_mip;
+                            neighbour.wip_mip = null;
+                            neighbour.splits_copy = null;
+                            return false;
                         }
+                    } else {
+                        try neighbour.genDensity(world.offsetFromIndex(neighbour_index, null));
+                        neighbour.density_mip = neighbour.wip_mip;
+                        neighbour.wip_mip = null;
+                        neighbour.splits_copy = null;
                     }
                 }
-            } else {
-                chunk.vertices_mip = null;
-                chunk.wip_mip = chunk.density_mip;
-                chunk.splits_copy = world.splits;
-                try chunk.genVerts(world.*, offset);
-                chunk.verts.shrinkAndFree(chunk.verts.items.len);
-                try chunk.mesh.upload(.{chunk.verts.items});
-                chunk.vertices_mip = chunk.wip_mip;
-                chunk.wip_mip = null;
-                chunk.splits_copy = null;
             }
         }
-        ns = @floatFromInt(timer.read());
-        if (bench) std.debug.print("Vertices took {d:.3} ms\n", .{ns / 1_000_000});
+        if (!all_ready) return true;
+        // If all densities are already present then generate the vertices
+        chunk.verts = std.ArrayList(f32).init(world.chunk_alloc);
+        const old_mip = chunk.vertices_mip;
+        chunk.vertices_mip = null;
+        chunk.wip_mip = chunk.density_mip;
+        chunk.splits_copy = world.splits;
+        if (thread) {
+            if (!try world.pool.work(world.*, chunk_index, .vertices)) {
+                if (chunk.vertices_mip) |_| chunk.verts.deinit();
+                chunk.vertices_mip = old_mip;
+                chunk.wip_mip = null;
+                chunk.splits_copy = null;
+                return false;
+            }
+            for (0..3) |k| {
+                for (0..3) |j| {
+                    for (0..3) |i| {
+                        var neighbour_pos = (zm.f32x4(
+                            @floatFromInt(i),
+                            @floatFromInt(j),
+                            @floatFromInt(k),
+                            1,
+                        ) - zm.f32x4s(1)) * zm.f32x4s(Chunk.SIZE);
+                        neighbour_pos += world.offsetFromIndex(chunk_index, chunk.splits_copy);
+                        const neighbour = &world.chunks[try world.indexFromOffset(neighbour_pos, chunk.splits_copy)];
+                        neighbour.density_refs += 1;
+                    }
+                }
+            }
+        } else {
+            try chunk.genVerts(world.*, world.offsetFromIndex(chunk_index, null));
+            chunk.verts.shrinkAndFree(chunk.verts.items.len);
+            try chunk.mesh.upload(.{chunk.verts.items});
+            chunk.vertices_mip = chunk.wip_mip;
+            chunk.wip_mip = null;
+            chunk.splits_copy = null;
+        }
+        return true;
     }
 
     fn sync(world: *World) !void {
@@ -256,18 +318,17 @@ pub const World = struct {
             world.pool.busy_bools[i] = false;
             var chunk = &world.chunks[world.pool.chunks[i]];
             if (world.pool.vert_bools[i]) {
+                const splits = chunk.splits_copy orelse unreachable;
                 for (0..3) |z| {
                     for (0..3) |y| {
                         for (0..3) |x| {
-                            var v = zm.f32x4(
+                            var neighbour_pos = (zm.f32x4(
                                 @floatFromInt(x),
                                 @floatFromInt(y),
                                 @floatFromInt(z),
                                 1,
-                            ) - zm.f32x4s(1);
-                            v *= zm.f32x4s(Chunk.SIZE);
-                            const splits = chunk.splits_copy orelse unreachable;
-                            const neighbour_pos = v + world.offsetFromIndex(world.pool.chunks[i], splits);
+                            ) - zm.f32x4s(1)) * zm.f32x4s(Chunk.SIZE);
+                            neighbour_pos += world.offsetFromIndex(world.pool.chunks[i], splits);
                             const neighbour = &world.chunks[try world.indexFromOffset(neighbour_pos, splits)];
                             neighbour.density_refs -= 1;
                             if (neighbour.must_free and neighbour.density_refs == 0) {
@@ -327,8 +388,30 @@ pub const World = struct {
     }
 
     fn splitsFromPos(pos: zm.Vec) zm.Vec {
-        var splits = zm.floor(pos / zm.f32x4s(Chunk.SIZE)) + zm.f32x4s(CHUNKS / 2);
+        var splits = zm.floor(pos / zm.f32x4s(Chunk.SIZE) + zm.f32x4s(0.5)) + zm.f32x4s(CHUNKS / 2);
         splits[3] = 0;
         return splits;
+    }
+
+    fn indexFromOffsetWithNewSplits(world: *World, pos: zm.Vec, new_splits: zm.Vec) !usize {
+        return world.indexFromOffset(pos, null) catch {
+            // TODO consider calculating and using the minimal splits
+            // adjustment which still satisfies the new requirements
+            if (zm.all(world.splits == new_splits, 3)) unreachable;
+            // TODO only iterate over the necessary chunks
+            for (0.., world.chunks) |i, *chunk| {
+                if (zm.all(world.offsetFromIndex(i, null) ==
+                    world.offsetFromIndex(i, new_splits), 3)) continue;
+                if (chunk.wip_mip != null or chunk.density_refs > 0) {
+                    chunk.must_free = true;
+                } else {
+                    chunk.free(world.chunk_alloc);
+                    try chunk.mesh.upload(.{});
+                }
+            }
+
+            world.splits = new_splits;
+            return world.indexFromOffset(pos, null);
+        };
     }
 };
