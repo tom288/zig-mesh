@@ -24,7 +24,12 @@ pub fn main() !void {
     );
     defer shader.kill();
     var camera = Camera.init(window.resolution);
-    var world = try World.init(alloc, chunk_alloc, shader, camera.position);
+    var world = try World.init(
+        alloc,
+        chunk_alloc,
+        shader,
+        camera.position,
+    );
     defer world.kill() catch {};
 
     // Wait for the user to close the window.

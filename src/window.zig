@@ -177,12 +177,12 @@ pub const Window = struct {
         win.time = new_time;
 
         // Create a closure without language support
-        const action = (struct {
+        const action = struct {
             state: @TypeOf(win.actionState),
             fn active(self: @This(), a: Action) bool {
                 return self.state[@intFromEnum(a)];
             }
-        }{ .state = win.actionState });
+        }{ .state = win.actionState };
 
         glfw.pollEvents();
         win.input = @splat(0);

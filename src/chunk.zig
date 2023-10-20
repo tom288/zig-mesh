@@ -21,9 +21,10 @@ pub const Chunk = struct {
     density_refs: usize,
     splits_copy: ?zm.Vec,
 
-    pub fn free(chunk: *Chunk, alloc: std.mem.Allocator) void {
+    pub fn free(chunk: *Chunk, alloc: std.mem.Allocator, gpu: bool) void {
         if (chunk.wip_mip) |_| unreachable;
         if (chunk.density_refs > 0) unreachable;
+        if (gpu) chunk.mesh.upload(.{}) catch {};
         if (chunk.vertices_mip) |_| chunk.verts.deinit();
         chunk.vertices_mip = null;
         alloc.free(chunk.density);
@@ -35,7 +36,7 @@ pub const Chunk = struct {
 
     pub fn kill(chunk: *Chunk, alloc: std.mem.Allocator) void {
         chunk.mesh.kill();
-        chunk.free(alloc);
+        chunk.free(alloc, false);
     }
 
     pub fn genDensity(chunk: *Chunk, offset: zm.Vec) !void {
@@ -251,12 +252,7 @@ pub const Chunk = struct {
             @floatFromInt(index % size),
             @floatFromInt(index / size % size),
             @floatFromInt(index / size / size),
-            0,
-        ) - zm.f32x4(
             half - 0.5,
-            half - 0.5,
-            half - 0.5,
-            0,
-        )) * zm.f32x4s(mip_scale);
+        ) + zm.f32x4s(0.5 - half)) * zm.f32x4s(mip_scale);
     }
 };

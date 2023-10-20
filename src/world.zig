@@ -8,10 +8,7 @@ const Pool = @import("pool.zig").Pool;
 pub const World = struct {
     const SIZE = Chunk.SIZE * CHUNKS;
     const CHUNKS = 16;
-    const DENSITY_DIST = @as(f32, SIZE) / 2;
-    // Vertex occluslusion depends on density of neighbours
-    // These neighbours may be connected by 3D diagonals hence sqrt(3)
-    const VERTICES_DIST = DENSITY_DIST - Chunk.SIZE * @sqrt(3.0);
+    const MIP0_DIST = CHUNKS / 2; // Whole world
 
     alloc: std.mem.Allocator,
     chunk_alloc: std.mem.Allocator,
@@ -27,8 +24,14 @@ pub const World = struct {
     cam_pos: zm.Vec,
     splits: zm.Vec,
     pool: Pool,
+    dist_done: usize,
 
-    pub fn init(alloc: std.mem.Allocator, chunk_alloc: std.mem.Allocator, shader: ?Shader, cam_pos: ?zm.Vec) !World {
+    pub fn init(
+        alloc: std.mem.Allocator,
+        chunk_alloc: std.mem.Allocator,
+        shader: ?Shader,
+        cam_pos: ?zm.Vec,
+    ) !World {
         const pos = cam_pos orelse zm.f32x4s(0);
         var world = World{
             .alloc = alloc,
@@ -38,6 +41,7 @@ pub const World = struct {
             .cam_pos = pos,
             .splits = splitsFromPos(pos),
             .pool = undefined,
+            .dist_done = 0,
         };
 
         var count: usize = 0;
@@ -99,7 +103,8 @@ pub const World = struct {
     pub fn draw(world: World, shader: Shader) void {
         for (0.., world.chunks) |i, chunk| {
             if (chunk.vertices_mip == null) continue; // The chunk has no verts
-            shader.set("model", f32, &zm.matToArr(zm.translationV(world.offsetFromIndex(i, null))));
+            const mat = zm.translationV(world.offsetFromIndex(i, null));
+            shader.set("model", f32, &zm.matToArr(mat));
             chunk.mesh.draw(gl.TRIANGLES);
         }
     }
@@ -107,7 +112,6 @@ pub const World = struct {
     // Chunk boundaries occur at multiples of Chunk.SIZE
     // The group of closest chunks changes halfway between these boundaries
     pub fn gen(world: *World, cam_pos: ?zm.Vec) !void {
-        const bench = false;
         if (cam_pos) |pos| {
             world.cam_pos = (pos / zm.f32x4s(Chunk.SIZE)) - zm.f32x4s(0.5);
             world.cam_pos = zm.ceil(world.cam_pos) * zm.f32x4s(Chunk.SIZE);
@@ -115,69 +119,86 @@ pub const World = struct {
         }
         const new_splits = splitsFromPos(world.cam_pos);
         const bound = CHUNKS / 2;
+        const bench = false;
         var timer = try std.time.Timer.start();
         var ns: f32 = undefined;
 
         try world.sync();
+        var all_done = true;
 
-        outer: for (0..bound) |dist| {
+        outer: for (world.dist_done..bound) |dist| {
+            if (all_done) world.dist_done = dist;
             const edge = dist + 1 == bound;
             for (0..2) |s| {
-                var other: isize = @intCast(dist);
+                var other: f32 = @floatFromInt(dist);
                 if (s == 0) other = -other - 1;
 
                 // YZ plane
-                const usmall = dist;
-                const small: isize = @intCast(usmall);
-                const ubig = usmall + 1;
-                const big: isize = small + 1;
-                for (0..ubig * 2) |z| {
-                    for (0..ubig * 2) |y| {
-                        if (!try world.genChunk(
+                const small = dist;
+                const big = small + 1;
+
+                // Create a nested function without language support
+                const signedDist = struct {
+                    fn f(l: usize, r: usize) f32 {
+                        const signed_dist = @as(isize, @intCast(l)) -
+                            @as(isize, @intCast(r));
+                        return @floatFromInt(signed_dist);
+                    }
+                }.f;
+
+                for (0..big * 2) |z| {
+                    for (0..big * 2) |y| {
+                        if (try world.genChunk(
                             world.cam_pos + zm.f32x4(
-                                @floatFromInt(other),
-                                @floatFromInt(@as(isize, @intCast(y)) - big),
-                                @floatFromInt(@as(isize, @intCast(z)) - big),
+                                other,
+                                signedDist(y, big),
+                                signedDist(z, big),
                                 0,
                             ) * zm.f32x4s(Chunk.SIZE),
                             dist,
                             edge,
                             new_splits,
-                        )) break :outer;
+                        )) |done| {
+                            all_done = all_done and done;
+                        } else break :outer;
                     }
                 }
 
                 // XZ plane
-                for (0..usmall * 2) |x| {
-                    for (0..ubig * 2) |z| {
-                        if (!try world.genChunk(
+                for (0..small * 2) |x| {
+                    for (0..big * 2) |z| {
+                        if (try world.genChunk(
                             world.cam_pos + zm.f32x4(
-                                @floatFromInt(@as(isize, @intCast(x)) - small),
-                                @floatFromInt(other),
-                                @floatFromInt(@as(isize, @intCast(z)) - big),
+                                signedDist(x, small),
+                                other,
+                                signedDist(z, big),
                                 0,
                             ) * zm.f32x4s(Chunk.SIZE),
                             dist,
                             edge,
                             new_splits,
-                        )) break :outer;
+                        )) |done| {
+                            all_done = all_done and done;
+                        } else break :outer;
                     }
                 }
 
                 // XY plane
-                for (0..usmall * 2) |y| {
-                    for (0..usmall * 2) |x| {
-                        if (!try world.genChunk(
+                for (0..small * 2) |y| {
+                    for (0..small * 2) |x| {
+                        if (try world.genChunk(
                             world.cam_pos + zm.f32x4(
-                                @floatFromInt(@as(isize, @intCast(x)) - small),
-                                @floatFromInt(@as(isize, @intCast(y)) - small),
-                                @floatFromInt(other),
+                                signedDist(x, small),
+                                signedDist(y, small),
+                                other,
                                 0,
                             ) * zm.f32x4s(Chunk.SIZE),
                             dist,
                             edge,
                             new_splits,
-                        )) break :outer;
+                        )) |done| {
+                            all_done = all_done and done;
+                        } else break :outer;
                     }
                 }
             }
@@ -186,13 +207,12 @@ pub const World = struct {
         if (bench) std.debug.print("Gen took {d:.3} ms\n", .{ns / 1_000_000});
     }
 
-    // Return false if we have ran out of threads so that the caller can break
-    // Otherwise return true
-    pub fn genChunk(world: *World, pos: zm.Vec, dist: usize, edge: bool, new_splits: zm.Vec) !bool {
-        _ = dist; // TODO use this for LOD?
-
+    // Return null if we have ran out of threads so that the caller can break
+    // Return true if the chunk is already generated at a sufficient mip level
+    // Otherwise return false
+    pub fn genChunk(world: *World, pos: zm.Vec, dist: usize, edge: bool, new_splits: zm.Vec) !?bool {
         const thread = true;
-        const mip_level = 0;
+        const mip_level: usize = if (dist < MIP0_DIST) 0 else 2;
         const chunk_index = try world.indexFromOffsetWithNewSplits(
             pos,
             new_splits,
@@ -200,7 +220,7 @@ pub const World = struct {
         var chunk = &world.chunks[chunk_index];
 
         // Skip chunks which are already being processed
-        if (chunk.wip_mip) |_| return true;
+        if (chunk.wip_mip) |_| return false;
         // Skip chunks on the edge
         if (edge) return true;
         // Skip chunks which are already generated
@@ -214,7 +234,7 @@ pub const World = struct {
             for (0..3) |j| {
                 for (0..3) |i| {
                     // Find the chunk in the 3x3 neighbourhood
-                    var neighbour_pos = (zm.f32x4(
+                    const neighbour_pos = (zm.f32x4(
                         @floatFromInt(i),
                         @floatFromInt(j),
                         @floatFromInt(k),
@@ -240,7 +260,7 @@ pub const World = struct {
                     // Skip chunks currently being used for their densities
                     if (neighbour.density_refs > 0) continue;
 
-                    neighbour.free(world.chunk_alloc);
+                    neighbour.free(world.chunk_alloc, false);
                     const mip_scale = std.math.pow(f32, 2, @floatFromInt(mip_level));
                     const size = Chunk.SIZE / @as(usize, @intFromFloat(mip_scale));
                     neighbour.density = try world.chunk_alloc.alloc(f32, size * size * size);
@@ -267,7 +287,7 @@ pub const World = struct {
                 }
             }
         }
-        if (!all_ready) return true;
+        if (!all_ready) return false;
         // If all densities are already present then generate the vertices
         chunk.verts = std.ArrayList(f32).init(world.chunk_alloc);
         const old_mip = chunk.vertices_mip;
@@ -285,13 +305,13 @@ pub const World = struct {
             for (0..3) |k| {
                 for (0..3) |j| {
                     for (0..3) |i| {
-                        var neighbour_pos = (zm.f32x4(
+                        const neighbour_pos = (zm.f32x4(
                             @floatFromInt(i),
                             @floatFromInt(j),
                             @floatFromInt(k),
                             1,
-                        ) - zm.f32x4s(1)) * zm.f32x4s(Chunk.SIZE);
-                        neighbour_pos += world.offsetFromIndex(chunk_index, chunk.splits_copy);
+                        ) - zm.f32x4s(1)) * zm.f32x4s(Chunk.SIZE) +
+                            world.offsetFromIndex(chunk_index, chunk.splits_copy);
                         const neighbour = &world.chunks[try world.indexFromOffset(neighbour_pos, chunk.splits_copy)];
                         neighbour.density_refs += 1;
                     }
@@ -305,7 +325,7 @@ pub const World = struct {
             chunk.wip_mip = null;
             chunk.splits_copy = null;
         }
-        return true;
+        return false;
     }
 
     fn sync(world: *World) !void {
@@ -317,23 +337,23 @@ pub const World = struct {
             wait_bool.store(false, .Unordered);
             world.pool.busy_bools[i] = false;
             var chunk = &world.chunks[world.pool.chunks[i]];
+            // If the task was to generate vertices
             if (world.pool.vert_bools[i]) {
                 const splits = chunk.splits_copy orelse unreachable;
                 for (0..3) |z| {
                     for (0..3) |y| {
                         for (0..3) |x| {
-                            var neighbour_pos = (zm.f32x4(
+                            const neighbour_pos = (zm.f32x4(
                                 @floatFromInt(x),
                                 @floatFromInt(y),
                                 @floatFromInt(z),
                                 1,
-                            ) - zm.f32x4s(1)) * zm.f32x4s(Chunk.SIZE);
-                            neighbour_pos += world.offsetFromIndex(world.pool.chunks[i], splits);
+                            ) - zm.f32x4s(1)) * zm.f32x4s(Chunk.SIZE) +
+                                world.offsetFromIndex(world.pool.chunks[i], splits);
                             const neighbour = &world.chunks[try world.indexFromOffset(neighbour_pos, splits)];
                             neighbour.density_refs -= 1;
                             if (neighbour.must_free and neighbour.density_refs == 0) {
-                                neighbour.free(world.chunk_alloc);
-                                try neighbour.mesh.upload(.{});
+                                neighbour.free(world.chunk_alloc, true);
                             }
                         }
                     }
@@ -405,10 +425,13 @@ pub const World = struct {
                 if (chunk.wip_mip != null or chunk.density_refs > 0) {
                     chunk.must_free = true;
                 } else {
-                    chunk.free(world.chunk_alloc);
-                    try chunk.mesh.upload(.{});
+                    chunk.free(world.chunk_alloc, true);
                 }
             }
+
+            const delta = zm.abs(world.splits - new_splits);
+            const max_delta_comp: usize = @intFromFloat(@max(delta[0], @max(delta[1], delta[2])));
+            world.dist_done = @min(MIP0_DIST, world.dist_done) -| max_delta_comp; // Saturating sub on usize
 
             world.splits = new_splits;
             return world.indexFromOffset(pos, null);
