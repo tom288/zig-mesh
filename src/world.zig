@@ -23,7 +23,7 @@ pub const World = struct {
     chunks: []Chunk,
     cam_pos: zm.Vec,
     splits: zm.Vec,
-    pool: Pool,
+    pool: Pool(WorkerData),
     dist_done: usize,
 
     pub fn init(
@@ -53,7 +53,7 @@ pub const World = struct {
             world.chunks = &.{};
         }
 
-        world.pool = try Pool.init(alloc);
+        world.pool = try @TypeOf(world.pool).init(alloc);
         errdefer world.pool.kill(alloc);
 
         // Assign uninitialised chunks
@@ -79,18 +79,11 @@ pub const World = struct {
 
     pub fn kill(world: *World) !void {
         // Wait for the other threads
-        var checked: usize = 0;
-        outer: while (true) {
-            for (checked..world.pool.busy_bools.len) |i| {
-                if (world.pool.busy_bools[i]) {
-                    try world.sync();
-                    std.time.sleep(100_000); // 0.1 ms
-                    continue :outer;
-                } else {
-                    checked += 1;
-                }
+        for (world.pool.workers) |*worker| {
+            while (worker.busy) {
+                try world.sync();
+                std.time.sleep(100_000); // 0.1 ms
             }
-            break;
         }
         // Free everything
         for (world.chunks) |*chunk| {
@@ -270,7 +263,18 @@ pub const World = struct {
                     neighbour.wip_mip = mip_level;
                     neighbour.splits_copy = world.splits;
                     if (thread) {
-                        if (!try world.pool.work(world.*, neighbour_index, .density)) {
+                        if (!try world.pool.work(
+                            workerThread,
+                            .{
+                                .task = .density,
+                                .world = world,
+                                .chunk = neighbour,
+                                .offset = world.offsetFromIndex(
+                                    neighbour_index,
+                                    neighbour.splits_copy orelse unreachable,
+                                ),
+                            },
+                        )) {
                             world.chunk_alloc.free(neighbour.density);
                             neighbour.density = &.{};
                             neighbour.density_mip = old_mip;
@@ -295,7 +299,18 @@ pub const World = struct {
         chunk.wip_mip = chunk.density_mip;
         chunk.splits_copy = world.splits;
         if (thread) {
-            if (!try world.pool.work(world.*, chunk_index, .vertices)) {
+            if (!try world.pool.work(
+                workerThread,
+                .{
+                    .task = .vertices,
+                    .world = world,
+                    .chunk = chunk,
+                    .offset = world.offsetFromIndex(
+                        chunk_index,
+                        chunk.splits_copy orelse unreachable,
+                    ),
+                },
+            )) {
                 if (chunk.vertices_mip) |_| chunk.verts.deinit();
                 chunk.vertices_mip = old_mip;
                 chunk.wip_mip = null;
@@ -330,15 +345,15 @@ pub const World = struct {
 
     fn sync(world: *World) !void {
         // Iterate over pool workers
-        for (0.., world.pool.wait_bools) |i, *wait_bool| {
+        for (world.pool.workers) |*worker| {
             // Look for workers who are finished and waiting for a sync
-            if (!wait_bool.load(.Unordered)) continue;
+            if (!worker.wait.load(.Unordered)) continue;
             // Reset worker state
-            wait_bool.store(false, .Unordered);
-            world.pool.busy_bools[i] = false;
-            var chunk = &world.chunks[world.pool.chunks[i]];
+            worker.wait.store(false, .Unordered);
+            worker.busy = false;
+            var chunk = worker.data.chunk;
             // If the task was to generate vertices
-            if (world.pool.vert_bools[i]) {
+            if (worker.data.task == .vertices) {
                 const splits = chunk.splits_copy orelse unreachable;
                 for (0..3) |z| {
                     for (0..3) |y| {
@@ -348,8 +363,7 @@ pub const World = struct {
                                 @floatFromInt(y),
                                 @floatFromInt(z),
                                 1,
-                            ) - zm.f32x4s(1)) * zm.f32x4s(Chunk.SIZE) +
-                                world.offsetFromIndex(world.pool.chunks[i], splits);
+                            ) - zm.f32x4s(1)) * zm.f32x4s(Chunk.SIZE) + worker.data.offset;
                             const neighbour = &world.chunks[try world.indexFromOffset(neighbour_pos, splits)];
                             neighbour.density_refs -= 1;
                             if (neighbour.must_free and neighbour.density_refs == 0) {
@@ -362,7 +376,7 @@ pub const World = struct {
             if (chunk.wip_mip == null) continue; // Already freed
 
             // If the task was to generate vertices
-            if (world.pool.vert_bools[i]) {
+            if (worker.data.task == .vertices) {
                 // Upload the vertices
                 chunk.verts.shrinkAndFree(chunk.verts.items.len);
                 try chunk.mesh.upload(.{chunk.verts.items});
@@ -436,5 +450,24 @@ pub const World = struct {
             world.splits = new_splits;
             return world.indexFromOffset(pos, null);
         };
+    }
+
+    const WorkerData = struct {
+        pub const Task = enum {
+            density,
+            vertices,
+        };
+
+        task: Task,
+        world: *World,
+        chunk: *Chunk,
+        offset: zm.Vec,
+    };
+
+    fn workerThread(data: WorkerData) void {
+        switch (data.task) {
+            .density => data.chunk.genDensity(data.offset) catch unreachable,
+            .vertices => data.chunk.genVerts(data.world.*, data.offset) catch unreachable,
+        }
     }
 };
