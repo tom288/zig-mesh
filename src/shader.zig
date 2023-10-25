@@ -1,3 +1,6 @@
+//! A Shader uses GLSL source files at the provided paths to generate programs
+//! that execute on the GPU. The function named set performs uniform assignment.
+
 const std = @import("std");
 const gl = @import("gl");
 

@@ -1,3 +1,6 @@
+//! The Camera uses user input to smoothly influence it's position and rotation.
+//! This state is used to derive view and projection matrices for rendering.
+
 const std = @import("std");
 const zm = @import("zmath");
 const Chunk = @import("chunk.zig").Chunk;

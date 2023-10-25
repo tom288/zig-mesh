@@ -1,7 +1,6 @@
+//! A Pool holds a collection of threads and the logic to execute tasks on them
+
 const std = @import("std");
-const zm = @import("zmath");
-const World = @import("world.zig").World;
-const Chunk = @import("chunk.zig").Chunk;
 
 pub fn Pool(comptime Data: type) type {
     return struct {

@@ -1,3 +1,6 @@
+//! The World manages the visible environment and by subdividing it into Chunks.
+//! These Chunk densities and vertices are generated on separate Pool threads.
+
 const std = @import("std");
 const gl = @import("gl");
 const zm = @import("zmath");
@@ -8,7 +11,7 @@ const Pool = @import("pool.zig").Pool;
 pub const World = struct {
     const SIZE = Chunk.SIZE * CHUNKS;
     const CHUNKS = 16;
-    const MIP0_DIST = CHUNKS / 2; // Whole world
+    const MIP0_DIST = CHUNKS / 2; // CHUNKS / 2 = Whole world
 
     alloc: std.mem.Allocator,
     chunk_alloc: std.mem.Allocator,
@@ -117,6 +120,8 @@ pub const World = struct {
         var ns: f32 = undefined;
 
         try world.sync();
+        // ns = @floatFromInt(timer.lap());
+        // if (bench) std.debug.print("Sync took {d:.3} ms\n", .{ns / 1_000_000});
         var all_done = true;
 
         outer: for (world.dist_done..bound) |dist| {
@@ -271,7 +276,7 @@ pub const World = struct {
                                 .chunk = neighbour,
                                 .offset = world.offsetFromIndex(
                                     neighbour_index,
-                                    neighbour.splits_copy orelse unreachable,
+                                    neighbour.splits_copy.?,
                                 ),
                             },
                         )) {
@@ -307,7 +312,7 @@ pub const World = struct {
                     .chunk = chunk,
                     .offset = world.offsetFromIndex(
                         chunk_index,
-                        chunk.splits_copy orelse unreachable,
+                        chunk.splits_copy.?,
                     ),
                 },
             )) {
@@ -334,7 +339,6 @@ pub const World = struct {
             }
         } else {
             try chunk.genVerts(world.*, world.offsetFromIndex(chunk_index, null));
-            chunk.verts.shrinkAndFree(chunk.verts.items.len);
             try chunk.mesh.upload(.{chunk.verts.items});
             chunk.vertices_mip = chunk.wip_mip;
             chunk.wip_mip = null;
@@ -354,7 +358,7 @@ pub const World = struct {
             var chunk = worker.data.chunk;
             // If the task was to generate vertices
             if (worker.data.task == .vertices) {
-                const splits = chunk.splits_copy orelse unreachable;
+                const splits = chunk.splits_copy.?;
                 for (0..3) |z| {
                     for (0..3) |y| {
                         for (0..3) |x| {
@@ -366,7 +370,10 @@ pub const World = struct {
                             ) - zm.f32x4s(1)) * zm.f32x4s(Chunk.SIZE) + worker.data.offset;
                             const neighbour = &world.chunks[try world.indexFromOffset(neighbour_pos, splits)];
                             neighbour.density_refs -= 1;
-                            if (neighbour.must_free and neighbour.density_refs == 0) {
+                            if (neighbour.must_free and
+                                neighbour.density_refs == 0 and
+                                neighbour.wip_mip == null)
+                            {
                                 neighbour.free(world.chunk_alloc, true);
                             }
                         }
@@ -378,7 +385,6 @@ pub const World = struct {
             // If the task was to generate vertices
             if (worker.data.task == .vertices) {
                 // Upload the vertices
-                chunk.verts.shrinkAndFree(chunk.verts.items.len);
                 try chunk.mesh.upload(.{chunk.verts.items});
                 chunk.vertices_mip = chunk.wip_mip;
             } else {

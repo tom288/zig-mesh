@@ -1,25 +1,46 @@
+//! A Chunk holds information about a cubic region of the visible world.
+//! Chunk densities indicate the fullness at internal grid positions.
+//! Chunks also hold vertex data which is derived from the densities
+//! of the current Chunk and its neighbours.
+//! The memory of one distant Chunk may be reused to represent a closer Chunk.
+
 const std = @import("std");
 const gl = @import("gl");
 const zm = @import("zmath");
 const znoise = @import("znoise");
 const Mesh = @import("mesh.zig").Mesh;
 const World = @import("world.zig").World;
+const Surface = @import("surface.zig").Voxel;
 
 pub const Chunk = struct {
     pub const SIZE = 16;
 
+    // The fullness at internal grid positions
     density: []f32,
+
+    // The triangle vertex data of this chunk
     verts: std.ArrayList(f32),
+
     mesh: Mesh(.{.{
         .{ .name = "position", .size = 3, .type = gl.FLOAT },
         .{ .name = "colour", .size = 3, .type = gl.FLOAT },
     }}),
+
+    // Whether this chunk is no longer part of the visible world
     must_free: bool,
+
+    // Mip levels
     density_mip: ?usize,
     vertices_mip: ?usize,
+
+    // The mip level currently being calculated
     wip_mip: ?usize,
-    density_refs: usize,
+
+    // The world splits used in the ongoing calculations for this chunk
     splits_copy: ?zm.Vec,
+
+    // The number of other chunk threads which are using this chunk
+    density_refs: usize,
 
     pub fn free(chunk: *Chunk, alloc: std.mem.Allocator, gpu: bool) void {
         if (chunk.wip_mip) |_| unreachable;
@@ -101,7 +122,7 @@ pub const Chunk = struct {
             8 => { // Chunk corner visualisation
                 for (0..chunk.density.len) |i| {
                     const pos = @fabs(chunk.posFromIndex(i));
-                    const bools = pos != zm.f32x4s(@as(f32, SIZE - 1) / 2);
+                    const bools = zm.abs(pos - zm.f32x4s(@as(f32, SIZE - 1) / 2)) > zm.f32x4s(0.5);
                     chunk.density[i] = if (zm.any(bools, 3)) 0 else 1;
                 }
             },
@@ -135,90 +156,43 @@ pub const Chunk = struct {
     }
 
     pub fn genVerts(chunk: *Chunk, world: World, offset: zm.Vec) !void {
+        // Noise generator used for colour
         const gen = znoise.FnlGenerator{
-            .frequency = 0.25 / @as(f32, SIZE),
+            .frequency = 0.4 / @as(f32, SIZE),
         };
         for (0..chunk.density.len) |i| {
-            try chunk.cubeVerts(world, gen, chunk.posFromIndex(i), offset);
+            try Surface.from(chunk, world, gen, chunk.posFromIndex(i), offset);
+        }
+        chunk.verts.shrinkAndFree(chunk.verts.items.len);
+    }
+
+    pub fn full(chunk: *Chunk, world: World, pos: zm.Vec, offset: zm.Vec, occ: bool, splits: ?zm.Vec) ?bool {
+        if (chunk.densityFromPos(world, pos, offset, occ, splits)) |d| {
+            return d > 0;
+        } else {
+            return null;
         }
     }
 
-    // Cubes are centered around their position, which is assumed to be integer
-    fn cubeVerts(chunk: *Chunk, world: World, gen: znoise.FnlGenerator, pos: zm.Vec, offset: zm.Vec) !void {
-        if (chunk.empty(world, pos, offset, false, null) orelse return logBadPos(pos)) return;
-        const mip_level = chunk.wip_mip orelse unreachable;
-        const mip_scale = std.math.pow(f32, 2, @floatFromInt(mip_level));
-        // Faces
-        for (0..6) |f| {
-            var neighbour = pos;
-            neighbour[f / 2] += if (f % 2 > 0) mip_scale else -mip_scale;
-            if (chunk.full(world, neighbour, offset, false, null) orelse false) continue;
-            // Sample voxel occlusion
-            var occlusion: [8]bool = undefined;
-            for (0..4) |e| {
-                // Voxels that share edges
-                var occluder = neighbour;
-                occluder[(e / 2 + f / 2 + 1) % 3] += if (e % 2 > 0) mip_scale else -mip_scale;
-                occlusion[e] = chunk.full(world, occluder, offset, true, null) orelse false;
-                // Voxels that share corners
-                var corner = neighbour;
-                corner[(f / 2 + 1) % 3] += if (e % 2 > 0) mip_scale else -mip_scale;
-                corner[(f / 2 + 2) % 3] += if (e / 2 > 0) mip_scale else -mip_scale;
-                occlusion[e + 4] = chunk.full(world, corner, offset, true, null) orelse false;
-            }
-            // Triangles
-            for (0..2) |t| {
-                // Vertices
-                for (0..3) |v| {
-                    var vert = (pos + neighbour) / zm.f32x4s(2);
-                    const x = (t + v + f) % 2 > 0;
-                    const y = v / 2 == t;
-                    vert[(f / 2 + 1) % 3] += if (x) mip_scale * 0.5 else mip_scale * -0.5;
-                    vert[(f / 2 + 2) % 3] += if (y) mip_scale * 0.5 else mip_scale * -0.5;
-                    // Vertex positions
-                    try chunk.verts.appendSlice(&zm.vecToArr3(vert));
-                    // Vertex colours
-                    var colour = zm.f32x4s(0);
-                    for (0..3) |c| {
-                        var c_pos = vert + offset;
-                        c_pos[c] += Chunk.SIZE * 99;
-                        colour[c] += (gen.noise3(c_pos[0], c_pos[1], c_pos[2]) + 1) / 2;
-                    }
-                    // Accumulate occlusion
-                    var occ: f32 = 0;
-                    if (occlusion[if (x) 1 else 0]) occ += 1;
-                    if (occlusion[if (y) 3 else 2]) occ += 1;
-                    if (occlusion[
-                        4 + @as(usize, if (x) 1 else 0) +
-                            @as(usize, if (y) 2 else 0)
-                    ]) occ += 1;
-                    // Darken occluded vertices
-                    colour /= @splat(std.math.pow(f32, 1.1, occ));
-                    try chunk.verts.appendSlice(&zm.vecToArr3(colour));
-                }
-            }
-        }
-    }
-
-    fn full(chunk: *Chunk, world: World, pos: zm.Vec, offset: zm.Vec, occ: bool, splits: ?zm.Vec) ?bool {
-        const spl = splits orelse chunk.splits_copy orelse unreachable;
-        if (chunk.densityFromPos(pos)) |p| return p > 0;
-        if (chunk.wip_mip != 0 and !occ) return false;
-        const i = world.indexFromOffset(pos + offset, spl) catch unreachable;
-        const off = world.offsetFromIndex(i, spl);
-        return world.chunks[i].full(world, pos + offset - off, off, occ, spl);
-    }
-
-    fn empty(chunk: *Chunk, world: World, pos: zm.Vec, offset: zm.Vec, occ: bool, splits: ?zm.Vec) ?bool {
+    pub fn empty(chunk: *Chunk, world: World, pos: zm.Vec, offset: zm.Vec, occ: bool, splits: ?zm.Vec) ?bool {
         return if (chunk.full(world, pos, offset, occ, splits)) |e| !e else null;
     }
 
-    fn densityFromPos(chunk: *Chunk, pos: zm.Vec) ?f32 {
+    pub fn densityFromPos(chunk: *Chunk, world: World, pos: zm.Vec, offset: zm.Vec, occ: ?bool, splits: ?zm.Vec) ?f32 {
+        const spl = splits orelse chunk.splits_copy.?;
+        if (chunk.densityLocal(pos)) |d| return d;
+        if (chunk.wip_mip != 0 and occ == false) return 0;
+        const i = world.indexFromOffset(pos + offset, spl) catch unreachable;
+        const off = world.offsetFromIndex(i, spl);
+        return world.chunks[i].densityFromPos(world, pos + offset - off, off, occ, spl);
+    }
+
+    fn densityLocal(chunk: *Chunk, pos: zm.Vec) ?f32 {
         return chunk.density[chunk.indexFromPos(pos) catch return null];
     }
 
     fn indexFromPos(chunk: Chunk, pos: zm.Vec) !usize {
-        const mip_level = chunk.wip_mip orelse chunk.density_mip orelse unreachable;
+        const mip_level = chunk.wip_mip orelse chunk.density_mip.?;
         const mip_scale = std.math.pow(f32, 2, @floatFromInt(mip_level));
         const size = SIZE / @as(usize, @intFromFloat(mip_scale));
 
@@ -233,18 +207,8 @@ pub const Chunk = struct {
         return index;
     }
 
-    fn logBadPos(pos: zm.Vec) void {
-        const half = @as(f32, SIZE) / 2;
-        for (0..3) |d| {
-            if (pos[d] < -half or pos[d] >= half) {
-                std.log.err("Arg component {} of indexFromPos({}) is outside range -{}..{}", .{ d, pos, half, half });
-                unreachable;
-            }
-        }
-    }
-
     fn posFromIndex(chunk: Chunk, index: usize) zm.Vec {
-        const mip_level = chunk.wip_mip orelse chunk.density_mip orelse unreachable;
+        const mip_level = chunk.wip_mip orelse chunk.density_mip.?;
         const mip_scale = std.math.pow(f32, 2, @floatFromInt(mip_level));
         const size = SIZE / @as(usize, @intFromFloat(mip_scale));
         const half = @as(f32, @floatFromInt(size)) / 2;
@@ -252,7 +216,7 @@ pub const Chunk = struct {
             @floatFromInt(index % size),
             @floatFromInt(index / size % size),
             @floatFromInt(index / size / size),
-            half - 0.5,
-        ) + zm.f32x4s(0.5 - half)) * zm.f32x4s(mip_scale);
+            half - Surface.CELL_OFFSET,
+        ) + zm.f32x4s(Surface.CELL_OFFSET - half)) * zm.f32x4s(mip_scale);
     }
 };

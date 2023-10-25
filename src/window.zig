@@ -1,3 +1,5 @@
+//! The Window manages the viewport and accumulates user input
+
 const std = @import("std");
 const glfw = @import("mach-glfw");
 const gl = @import("gl");

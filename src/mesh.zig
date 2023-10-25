@@ -1,3 +1,5 @@
+//! A Mesh holds information about vertices and indices sent to the GPU
+
 const std = @import("std");
 const gl = @import("gl");
 const Shader = @import("shader.zig").Shader;
