@@ -227,10 +227,11 @@ pub const World = struct {
         // Whether all chunks ine surrounding 3x3 region have sufficity densities
         var all_ready = true;
 
+        const min = if (Chunk.SURFACE.NEG_ADJ) 0 else 1;
         // Iterate over 3x3 region and generate any missing densities
-        for (0..3) |k| {
-            for (0..3) |j| {
-                for (0..3) |i| {
+        for (min..3) |k| {
+            for (min..3) |j| {
+                for (min..3) |i| {
                     // Find the chunk in the 3x3 neighbourhood
                     const neighbour_pos = (zm.f32x4(
                         @floatFromInt(i),
@@ -322,9 +323,9 @@ pub const World = struct {
                 chunk.splits_copy = null;
                 return false;
             }
-            for (0..3) |k| {
-                for (0..3) |j| {
-                    for (0..3) |i| {
+            for (min..3) |k| {
+                for (min..3) |j| {
+                    for (min..3) |i| {
                         const neighbour_pos = (zm.f32x4(
                             @floatFromInt(i),
                             @floatFromInt(j),
@@ -348,6 +349,7 @@ pub const World = struct {
     }
 
     fn sync(world: *World) !void {
+        const min = if (Chunk.SURFACE.NEG_ADJ) 0 else 1;
         // Iterate over pool workers
         for (world.pool.workers) |*worker| {
             // Look for workers who are finished and waiting for a sync
@@ -359,9 +361,9 @@ pub const World = struct {
             // If the task was to generate vertices
             if (worker.data.task == .vertices) {
                 const splits = chunk.splits_copy.?;
-                for (0..3) |z| {
-                    for (0..3) |y| {
-                        for (0..3) |x| {
+                for (min..3) |z| {
+                    for (min..3) |y| {
+                        for (min..3) |x| {
                             const neighbour_pos = (zm.f32x4(
                                 @floatFromInt(x),
                                 @floatFromInt(y),

@@ -10,10 +10,11 @@ const zm = @import("zmath");
 const znoise = @import("znoise");
 const Mesh = @import("mesh.zig").Mesh;
 const World = @import("world.zig").World;
-const Surface = @import("surface.zig").Voxel;
+const Surface = @import("surface.zig");
 
 pub const Chunk = struct {
     pub const SIZE = 16;
+    pub const SURFACE = Surface.Voxel;
 
     // The fullness at internal grid positions
     density: []f32,
@@ -161,7 +162,7 @@ pub const Chunk = struct {
             .frequency = 0.4 / @as(f32, SIZE),
         };
         for (0..chunk.density.len) |i| {
-            try Surface.from(chunk, world, gen, chunk.posFromIndex(i), offset);
+            try SURFACE.from(chunk, world, gen, chunk.posFromIndex(i), offset);
         }
         chunk.verts.shrinkAndFree(chunk.verts.items.len);
     }
@@ -216,7 +217,7 @@ pub const Chunk = struct {
             @floatFromInt(index % size),
             @floatFromInt(index / size % size),
             @floatFromInt(index / size / size),
-            half - Surface.CELL_OFFSET,
-        ) + zm.f32x4s(Surface.CELL_OFFSET - half)) * zm.f32x4s(mip_scale);
+            half - SURFACE.CELL_OFFSET,
+        ) + zm.f32x4s(SURFACE.CELL_OFFSET - half)) * zm.f32x4s(mip_scale);
     }
 };

@@ -11,6 +11,9 @@ pub const Voxel = struct {
     //! Noise is sampled at the center of each cube to obtain densities.
     pub const CELL_OFFSET = 0.5;
 
+    // Cube face visibility is calculated from neighbours in all directions
+    pub const NEG_ADJ = true;
+
     pub fn from(chunk: *Chunk, world: World, gen: znoise.FnlGenerator, pos: zm.Vec, offset: zm.Vec) !void {
         if (chunk.empty(world, pos, offset, false, null).?) return;
         const mip_level = chunk.wip_mip.?;
@@ -67,6 +70,9 @@ pub const MarchingCubes = struct {
     //! Triangles are generated based on the densities of all 8 corners.
     //! Noise is sampled on the integer grid.
     pub const CELL_OFFSET = 0;
+
+    // Triangle config is derived using only positive direction neighbours
+    pub const NEG_ADJ = false;
 
     const triTable = [256]u60{
         0xfffffffffffffff, 0x083ffffffffffff, 0x019ffffffffffff, 0x183981fffffffff,
