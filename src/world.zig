@@ -28,6 +28,7 @@ pub const World = struct {
     splits: zm.Vec,
     pool: Pool(WorkerData),
     dist_done: usize,
+    index_done: usize,
 
     pub fn init(
         alloc: std.mem.Allocator,
@@ -45,6 +46,7 @@ pub const World = struct {
             .splits = splitsFromPos(pos),
             .pool = undefined,
             .dist_done = 0,
+            .index_done = 0,
         };
 
         var count: usize = 0;
@@ -114,7 +116,7 @@ pub const World = struct {
             world.cam_pos[3] = 0;
         }
         const new_splits = splitsFromPos(world.cam_pos);
-        const bound = CHUNKS / 2;
+        const max_dist = CHUNKS / 2;
         const bench = false;
         var timer = try std.time.Timer.start();
         var ns: f32 = undefined;
@@ -124,16 +126,16 @@ pub const World = struct {
         // if (bench) std.debug.print("Sync took {d:.3} ms\n", .{ns / 1_000_000});
         var all_done = true;
 
-        outer: for (world.dist_done..bound) |dist| {
-            if (all_done) world.dist_done = dist;
-            const edge = dist + 1 == bound;
-            for (0..2) |s| {
-                var other: f32 = @floatFromInt(dist);
-                if (s == 0) other = -other - 1;
 
-                // YZ plane
-                const small = dist;
-                const big = small + 1;
+        outer: for (world.dist_done..max_dist) |dist| {
+            const big = dist + 1;
+            const edge = big == max_dist;
+            const max_index = 8 * (3 * big * dist + 1);
+            if (all_done) world.dist_done = dist;
+            for (world.index_done..max_index) |index| {
+                if (all_done) world.index_done = index;
+                var i = index / 2;
+                var pos = zm.f32x4s(0);
 
                 // Create a nested function without language support
                 const signedDist = struct {
@@ -144,62 +146,34 @@ pub const World = struct {
                     }
                 }.f;
 
-                for (0..big * 2) |z| {
-                    for (0..big * 2) |y| {
-                        if (try world.genChunk(
-                            world.cam_pos + zm.f32x4(
-                                other,
-                                signedDist(y, big),
-                                signedDist(z, big),
-                                0,
-                            ) * zm.f32x4s(Chunk.SIZE),
-                            dist,
-                            edge,
-                            new_splits,
-                        )) |done| {
-                            all_done = all_done and done;
-                        } else break :outer;
+                // Determine the axis in which the plane is fixed
+                var plane: usize = 2;
+                var thresh = 4 * big * big;
+                if (i >= thresh) {
+                    i -= thresh;
+                    plane -= 1;
+                    thresh = 4 * big * dist;
+                    if (i >= thresh) {
+                        i -= thresh;
+                        plane -= 1;
                     }
                 }
+                pos[plane] = @floatFromInt(dist);
+                if (index % 2 > 0) pos[plane] *= -1;
+                const base = if (plane < 1) dist else big;
+                pos[if (plane < 1) 1 else 0] = signedDist(i % (base * 2), base);
+                pos[if (plane > 1) 1 else 2] = signedDist(i / (base * 2), base);
 
-                // XZ plane
-                for (0..small * 2) |x| {
-                    for (0..big * 2) |z| {
-                        if (try world.genChunk(
-                            world.cam_pos + zm.f32x4(
-                                signedDist(x, small),
-                                other,
-                                signedDist(z, big),
-                                0,
-                            ) * zm.f32x4s(Chunk.SIZE),
-                            dist,
-                            edge,
-                            new_splits,
-                        )) |done| {
-                            all_done = all_done and done;
-                        } else break :outer;
-                    }
-                }
-
-                // XY plane
-                for (0..small * 2) |y| {
-                    for (0..small * 2) |x| {
-                        if (try world.genChunk(
-                            world.cam_pos + zm.f32x4(
-                                signedDist(x, small),
-                                signedDist(y, small),
-                                other,
-                                0,
-                            ) * zm.f32x4s(Chunk.SIZE),
-                            dist,
-                            edge,
-                            new_splits,
-                        )) |done| {
-                            all_done = all_done and done;
-                        } else break :outer;
-                    }
-                }
+                if (try world.genChunk(
+                    world.cam_pos + pos * zm.f32x4s(Chunk.SIZE),
+                    dist,
+                    edge,
+                    new_splits,
+                )) |done| {
+                    all_done = all_done and done;
+                } else break :outer;
             }
+            if (all_done and big < max_dist) world.index_done = 0;
         }
         ns = @floatFromInt(timer.read());
         if (bench) std.debug.print("Gen took {d:.3} ms\n", .{ns / 1_000_000});
@@ -209,7 +183,8 @@ pub const World = struct {
     // Return true if the chunk is already generated at a sufficient mip level
     // Otherwise return false
     pub fn genChunk(world: *World, pos: zm.Vec, dist: usize, edge: bool, new_splits: zm.Vec) !?bool {
-        const thread = true;
+        const THREAD = true;
+        const old_splits = world.splits;
         const mip_level: usize = if (dist < MIP0_DIST) 0 else 2;
         const chunk_index = try world.indexFromOffsetWithNewSplits(
             pos,
@@ -220,9 +195,9 @@ pub const World = struct {
         // Skip chunks which are already being processed
         if (chunk.wip_mip) |_| return false;
         // Skip chunks on the edge
-        if (edge) return true;
+        if (edge) return zm.all(old_splits == new_splits, 3);
         // Skip chunks which are already generated
-        if (chunk.vertices_mip) |mip| if (mip <= mip_level) return true;
+        if (chunk.vertices_mip) |mip| if (mip <= mip_level) return zm.all(old_splits == new_splits, 3);
 
         // Whether all chunks ine surrounding 3x3 region have sufficity densities
         var all_ready = true;
@@ -254,7 +229,7 @@ pub const World = struct {
                     // If the neighbour is already finished then move on
                     if (neighbour.density_mip) |mip| if (mip <= mip_level) continue;
 
-                    if (thread) all_ready = false;
+                    if (THREAD) all_ready = false;
 
                     // Skip chunks currently being used for their densities
                     if (neighbour.density_refs > 0) continue;
@@ -268,7 +243,7 @@ pub const World = struct {
                     neighbour.density_mip = null;
                     neighbour.wip_mip = mip_level;
                     neighbour.splits_copy = world.splits;
-                    if (thread) {
+                    if (THREAD) {
                         if (!try world.pool.work(
                             workerThread,
                             .{
@@ -286,7 +261,7 @@ pub const World = struct {
                             neighbour.density_mip = old_mip;
                             neighbour.wip_mip = null;
                             neighbour.splits_copy = null;
-                            return false;
+                            return null;
                         }
                     } else {
                         try neighbour.genDensity(world.offsetFromIndex(neighbour_index, null));
@@ -304,7 +279,7 @@ pub const World = struct {
         chunk.vertices_mip = null;
         chunk.wip_mip = chunk.density_mip;
         chunk.splits_copy = world.splits;
-        if (thread) {
+        if (THREAD) {
             if (!try world.pool.work(
                 workerThread,
                 .{
@@ -321,7 +296,7 @@ pub const World = struct {
                 chunk.vertices_mip = old_mip;
                 chunk.wip_mip = null;
                 chunk.splits_copy = null;
-                return false;
+                return null;
             }
             for (min..3) |k| {
                 for (min..3) |j| {
@@ -345,7 +320,7 @@ pub const World = struct {
             chunk.wip_mip = null;
             chunk.splits_copy = null;
         }
-        return false;
+        return !THREAD;
     }
 
     fn sync(world: *World) !void {
@@ -451,9 +426,10 @@ pub const World = struct {
                 }
             }
 
-            const delta = zm.abs(world.splits - new_splits);
-            const max_delta_comp: usize = @intFromFloat(@max(delta[0], @max(delta[1], delta[2])));
-            world.dist_done = @min(MIP0_DIST, world.dist_done) -| max_delta_comp; // Saturating sub on usize
+            const diff = zm.abs(world.splits - new_splits);
+            const max_diff: usize = @intFromFloat(@max(diff[0], @max(diff[1], diff[2])));
+            world.dist_done = @min(MIP0_DIST, world.dist_done) -| max_diff; // Saturating sub on usize
+            world.index_done = 0;
 
             world.splits = new_splits;
             return world.indexFromOffset(pos, null);
