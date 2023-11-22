@@ -21,6 +21,7 @@ pub const Camera = struct {
     // Matrices
     view: zm.Mat,
     proj: zm.Mat,
+    world_to_clip: zm.Mat,
 
     pub fn init(resolution: zm.Vec) Camera {
         var cam = Camera{
@@ -38,6 +39,7 @@ pub const Camera = struct {
 
             .view = undefined,
             .proj = undefined,
+            .world_to_clip = undefined,
         };
 
         cam.calcVecs();
@@ -108,10 +110,12 @@ pub const Camera = struct {
 
     fn calcView(cam: *Camera) void {
         cam.view = zm.lookToRh(cam.position, cam.look, UP);
+        cam.world_to_clip = zm.mul(cam.view, cam.proj);
     }
 
     fn calcProj(cam: *Camera) void {
         cam.proj = zm.perspectiveFovRhGl(cam.fov, cam.aspect, NEAR, FAR);
+        cam.world_to_clip = zm.mul(cam.view, cam.proj);
     }
 };
 

@@ -22,7 +22,7 @@ pub const Voxel = struct {
         for (0..6) |f| {
             var neighbour = pos;
             neighbour[f / 2] += if (f % 2 > 0) mip_scale else -mip_scale;
-            if (chunk.full(world, neighbour, offset, false, null) orelse false) continue;
+            // if (chunk.full(world, neighbour, offset, false, null) orelse false) continue;
             // Sample voxel occlusion
             var occlusion: [8]bool = undefined;
             for (0..4) |e| {
@@ -155,9 +155,9 @@ pub const MarchingCubes = struct {
                 const sample_l = chunk.densityFromPos(world, l, offset, null, null).?;
                 const sample_r = chunk.densityFromPos(world, r, offset, null, null).?;
                 const sample_diff = sample_r - sample_l;
-                if (zm.abs(sample_l) < EPS) return l;
-                if (zm.abs(sample_r) < EPS) return r;
-                if (zm.abs(sample_diff) < EPS) return l;
+                if (@fabs(sample_l) < EPS) return l;
+                if (@fabs(sample_r) < EPS) return r;
+                if (@fabs(sample_diff) < EPS) return l;
                 return l + (l - r) * switch (MODE) {
                     .risky => zm.f32x4s(sample_l / sample_diff),
                     .bumpy => zm.f32x4s(-sample_r / sample_diff),
@@ -180,7 +180,7 @@ pub const MarchingCubes = struct {
                 const sample_diff = sample_b - sample_a;
 
                 var result = a;
-                if (zm.abs(sample_diff) > EPS) {
+                if (@fabs(sample_diff) > EPS) {
                     result += (a - b) * zm.f32x4s(sample_a / sample_diff);
                 }
                 return result;

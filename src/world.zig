@@ -98,13 +98,50 @@ pub const World = struct {
         world.chunks = &.{};
     }
 
-    pub fn draw(world: World, shader: Shader) void {
+    pub fn draw(world: World, shader: Shader, world_to_clip: zm.Mat) void {
+        var attempts: usize = 0;
+        var draws: usize = 0;
         for (0.., world.chunks) |i, chunk| {
+            if (i > 0) break; // TODO remove
             if (chunk.vertices_mip == null) continue; // The chunk has no verts
-            const mat = zm.translationV(world.offsetFromIndex(i, null));
-            shader.set("model", f32, &zm.matToArr(mat));
-            chunk.mesh.draw(gl.TRIANGLES);
+            attempts += 1;
+            const offset = world.offsetFromIndex(i, null);
+            // std.debug.print("{}\n", .{offset});
+            const model = zm.translationV(offset);
+            const model_to_clip = zm.mul(model, world_to_clip);
+            // const model2 = zm.translationV(offset);
+            // const model_to_clip = zm.mul(model2, world_to_clip);
+            corners: for (0..8) |c| {
+                var corner = zm.mul(
+                    model_to_clip,
+                    zm.f32x4(
+                        if (c % 2 > 0) 1 else -1,
+                        if (c / 2 % 2 > 0) 1 else -1,
+                        if (c / 4 > 0) 1 else -1,
+                        1 / (Chunk.SIZE / 2),
+                    ) * zm.f32x4s(Chunk.SIZE / 2),
+                    // zm.f32x4(0, 0, 0, 1),
+                );
+                corner /= @splat(corner[3]);
+                if (i == 0 and c == 0) std.debug.print("{d:.5}\n", .{corner});
+                // if (zm.any(@fabs(corner) > zm.f32x4s(1), 3)) continue :corners;
+                // if (c == 0) std.debug.print("{any}", .{corner / zm.f32x4s(corner[3])});
+                // if (c > 0) std.debug.print("\n", .{});
+                for (0..3) |d| {
+                    if (@fabs(corner[d]) > 1) continue :corners;
+                }
+                // if (corner[2] < 0) continue :corners;
+                // if (c == 0) std.debug.print("---\n", .{});
+                // const max_xy = @max(@fabs(corner[0]), @fabs(corner[1]));
+                // if (max_xy > @fabs(corner[3]) or corner[2] < -corner[3] or corner[2] > corner[3]) continue :corners;
+                // if (max_xy > @fabs(corner[3]) or corner[2] < 0 or corner[2] > corner[3]) continue :corners;
+                shader.set("model_to_clip", f32, &zm.matToArr(model_to_clip));
+                chunk.mesh.draw(gl.TRIANGLES);
+                draws += 1;
+                break :corners;
+            }
         }
+        std.debug.print("{} / {}\n", .{ draws, attempts });
     }
 
     // Chunk boundaries occur at multiples of Chunk.SIZE
@@ -137,7 +174,7 @@ pub const World = struct {
                 }
             }
 
-            const diff = zm.abs(world.splits - new_splits);
+            const diff = @fabs(world.splits - new_splits);
             const max_diff: usize = @intFromFloat(@max(diff[0], @max(diff[1], diff[2])));
             world.dist_done = @min(MIP0_DIST, world.dist_done) -| max_diff; // Saturating sub on usize
             world.index_done = 0;
