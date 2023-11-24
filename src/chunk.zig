@@ -62,7 +62,7 @@ pub const Chunk = struct {
     }
 
     pub fn genDensity(chunk: *Chunk, offset: zm.Vec) !void {
-        const variant = 9;
+        const variant = 4;
         switch (variant) {
             0, 1 => { // Empty, Full
                 for (0..chunk.density.len) |i| {
@@ -123,7 +123,7 @@ pub const Chunk = struct {
             8 => { // Chunk corner visualisation
                 for (0..chunk.density.len) |i| {
                     const pos = @fabs(chunk.posFromIndex(i));
-                    const bools = zm.abs(pos - zm.f32x4s(@as(f32, SIZE - 1) / 2)) > zm.f32x4s(0.5);
+                    const bools = @fabs(pos - zm.f32x4s(@as(f32, SIZE - 1) / 2)) > zm.f32x4s(0.5);
                     chunk.density[i] = if (zm.any(bools, 3)) 0 else 1;
                 }
             },

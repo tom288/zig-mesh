@@ -42,9 +42,7 @@ pub fn main() !void {
         try world.gen(camera.position);
 
         shader.use();
-        shader.set("view", f32, &zm.matToArr(camera.view));
-        shader.set("projection", f32, &zm.matToArr(camera.proj));
-        world.draw(shader);
+        try world.draw(shader, camera.position, camera.world_to_clip);
 
         window.swap();
     }
