@@ -62,7 +62,7 @@ pub const Chunk = struct {
     }
 
     pub fn genDensity(chunk: *Chunk, offset: zm.Vec) !void {
-        const variant = 5;
+        const variant = 9;
         switch (variant) {
             0, 1 => { // Empty, Full
                 for (0..chunk.density.len) |i| {
@@ -127,120 +127,81 @@ pub const Chunk = struct {
                     chunk.density[i] = if (zm.any(bools, 3)) 0 else 1;
                 }
             },
-            // 9 => { // Alan
-            //     const offset2 = zm.floor(offset / zm.f32x4s(Chunk.SIZE));
-            //     var feature_biome: u4 = @intFromFloat(@mod(offset2[0] / 4, 7));
-            //     if (@mod(offset2[0], 4) == 0) feature_biome = 7; // 7 --> "empty space" biome
-            //     const gen: znoise.FnlGenerator =
-            //         znoise.FnlGenerator{ .frequency = 0.4 / @as(f32, SIZE) };
-            //     // feature_biome = 6; // temp
-            //     for (0..chunk.density.len) |i| {
-            //         genAlanBlock(i, chunk, offset, feature_biome, gen);
-            //     }
-            // },
             9 => { // Alan
+                // todo: build a movement system, like a hovercraft
+                const biome: u4 = 6;
+                if (biome > 6) return error.BadBiome;
+                const noThin = [_]u4{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+                const feature_biomes_magnitudes = [_][11]f32{
+                    .{ 0, 0.00, 0.00, 0.100, 0.00, 0.30, 0.00, 0.0, 0, 0, 0 }, // hinter hills
+                    .{ 0, 0.00, 0.00, 0.000, 0.00, 0.30, 0.00, 0.0, 1, 0, 0 }, // war zone
+                    .{ 0, 0.00, 0.00, 0.050, 0.00, 0.00, 0.00, 1.0, 0, 0, 0 }, // wales
+                    .{ 0, 0.00, 0.02, 0.020, 0.20, 0.50, 1.20, 0.0, 0, 0, 0 }, // mount optimum
+                    .{ 0, 0.02, 0.05, 0.050, 0.20, 0.00, 0.00, 0.0, 0, 0, 0 }, // mount lesser optimum
+                    .{ 0, 0.00, 0.00, 0.005, 0.05, 0.10, 0.10, 0.2, 0, 0, 0 }, // smooth
+                    .{ 0, 0.00, 0.00, 0.005, 0.02, 0.05, 0.05, 0.2, 0, 0, 0 }, // muddy
+                };
+                const feature_biomes_thin_counts = [_][11]u4{
+                    .{ 0, 0.00, 0.00, 1.000, 0.00, 1.00, 0.00, 0.0, 0, 0, 0 }, // hinter hills
+                    .{ 0, 0.00, 0.00, 0.000, 0.00, 1.00, 0.00, 0.0, 2, 0, 0 }, // war zone
+                    .{ 0, 0.00, 0.00, 0.000, 0.00, 0.00, 0.00, 0.0, 0, 0, 0 }, // wales
+                    noThin, noThin, // mount optimum, mount lesser optimum,
+                    noThin, noThin, // smooth, muddy
+                };
+                const feature_magnitudes = feature_biomes_magnitudes[biome];
+                const feature_thin_counts = feature_biomes_thin_counts[biome];
                 const gen: znoise.FnlGenerator =
-                    znoise.FnlGenerator{ .frequency = 0.4 / @as(f32, SIZE) };
+                    znoise.FnlGenerator{ .seed = 0, .frequency = 0.4 / @as(f32, SIZE) };
                 for (0..chunk.density.len) |i| {
-                    genAlanBlockSimple(i, chunk, offset, gen);
+                    chunk.density[i] = try genAlanBlockSimple(
+                        chunk.posFromIndex(i) + offset,
+                        feature_magnitudes,
+                        feature_thin_counts,
+                        gen,
+                    );
                 }
+                //if (genAlanBlockHasTree()) genAlanBlockDrawTree();
             },
             else => unreachable,
         }
     }
 
-    fn genAlanBlockSimple(block_id: usize, chunk: *Chunk, offset: zm.Vec, gen: znoise.FnlGenerator) void {
-        const feature_magnitudes = [_]f32{ 0, 0, 0, 0.05, 0, 0, 0, 1, 0, 0, 0 };
-        const feature_thin_counts = [_]u4{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-        const ground_gradient = 0.03;
-        // ---
-        // const feature_magnitudes = [_]f32{ 0, 0, 0, 0, 0, 0.3, 0, 0, 1, 0, 0 };
-        // const feature_thin_counts = [_]u4{ 0, 0, 0, 0, 0, 2, 0, 0, 2, 0, 0 };
-        // const ground_gradient = 0.02; // this may supposed to be larger
-        // ---
-        var feature_wavelength: f32 = 0.02; // smallest feature
-        const pos = chunk.posFromIndex(block_id) + offset;
-        chunk.density[block_id] = 0;
-        for (0..feature_magnitudes.len) |pass| { // "octave" count
-            feature_wavelength *= 2;
-            const feature_magnitude = feature_magnitudes[pass];
-            var feature = gen.noise3(
-                pos[0] / feature_wavelength,
-                pos[1] / feature_wavelength,
-                pos[2] / feature_wavelength,
-            );
-            for (0..feature_thin_counts[pass]) |_| {
-                feature *= if (feature > 0) feature else -feature;
-            }
-            chunk.density[block_id] += feature * feature_magnitude;
-            // todo: offset the perlin noise with a 3-vec (xyz) perlin noise
-        }
-        chunk.density[block_id] -= pos[1] * ground_gradient;
-    }
+    // fn genAlanBlockDrawTree(
+    //     world_pos: zm.Vec,
+    //     gen: znoise.FnlGenerator) {
+    //     ;
+    // }
 
-    fn genAlanBlock(block_id: usize, chunk: *Chunk, offset: zm.Vec, feature_biome: u4, gen: znoise.FnlGenerator) void {
-        chunk.density[block_id] = 0;
-        const pos = chunk.posFromIndex(block_id) + offset;
-        var feature_params = switch (feature_biome) {
-            // feature (wavelength, magnitude)
-            0 => [2]i8{ 0, 0 }, // exp, exp --> normal, perlin
-            1 => [2]i8{ 1, 0 }, // sqr, exp --> small
-            2 => [2]i8{ 2, 0 }, // linier, exp --> smooth
-            3 => [2]i8{ -1, 1 }, // exp2, linier --> gnarly
-            4 => [2]i8{ 1, 1 }, // sqr, sqr --> small gnarly
-            5 => [2]i8{ 2, 1 }, // linier, sqr --> smooth
-            6 => [2]i8{ -2, 2 }, // exp3, linier --> noisy mess (work on me)
-            7 => [2]i8{ 3, 0 }, // empty space
-            8 => [2]i8{ 4, 0 }, // sqr2, exp --> normal
-            9 => [2]i8{ 5, 0 }, // sqr3, exp --> large
-            10 => [2]i8{ 0, -1 }, // exp, exp_y --> normal, perlin
-            else => unreachable,
-        };
-        var feature_wavelength_func: i8 = feature_params[0];
-        var feature_magnitude_func: i8 = feature_params[1];
-        if (feature_wavelength_func != 3) { // 3 is for the "empty space" biome
-            var feature_wavelength: f16 = 0.01; // smallest feature
-            var feature_magnitude: f16 = 1;
-            var pass: f16 = 0;
-            for (0..7) |_| { // "octave" count
-                pass += 1;
-                if (feature_wavelength_func <= 0) {
-                    feature_wavelength *= switch (feature_wavelength_func) {
-                        0 => 2, // exp
-                        -1 => 2.2, // exp2
-                        -2 => 3.7, // exp3
-                        else => unreachable,
-                    };
-                } else {
-                    feature_wavelength = switch (feature_wavelength_func) {
-                        1 => 0.01 * pass * pass, // sqr
-                        2 => 0.1 * pass, // linier
-                        3 => 0, // empty space
-                        4 => 0.02 * pass * pass, // sqr2
-                        5 => 0.04 * pass * pass, // sqr3
-                        else => unreachable,
-                    };
+    // fn genAlanBlockHasTree() bool {
+    //     return true;
+    // }
+
+    fn genAlanBlockSimple(
+        world_pos: zm.Vec,
+        feature_magnitudes: [11]f32,
+        feature_thin_counts: [11]u4,
+        gen: znoise.FnlGenerator,
+    ) !f32 {
+        const ground_gradient = 0.03;
+        var feature_wavelength: f32 = 0.02; // smallest feature
+        // ---
+        var density: f32 = 0;
+        for (0..feature_magnitudes.len) |pass| { // "octave" count
+            const feature_magnitude = feature_magnitudes[pass];
+            feature_wavelength *= 2;
+            if (feature_magnitude != 0) {
+                var feature = gen.noise3(
+                    world_pos[0] / feature_wavelength,
+                    world_pos[1] / feature_wavelength,
+                    world_pos[2] / feature_wavelength,
+                );
+                for (0..feature_thin_counts[pass]) |_| {
+                    feature *= if (feature > 0) feature else -feature;
                 }
-                if (feature_magnitude_func <= 0) {
-                    feature_magnitude *= switch (feature_magnitude_func) {
-                        0 => 2, // exp
-                        -1 => @floatCast(pos[1] * 0.1), // exp_y
-                        else => unreachable,
-                    };
-                } else {
-                    feature_magnitude = switch (feature_magnitude_func) {
-                        1 => pass * pass, // sqr
-                        2 => pass, // linier
-                        else => unreachable,
-                    };
-                }
-                chunk.density[block_id] += gen.noise3(
-                    pos[0] / feature_wavelength,
-                    pos[1] / feature_wavelength,
-                    pos[2] / feature_wavelength,
-                ) * feature_magnitude * SIZE; // todo: offset the perlin noise with a 3-vec (xyz) perlin noise
+                density += feature * feature_magnitude;
             }
         }
+        return density - world_pos[1] * ground_gradient;
     }
 
     pub fn genVerts(chunk: *Chunk, world: World, offset: zm.Vec) !void {
