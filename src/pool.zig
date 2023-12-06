@@ -8,14 +8,14 @@ pub fn Pool(comptime Data: type) type {
 
         const Worker = struct {
             busy: bool,
-            wait: std.atomic.Atomic(bool),
+            wait: std.atomic.Value(bool),
             data: Data,
         };
 
         pub fn init(alloc: std.mem.Allocator) !@This() {
             const thread_count = @max(try std.Thread.getCpuCount() - 1, 1);
 
-            var workers = try alloc.alloc(Worker, thread_count);
+            const workers = try alloc.alloc(Worker, thread_count);
             errdefer alloc.free(workers);
 
             for (workers) |*worker| {
@@ -51,7 +51,7 @@ pub fn Pool(comptime Data: type) type {
             return false;
         }
 
-        fn thread(wait: *std.atomic.Atomic(bool), comptime func: fn (data: Data) void, data: Data) !void {
+        fn thread(wait: *std.atomic.Value(bool), comptime func: fn (data: Data) void, data: Data) !void {
             func(data);
             wait.store(true, .Unordered);
         }

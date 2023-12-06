@@ -115,7 +115,7 @@ pub const World = struct {
 
             // Draw the chunk we are inside of no matter what
             // Chunk.SIZE is assumed to be sufficient - half of it is not...
-            if (zm.all(@fabs(pos - offset) < zm.f32x4s(Chunk.SIZE), 3) and !bench) {
+            if (zm.all(@abs(pos - offset) < zm.f32x4s(Chunk.SIZE), 3) and !bench) {
                 shader.set("model_to_clip", f32, &zm.matToArr(model_to_clip));
                 chunk.mesh.draw(gl.TRIANGLES);
                 draws += 1;
@@ -135,12 +135,12 @@ pub const World = struct {
                     corner = zm.mul(corner, model_to_clip);
                     corner /= @splat(corner[3]);
                     for (0..3) |d| {
-                        if (@fabs(corner[d]) > 1) continue :corners;
+                        if (@abs(corner[d]) > 1) continue :corners;
                     }
                     if (corner[2] < 0) continue :corners;
                 }
                 if (!bench) {
-                    shader.set("model_to_clip", f32, &zm.matToArr(model_to_clip));
+                    shader.set("model_to_clip", f32, zm.matToArr(model_to_clip));
                     chunk.mesh.draw(gl.TRIANGLES);
                 }
                 draws += 1;
@@ -182,7 +182,7 @@ pub const World = struct {
                 }
             }
 
-            const diff = @fabs(world.splits - new_splits);
+            const diff = @abs(world.splits - new_splits);
             const max_diff: usize = @intFromFloat(@max(diff[0], @max(diff[1], diff[2])));
             world.dist_done = @min(MIP0_DIST, world.dist_done) -| max_diff; // Saturating sub on usize
             world.index_done = 0;
@@ -352,7 +352,7 @@ pub const World = struct {
         const THREAD = true;
         const mip_level: usize = if (dist < MIP0_DIST) 0 else 2;
         const chunk_index = try world.indexFromOffset(pos, null);
-        var chunk = &world.chunks[chunk_index];
+        const chunk = &world.chunks[chunk_index];
 
         // Skip chunks which are already being processed
         if (chunk.wip_mip) |_| return false;
@@ -393,7 +393,7 @@ pub const World = struct {
                         1,
                     ) - zm.f32x4s(1)) * zm.f32x4s(Chunk.SIZE) + pos;
                     const neighbour_index = try world.indexFromOffset(neighbour_pos, null);
-                    var neighbour = &world.chunks[neighbour_index];
+                    const neighbour = &world.chunks[neighbour_index];
 
                     // Skip neighbours which are already being processed
                     if (neighbour.wip_mip) |_| {

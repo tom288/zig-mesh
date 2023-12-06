@@ -63,90 +63,95 @@ pub const Shader = struct {
             std.log.err("Failed to find uniform {s}", .{name});
             return;
         }
-        comptime var indexable = std.meta.trait.isIndexable(@TypeOf(value));
-        if (indexable) {
-            const vec = @as([]const T, value);
-            const ptr: [*c]const T = &vec[0];
-            switch (vec.len) {
-                1 => (switch (T) {
-                    gl.GLfloat => gl.uniform1fv,
-                    gl.GLdouble => gl.uniform1dv,
-                    gl.GLint => gl.uniform1iv,
-                    gl.GLuint => gl.uniform1uiv,
+        switch (@typeInfo(@TypeOf(value))) {
+            .Array, .Pointer => {
+                const vec = @as([]const T, switch (@typeInfo(@TypeOf(value))) {
+                    .Array => &value,
+                    else => value,
+                });
+                const ptr: [*c]const T = &vec[0];
+                switch (vec.len) {
+                    1 => (switch (T) {
+                        gl.GLfloat => gl.uniform1fv,
+                        gl.GLdouble => gl.uniform1dv,
+                        gl.GLint => gl.uniform1iv,
+                        gl.GLuint => gl.uniform1uiv,
+                        else => {
+                            std.log.err("Invalid uniform type {}", .{T});
+                            unreachable;
+                        },
+                    })(location, 1, ptr),
+                    2 => (switch (T) {
+                        gl.GLfloat => gl.uniform2fv,
+                        gl.GLdouble => gl.uniform2dv,
+                        gl.GLint => gl.uniform2iv,
+                        gl.GLuint => gl.uniform2uiv,
+                        else => {
+                            std.log.err("Invalid uniform type {}", .{T});
+                            unreachable;
+                        },
+                    })(location, 1, ptr),
+                    3 => (switch (T) {
+                        gl.GLfloat => gl.uniform3fv,
+                        gl.GLdouble => gl.uniform3dv,
+                        gl.GLint => gl.uniform3iv,
+                        gl.GLuint => gl.uniform3uiv,
+                        else => {
+                            std.log.err("Invalid uniform type {}", .{T});
+                            unreachable;
+                        },
+                    })(location, 1, ptr),
+                    4 => (switch (T) {
+                        gl.GLfloat => gl.uniform4fv,
+                        gl.GLdouble => gl.uniform4dv,
+                        gl.GLint => gl.uniform4iv,
+                        gl.GLuint => gl.uniform4uiv,
+                        else => {
+                            std.log.err("Invalid uniform type {}", .{T});
+                            unreachable;
+                        },
+                    })(location, 1, ptr),
+                    9 => (switch (T) {
+                        gl.GLfloat => gl.uniformMatrix3fv,
+                        gl.GLdouble => gl.uniformMatrix3dv,
+                        else => {
+                            std.log.err("Invalid uniform type {}", .{T});
+                            unreachable;
+                        },
+                    })(location, 1, gl.FALSE, ptr),
+                    16 => (switch (T) {
+                        gl.GLfloat => gl.uniformMatrix4fv,
+                        gl.GLdouble => gl.uniformMatrix4dv,
+                        else => {
+                            std.log.err("Invalid uniform type {} for length {}", .{ T, vec.len });
+                            unreachable;
+                        },
+                    })(location, 1, gl.FALSE, ptr),
+                    else => {
+                        std.log.err("Invalid uniform length {}", .{vec.len});
+                        unreachable;
+                    },
+                }
+            },
+            else => {
+                (switch (T) {
+                    gl.GLfloat => gl.uniform1f,
+                    gl.GLdouble => gl.uniform1d,
+                    gl.GLint => gl.uniform1i,
+                    gl.GLuint => gl.uniform1ui,
                     else => {
                         std.log.err("Invalid uniform type {}", .{T});
                         unreachable;
                     },
-                })(location, 1, ptr),
-                2 => (switch (T) {
-                    gl.GLfloat => gl.uniform2fv,
-                    gl.GLdouble => gl.uniform2dv,
-                    gl.GLint => gl.uniform2iv,
-                    gl.GLuint => gl.uniform2uiv,
-                    else => {
-                        std.log.err("Invalid uniform type {}", .{T});
-                        unreachable;
-                    },
-                })(location, 1, ptr),
-                3 => (switch (T) {
-                    gl.GLfloat => gl.uniform3fv,
-                    gl.GLdouble => gl.uniform3dv,
-                    gl.GLint => gl.uniform3iv,
-                    gl.GLuint => gl.uniform3uiv,
-                    else => {
-                        std.log.err("Invalid uniform type {}", .{T});
-                        unreachable;
-                    },
-                })(location, 1, ptr),
-                4 => (switch (T) {
-                    gl.GLfloat => gl.uniform4fv,
-                    gl.GLdouble => gl.uniform4dv,
-                    gl.GLint => gl.uniform4iv,
-                    gl.GLuint => gl.uniform4uiv,
-                    else => {
-                        std.log.err("Invalid uniform type {}", .{T});
-                        unreachable;
-                    },
-                })(location, 1, ptr),
-                9 => (switch (T) {
-                    gl.GLfloat => gl.uniformMatrix3fv,
-                    gl.GLdouble => gl.uniformMatrix3dv,
-                    else => {
-                        std.log.err("Invalid uniform type {}", .{T});
-                        unreachable;
-                    },
-                })(location, 1, gl.FALSE, ptr),
-                16 => (switch (T) {
-                    gl.GLfloat => gl.uniformMatrix4fv,
-                    gl.GLdouble => gl.uniformMatrix4dv,
-                    else => {
-                        std.log.err("Invalid uniform type {} for length {}", .{ T, vec.len });
-                        unreachable;
-                    },
-                })(location, 1, gl.FALSE, ptr),
-                else => {
-                    std.log.err("Invalid uniform length {}", .{vec.len});
-                    unreachable;
-                },
-            }
-        } else {
-            (switch (T) {
-                gl.GLfloat => gl.uniform1f,
-                gl.GLdouble => gl.uniform1d,
-                gl.GLint => gl.uniform1i,
-                gl.GLuint => gl.uniform1ui,
-                else => {
-                    std.log.err("Invalid uniform type {}", .{T});
-                    unreachable;
-                },
-            })(location, @as(T, value));
+                })(location, @as(T, value));
+            },
         }
     }
 };
 
 fn compile(comptime name: []const u8, comptime stage: gl.GLenum) gl.GLuint {
     comptime std.debug.assert(std.mem.trim(u8, name, &std.ascii.whitespace).len > 0);
-    comptime var path = "glsl/" ++ name ++ switch (stage) {
+    const path = "glsl/" ++ name ++ switch (stage) {
         gl.VERTEX_SHADER => ".vert",
         gl.GEOMETRY_SHADER => ".geom",
         gl.FRAGMENT_SHADER => ".frag",

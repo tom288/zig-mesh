@@ -122,8 +122,8 @@ pub const Chunk = struct {
             },
             8 => { // Chunk corner visualisation
                 for (0..chunk.density.len) |i| {
-                    const pos = @fabs(chunk.posFromIndex(i));
-                    const bools = @fabs(pos - zm.f32x4s(@as(f32, SIZE - 1) / 2)) > zm.f32x4s(0.5);
+                    const pos = @abs(chunk.posFromIndex(i));
+                    const bools = @abs(pos - zm.f32x4s(@as(f32, SIZE - 1) / 2)) > zm.f32x4s(0.5);
                     chunk.density[i] = if (zm.any(bools, 3)) 0 else 1;
                 }
             },

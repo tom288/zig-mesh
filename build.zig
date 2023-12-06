@@ -29,7 +29,7 @@ pub fn build(b: *std.build.Builder) !void {
 
     // Use the mach-glfw .link helper here
     // to link the glfw library for us
-    try @import("mach_glfw").link(b, exe);
+    @import("mach_glfw").link(glfw_dep.builder, exe);
 
     // Same as above for our gl module,
     // because we copied the gl code into the project
