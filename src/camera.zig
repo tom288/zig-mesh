@@ -4,6 +4,9 @@
 const std = @import("std");
 const zm = @import("zmath");
 const Chunk = @import("chunk.zig").Chunk;
+const World = @import("world.zig").World;
+
+// todo: implement hovercraft movement
 
 pub const Camera = struct {
     // Kinematics
@@ -56,6 +59,9 @@ pub const Camera = struct {
         );
     }
 
+    // todo: implement hovercraft movement
+    // lots of needed into in cam (it's passed in to this func and it's a Camera)
+
     pub fn step(cam: *Camera, input: zm.Vec, time_delta: f32) void {
         var acc = zm.f32x4s(0);
         acc += zm.f32x4s(input[0]) * cam.right;
@@ -78,6 +84,49 @@ pub const Camera = struct {
         cam.velocity *= @splat(std.math.pow(f32, 2, -power));
         cam.position += cam.velocity * zm.f32x4s(time_delta);
 
+        cam.calcView();
+    }
+
+    pub fn hovercraft_step(cam: *Camera, world: World, time_delta: f32) !void {
+        var acc = zm.f32x4s(0); // acceleration x y z 0
+        acc -= UP * zm.f32x4s(2); // gravity
+        cam.velocity += zm.f32x4s(time_delta) * acc; // velocity x y z 0
+        const friction = 0;
+
+        // apply friction
+        const power = time_delta * (1 - zm.length3(acc)[0]) * friction;
+        cam.velocity *= @splat(std.math.pow(f32, 2, -power));
+
+        // nearby blocks apply a force to push the craft
+        for (0..10) |x| {
+            for (0..10) |y| {
+                const x2: f32 = @floatFromInt(x);
+                const y2: f32 = @floatFromInt(y);
+                const offset = zm.f32x4(x2 - 5, y2 - 5, 0, 0) * zm.f32x4s(Chunk.SIZE);
+
+                // get the blocks density at the camera position and additional offset provided
+                const pos = cam.position + offset;
+                const chunk_index = try world.indexFromOffset(pos, null);
+                var chunk = world.chunks[chunk_index];
+                const chunk_world_pos = world.offsetFromIndex(chunk_index, null);
+                const density = chunk.densityFromPos(
+                    world,
+                    pos - chunk_world_pos,
+                    chunk_world_pos,
+                    false,
+                    world.splits,
+                ) orelse 0;
+
+                if (density > 0) acc += zm.f32x4s(1) / zm.length3(offset); // apply the force (1 / block_distance)
+            }
+        }
+
+        // speed cap
+        // if (zm.length3(cam.velocity)[0] > SPEED) {
+        //     cam.velocity = zm.normalize3(cam.velocity) * zm.f32x4s(SPEED);
+        // }
+
+        cam.position += cam.velocity * zm.f32x4s(time_delta);
         cam.calcView();
     }
 

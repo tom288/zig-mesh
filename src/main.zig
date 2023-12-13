@@ -35,7 +35,8 @@ pub fn main() !void {
     // Wait for the user to close the window.
     while (window.ok()) {
         camera.turn(window.mouse_delta);
-        camera.step(window.input, window.delta);
+        // camera.step(window.input, window.delta);
+        try camera.hovercraft_step(world, window.delta);
         camera.scroll(window.scroll_delta);
         window.clearColour(0.1, 0, 0.2, 1);
 

@@ -236,12 +236,12 @@ pub const Chunk = struct {
         return world.chunks[i].densityFromPos(world, pos + offset - off, off, occ, spl);
     }
 
-    fn densityLocal(chunk: *Chunk, pos: zm.Vec) ?f32 {
+    pub fn densityLocal(chunk: *Chunk, pos: zm.Vec) ?f32 {
         return chunk.density[chunk.indexFromPos(pos) catch return null];
     }
 
     fn indexFromPos(chunk: Chunk, pos: zm.Vec) !usize {
-        const mip_level = chunk.wip_mip orelse chunk.density_mip.?;
+        const mip_level = chunk.wip_mip orelse chunk.density_mip orelse return error.NotInitialised;
         const mip_scale = std.math.pow(f32, 2, @floatFromInt(mip_level));
         const size = SIZE / @as(usize, @intFromFloat(mip_scale));
 
