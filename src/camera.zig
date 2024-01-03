@@ -87,37 +87,68 @@ pub const Camera = struct {
         cam.calcView();
     }
 
-    pub fn hovercraft_step(cam: *Camera, world: World, time_delta: f32) !void {
-        var acc = zm.f32x4s(0); // acceleration x y z 0
-        acc -= UP * zm.f32x4s(2); // gravity
-        cam.velocity += zm.f32x4s(time_delta) * acc; // velocity x y z 0
-        const friction = 0;
+    var frame_temp: u32 = 0;
+    var pass_temp: u64 = 0; // todo: remove me
 
-        // apply friction
-        const power = time_delta * (1 - zm.length3(acc)[0]) * friction;
+    pub fn hovercraft_step(cam: *Camera, world: World, time_delta: f32) !void {
+        const gravity = 20.0;
+        const air_resistance = 0.2; // 0 for none
+        const ground_effect_force = 1000.0;
+        _ = ground_effect_force;
+        const ground_effect_variable_force = false;
+        _ = ground_effect_variable_force;
+        const ground_effect_min_radius = 4;
+        const ground_effect_max_radius = 5;
+
+        var acc = zm.f32x4s(0); // acceleration x y z 0
+
+        // todo: accelerate using keyboard input
+        // reconsider whether power should use acc,
+        // or a grounded check instead
+
+        if (zm.lengthSq3(acc)[0] > 1) {
+            acc = zm.normalize3(acc);
+        }
+
+        // apply air resistance
+        const power = time_delta * (1 - zm.length3(acc)[0]) * air_resistance;
         cam.velocity *= @splat(std.math.pow(f32, 2, -power));
 
+        acc -= UP * zm.f32x4s(gravity);
+
         // nearby blocks apply a force to push the craft
-        for (0..10) |x| {
-            for (0..10) |y| {
+        for (0..ground_effect_max_radius * 2) |x| {
+            for (0..ground_effect_max_radius * 2) |y| {
                 const x2: f32 = @floatFromInt(x);
                 const y2: f32 = @floatFromInt(y);
-                const offset = zm.f32x4(x2 - 5, y2 - 5, 0, 0) * zm.f32x4s(Chunk.SIZE);
+                var offset = zm.f32x4(x2 - ground_effect_max_radius, y2 - ground_effect_max_radius, 0, 0);
+                // * zm.f32x4s(Chunk.SIZE);
 
-                // get the blocks density at the camera position and additional offset provided
-                const pos = cam.position + offset;
-                const chunk_index = try world.indexFromOffset(pos, null);
-                var chunk = world.chunks[chunk_index];
-                const chunk_world_pos = world.offsetFromIndex(chunk_index, null);
-                const density = chunk.densityFromPos(
-                    world,
-                    pos - chunk_world_pos,
-                    chunk_world_pos,
-                    false,
-                    world.splits,
-                ) orelse 0;
+                const offset_len = zm.length3(offset)[0];
+                if (offset_len > ground_effect_min_radius and offset_len < ground_effect_max_radius) {
+                    // get the blocks density at the camera position and additional offset provided
+                    const pos = cam.position + offset;
+                    const chunk_index = try world.indexFromOffset(pos, null);
+                    var chunk = world.chunks[chunk_index];
+                    const chunk_world_pos = world.offsetFromIndex(chunk_index, null);
+                    const density = chunk.densityFromPos(
+                        world,
+                        pos - chunk_world_pos,
+                        chunk_world_pos,
+                        false,
+                        world.splits,
+                    ) orelse 0;
 
-                if (density > 0) acc += zm.f32x4s(1) / zm.length3(offset); // apply the force (1 / block_distance)
+                    if (density > 0) {
+                        offset[3] = 0; // todo: remove me
+                        acc[3] = 0; // todo: remove me
+                        // apply the force (scale [if used] / block_distance)
+                        acc -= zm.f32x4s(1) * zm.f32x4s(1000.0) / (zm.length3(offset) + zm.f32x4s(1));
+                        // acc -= (if (ground_effect_variable_force) zm.normalize3(offset) else zm.f32x4s(1)) *
+                        //     zm.f32x4s(ground_effect_force) /
+                        //     (zm.length3(offset) + zm.f32x4s(1));
+                    }
+                }
             }
         }
 
@@ -126,7 +157,12 @@ pub const Camera = struct {
         //     cam.velocity = zm.normalize3(cam.velocity) * zm.f32x4s(SPEED);
         // }
 
+        cam.velocity += zm.f32x4s(time_delta) * acc; // velocity x y z 0
         cam.position += cam.velocity * zm.f32x4s(time_delta);
+        std.debug.print(
+            "frame: {} --> vel: {d}, pos: {d}, power: {d}\n",
+            .{ frame_temp, cam.velocity, cam.position, power },
+        );
         cam.calcView();
     }
 

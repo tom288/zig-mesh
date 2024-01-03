@@ -62,7 +62,7 @@ pub const Chunk = struct {
     }
 
     pub fn genDensity(chunk: *Chunk, offset: zm.Vec) !void {
-        const variant = 4;
+        const variant = 9;
         switch (variant) {
             0, 1 => { // Empty, Full
                 for (0..chunk.density.len) |i| {

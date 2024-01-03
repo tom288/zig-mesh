@@ -32,6 +32,8 @@ pub fn main() !void {
     );
     defer world.kill() catch {};
 
+    camera.position = zm.f32x4(0, 10, 0, 0); // todo: remove this
+
     // Wait for the user to close the window.
     while (window.ok()) {
         camera.turn(window.mouse_delta);
