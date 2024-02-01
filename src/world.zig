@@ -171,22 +171,45 @@ pub const World = struct {
         // if (bench) std.debug.print("Sync took {d:.3} ms\n", .{ns / 1_000_000});
 
         if (zm.any(world.splits != new_splits, 3)) {
-            // TODO only iterate over the necessary chunks
-            for (0.., world.chunks) |i, *chunk| {
-                if (zm.all(world.offsetFromIndex(i, null) ==
-                    world.offsetFromIndex(i, new_splits), 3)) continue;
-                if (chunk.wip_mip != null or chunk.density_refs > 0) {
-                    chunk.must_free = true;
-                } else {
-                    chunk.free(world.chunk_alloc, true);
+            const displacements = new_splits - world.splits;
+            const diff = @abs(displacements);
+            var min = [3]usize{ 0, 0, 0 };
+            var max = [3]usize{ CHUNKS, CHUNKS, CHUNKS };
+            world.splits = new_splits;
+
+            for (0..3) |d| {
+                const d1 = (d + 1) % 3;
+                const d2 = (d + 2) % 3;
+                const neg = displacements[d] < 0;
+
+                for (0..@intFromFloat(diff[d])) |_| {
+                    // Clear whole plane
+                    for (min[d1]..max[d1]) |i| {
+                        for (min[d2]..max[d2]) |j| {
+                            var pos = zm.f32x4s(Chunk.SIZE);
+                            // We are using the new splits, so the chunks we
+                            // are interested in have already wrapped around
+                            pos[d] *= @floatFromInt(if (neg) min[d] else max[d] - 1);
+                            pos[d1] *= @floatFromInt(i);
+                            pos[d2] *= @floatFromInt(j);
+                            pos += world.cam_pos - zm.f32x4s(SIZE - Chunk.SIZE) / zm.f32x4s(2);
+                            const chunk_index = try world.indexFromOffset(pos, null);
+                            const chunk = &world.chunks[chunk_index];
+                            if (chunk.wip_mip != null or chunk.density_refs > 0) {
+                                chunk.must_free = true;
+                            } else {
+                                chunk.free(world.chunk_alloc, true);
+                            }
+                        }
+                    }
+                    if (neg) min[d] += 1 else max[d] -= 1;
+                    if (min[d] == max[d]) break;
                 }
             }
 
-            const diff = @abs(world.splits - new_splits);
             const max_diff: usize = @intFromFloat(@max(diff[0], @max(diff[1], diff[2])));
             world.dist_done = @min(MIP0_DIST, world.dist_done) -| max_diff; // Saturating sub on usize
             world.index_done = 0;
-            world.splits = new_splits;
             // ns = @floatFromInt(timer.lap());
             // if (bench) std.debug.print("Splits took {d:.3} ms\n", .{ns / 1_000_000});
         }
