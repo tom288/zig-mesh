@@ -1,7 +1,7 @@
 //! The Window manages the viewport and accumulates user input
 
 const std = @import("std");
-const glfw = @import("mach-glfw");
+const glfw = @import("glfw");
 const gl = @import("gl");
 const zm = @import("zmath");
 

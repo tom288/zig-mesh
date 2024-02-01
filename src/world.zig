@@ -36,23 +36,23 @@ pub const World = struct {
         shader: ?Shader,
         cam_pos: ?zm.Vec,
     ) !World {
-        const pos = cam_pos orelse zm.f32x4s(0);
         var world = World{
             .alloc = alloc,
             .chunk_alloc = chunk_alloc,
             .shader = shader,
             .chunks = try alloc.alloc(Chunk, CHUNKS * CHUNKS * CHUNKS),
-            .cam_pos = pos,
-            .splits = splitsFromPos(pos),
+            .cam_pos = cam_pos orelse zm.f32x4s(0),
+            .splits = undefined,
             .pool = undefined,
             .dist_done = 0,
             .index_done = 0,
         };
+        world.splits = splitsFromPos(world.cam_pos);
 
         var count: usize = 0;
         errdefer {
-            for (world.chunks) |*chunk| {
-                chunk.kill(chunk_alloc);
+            for (0..count) |i| {
+                world.chunks[i].kill(chunk_alloc);
             }
             alloc.free(world.chunks);
             world.chunks = &.{};

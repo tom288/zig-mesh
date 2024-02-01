@@ -143,25 +143,24 @@ pub const MarchingCubes = struct {
 
     fn lerp_vert(chunk: *Chunk, world: World, l: zm.Vec, r: zm.Vec, offset: zm.Vec) zm.Vec {
         const EPS = 1e-5;
+        const BUMPY = false;
         const MODE = enum {
             primitive,
             risky,
-            bumpy,
             complex,
-        }.risky;
+        }.complex;
         switch (MODE) {
             .primitive => return (l + r) / zm.f32x4s(2),
-            .risky, .bumpy => {
+            .risky => {
                 const sample_l = chunk.densityFromPos(world, l, offset, null, null).?;
                 const sample_r = chunk.densityFromPos(world, r, offset, null, null).?;
                 const sample_diff = sample_r - sample_l;
                 if (@abs(sample_l) < EPS) return l;
                 if (@abs(sample_r) < EPS) return r;
                 if (@abs(sample_diff) < EPS) return l;
-                return l + (l - r) * switch (MODE) {
-                    .risky => zm.f32x4s(sample_l / sample_diff),
-                    .bumpy => zm.f32x4s(-sample_r / sample_diff),
-                    else => unreachable,
+                return l + (l - r) * switch (BUMPY) {
+                    true => zm.f32x4s(-sample_r / sample_diff),
+                    false => zm.f32x4s(sample_l / sample_diff),
                 };
             },
             .complex => {
@@ -181,7 +180,10 @@ pub const MarchingCubes = struct {
 
                 var result = a;
                 if (@abs(sample_diff) > EPS) {
-                    result += (a - b) * zm.f32x4s(sample_a / sample_diff);
+                    result += (a - b) * switch (BUMPY) {
+                        false => zm.f32x4s(sample_a / sample_diff),
+                        true => zm.f32x4s(-sample_b / sample_diff),
+                    };
                 }
                 return result;
             },

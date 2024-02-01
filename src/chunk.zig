@@ -88,7 +88,7 @@ pub const Chunk = struct {
             4 => { // Gradient noise (perlin)
                 const gen = znoise.FnlGenerator{
                     .frequency = 0.8 / @as(f32, SIZE),
-                    .noise_type = znoise.FnlGenerator.NoiseType.perlin,
+                    .noise_type = .perlin,
                 };
                 for (0..chunk.density.len) |i| {
                     const pos = chunk.posFromIndex(i) + offset;
