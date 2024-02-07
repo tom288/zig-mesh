@@ -170,8 +170,9 @@ pub const World = struct {
         // if (bench) std.debug.print("Sync took {d:.3} ms\n", .{ns / 1_000_000});
 
         if (zm.any(world.splits != new_splits, 3)) {
-            const displacements = new_splits - world.splits;
-            const diff = @abs(displacements);
+            var diff = new_splits - world.splits;
+            const neg = diff < zm.f32x4s(0);
+            diff = @abs(diff);
             var min = [3]usize{ 0, 0, 0 };
             var max = [3]usize{ CHUNKS, CHUNKS, CHUNKS };
             world.splits = new_splits;
@@ -179,7 +180,6 @@ pub const World = struct {
             for (0..3) |d| {
                 const d1 = (d + 1) % 3;
                 const d2 = (d + 2) % 3;
-                const neg = displacements[d] < 0;
 
                 for (0..@intFromFloat(diff[d])) |_| {
                     // Clear whole plane
@@ -188,7 +188,7 @@ pub const World = struct {
                             var pos = zm.f32x4s(Chunk.SIZE);
                             // We are using the new splits, so the chunks we
                             // are interested in have already wrapped around
-                            pos[d] *= @floatFromInt(if (neg) min[d] else max[d] - 1);
+                            pos[d] *= @floatFromInt(if (neg[d]) min[d] else max[d] - 1);
                             pos[d1] *= @floatFromInt(i);
                             pos[d2] *= @floatFromInt(j);
                             pos += world.cam_pos - zm.f32x4s(SIZE - Chunk.SIZE) / zm.f32x4s(2);
@@ -201,7 +201,7 @@ pub const World = struct {
                             }
                         }
                     }
-                    if (neg) min[d] += 1 else max[d] -= 1;
+                    if (neg[d]) min[d] += 1 else max[d] -= 1;
                     if (min[d] == max[d]) break;
                 }
             }

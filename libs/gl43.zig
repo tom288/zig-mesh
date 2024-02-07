@@ -5,29 +5,21 @@
 
 //
 // Generation parameters:
-// API:        GL_VERSION_4_1
+// API:        GL_VERSION_4_3
 // Profile:    core
 // Extensions: 
 //
 
 //
 // This file was generated with the following command line:
-// generator C:\Users\plagu\Development\Zig\zig-opengl\bin\Debug\net6.0\generator.dll OpenGL-Registry/xml/gl.xml gl41.zig GL_VERSION_4_1
+// generator C:\Git\Zig\zig-opengl\bin\Debug\net7.0\generator.dll OpenGL-Registry/xml/gl.xml gl43.zig GL_VERSION_4_3
 //
 
 const std = @import("std");
 const builtin = @import("builtin");
 const log = std.log.scoped(.OpenGL);
 
-pub const FunctionPointer: type = blk: {
-    const BaseFunc = fn (u32) callconv(.C) u32;
-    const SpecializedFnPtr = FnPtr(BaseFunc);
-    const fnptr_type = @typeInfo(SpecializedFnPtr);
-    var generic_type = fnptr_type;
-    std.debug.assert(generic_type.Pointer.size == .One);
-    generic_type.Pointer.child = anyopaque;
-    break :blk @Type(generic_type);
-};
+pub const FunctionPointer: type = *align(@alignOf(fn (u32) callconv(.C) u32)) const anyopaque;
 
 pub const GLenum = c_uint;
 pub const GLboolean = u8;
@@ -68,22 +60,15 @@ pub const GLsync = *opaque {};
 pub const _cl_context = opaque {};
 pub const _cl_event = opaque {};
 
-pub const GLDEBUGPROC = FnPtr(fn (source: GLenum, _type: GLenum, id: GLuint, severity: GLenum, length: GLsizei, message: [*:0]const u8, userParam: ?*anyopaque) callconv(.C) void);
-pub const GLDEBUGPROCARB = FnPtr(fn (source: GLenum, _type: GLenum, id: GLuint, severity: GLenum, length: GLsizei, message: [*:0]const u8, userParam: ?*anyopaque) callconv(.C) void);
-pub const GLDEBUGPROCKHR = FnPtr(fn (source: GLenum, _type: GLenum, id: GLuint, severity: GLenum, length: GLsizei, message: [*:0]const u8, userParam: ?*anyopaque) callconv(.C) void);
+pub const GLDEBUGPROC = *const fn (source: GLenum, _type: GLenum, id: GLuint, severity: GLenum, length: GLsizei, message: [*:0]const u8, userParam: ?*anyopaque) callconv(.C) void;
+pub const GLDEBUGPROCARB = *const fn (source: GLenum, _type: GLenum, id: GLuint, severity: GLenum, length: GLsizei, message: [*:0]const u8, userParam: ?*anyopaque) callconv(.C) void;
+pub const GLDEBUGPROCKHR = *const fn (source: GLenum, _type: GLenum, id: GLuint, severity: GLenum, length: GLsizei, message: [*:0]const u8, userParam: ?*anyopaque) callconv(.C) void;
 
-pub const GLDEBUGPROCAMD = FnPtr(fn (id: GLuint, category: GLenum, severity: GLenum, length: GLsizei, message: [*:0]const u8, userParam: ?*anyopaque) callconv(.C) void);
+pub const GLDEBUGPROCAMD = *const fn (id: GLuint, category: GLenum, severity: GLenum, length: GLsizei, message: [*:0]const u8, userParam: ?*anyopaque) callconv(.C) void;
 
 pub const GLhalfNV = u16;
 pub const GLvdpauSurfaceNV = GLintptr;
 pub const GLVULKANPROCNV = *const fn () callconv(.C) void;
-
-fn FnPtr(comptime Fn: type) type {
-    return if (@import("builtin").zig_backend != .stage1)
-        *const Fn
-    else
-        Fn;
-}
 
 
 pub const DEPTH_BUFFER_BIT = 0x00000100;
@@ -98,6 +83,7 @@ pub const LINE_STRIP = 0x0003;
 pub const TRIANGLES = 0x0004;
 pub const TRIANGLE_STRIP = 0x0005;
 pub const TRIANGLE_FAN = 0x0006;
+pub const COMPRESSED_SRGB8_ETC2 = 0x9275;
 pub const NEVER = 0x0200;
 pub const LESS = 0x0201;
 pub const EQUAL = 0x0202;
@@ -256,6 +242,130 @@ pub const TEXTURE_MIN_FILTER = 0x2801;
 pub const TEXTURE_WRAP_S = 0x2802;
 pub const TEXTURE_WRAP_T = 0x2803;
 pub const REPEAT = 0x2901;
+pub const MAX_COMPUTE_WORK_GROUP_COUNT = 0x91BE;
+pub const MAX_COMPUTE_WORK_GROUP_INVOCATIONS = 0x90EB;
+pub const MAX_COMBINED_COMPUTE_UNIFORM_COMPONENTS = 0x8266;
+pub const MAX_COMPUTE_ATOMIC_COUNTERS = 0x8265;
+pub const MAX_COMPUTE_ATOMIC_COUNTER_BUFFERS = 0x8264;
+pub const MAX_COMPUTE_UNIFORM_COMPONENTS = 0x8263;
+pub const MAX_COMPUTE_SHARED_MEMORY_SIZE = 0x8262;
+pub const MAX_COMPUTE_IMAGE_UNIFORMS = 0x91BD;
+pub const MAX_COMPUTE_TEXTURE_IMAGE_UNITS = 0x91BC;
+pub const MAX_COMPUTE_UNIFORM_BLOCKS = 0x91BB;
+pub const COMPUTE_SHADER = 0x91B9;
+pub const MAX_ELEMENT_INDEX = 0x8D6B;
+pub const ANY_SAMPLES_PASSED_CONSERVATIVE = 0x8D6A;
+pub const PRIMITIVE_RESTART_FIXED_INDEX = 0x8D69;
+pub const COMPRESSED_SIGNED_RG11_EAC = 0x9273;
+pub const COMPRESSED_RG11_EAC = 0x9272;
+pub const COMPRESSED_SIGNED_R11_EAC = 0x9271;
+pub const COMPRESSED_R11_EAC = 0x9270;
+pub const COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2 = 0x9276;
+pub const COMPRESSED_RGB8_ETC2 = 0x9274;
+pub const VERTEX_ATTRIB_ARRAY_LONG = 0x874E;
+pub const NUM_SHADING_LANGUAGE_VERSIONS = 0x82E9;
+pub const TEXTURE_IMMUTABLE_FORMAT = 0x912F;
+pub const COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT = 0x8E8F;
+pub const COMPRESSED_RGB_BPTC_SIGNED_FLOAT = 0x8E8E;
+pub const COMPRESSED_SRGB_ALPHA_BPTC_UNORM = 0x8E8D;
+pub const COMPRESSED_RGBA_BPTC_UNORM = 0x8E8C;
+pub const MAX_COMBINED_IMAGE_UNIFORMS = 0x90CF;
+pub const MAX_FRAGMENT_IMAGE_UNIFORMS = 0x90CE;
+pub const MAX_GEOMETRY_IMAGE_UNIFORMS = 0x90CD;
+pub const MAX_TESS_EVALUATION_IMAGE_UNIFORMS = 0x90CC;
+pub const MAX_TESS_CONTROL_IMAGE_UNIFORMS = 0x90CB;
+pub const MAX_VERTEX_IMAGE_UNIFORMS = 0x90CA;
+pub const IMAGE_FORMAT_COMPATIBILITY_BY_CLASS = 0x90C9;
+pub const IMAGE_FORMAT_COMPATIBILITY_BY_SIZE = 0x90C8;
+pub const IMAGE_FORMAT_COMPATIBILITY_TYPE = 0x90C7;
+pub const IMAGE_BINDING_FORMAT = 0x906E;
+pub const MAX_IMAGE_SAMPLES = 0x906D;
+pub const UNSIGNED_INT_IMAGE_2D_MULTISAMPLE_ARRAY = 0x906C;
+pub const UNSIGNED_INT_IMAGE_2D_MULTISAMPLE = 0x906B;
+pub const UNSIGNED_INT_IMAGE_CUBE_MAP_ARRAY = 0x906A;
+pub const UNSIGNED_INT_IMAGE_2D_ARRAY = 0x9069;
+pub const UNSIGNED_INT_IMAGE_1D_ARRAY = 0x9068;
+pub const UNSIGNED_INT_IMAGE_BUFFER = 0x9067;
+pub const UNSIGNED_INT_IMAGE_CUBE = 0x9066;
+pub const UNSIGNED_INT_IMAGE_2D_RECT = 0x9065;
+pub const UNSIGNED_INT_IMAGE_3D = 0x9064;
+pub const INT_IMAGE_CUBE = 0x905B;
+pub const INT_IMAGE_2D_RECT = 0x905A;
+pub const INT_IMAGE_3D = 0x9059;
+pub const INT_IMAGE_2D = 0x9058;
+pub const INT_IMAGE_1D = 0x9057;
+pub const IMAGE_2D_MULTISAMPLE_ARRAY = 0x9056;
+pub const IMAGE_2D_MULTISAMPLE = 0x9055;
+pub const IMAGE_CUBE_MAP_ARRAY = 0x9054;
+pub const IMAGE_2D_ARRAY = 0x9053;
+pub const IMAGE_1D_ARRAY = 0x9052;
+pub const IMAGE_BUFFER = 0x9051;
+pub const IMAGE_CUBE = 0x9050;
+pub const IMAGE_2D_RECT = 0x904F;
+pub const IMAGE_3D = 0x904E;
+pub const IMAGE_2D = 0x904D;
+pub const IMAGE_1D = 0x904C;
+pub const IMAGE_BINDING_ACCESS = 0x8F3E;
+pub const IMAGE_BINDING_LAYER = 0x8F3D;
+pub const IMAGE_BINDING_LAYERED = 0x8F3C;
+pub const IMAGE_BINDING_LEVEL = 0x8F3B;
+pub const IMAGE_BINDING_NAME = 0x8F3A;
+pub const MAX_COMBINED_IMAGE_UNITS_AND_FRAGMENT_OUTPUTS = 0x8F39;
+pub const MAX_IMAGE_UNITS = 0x8F38;
+pub const ALL_BARRIER_BITS = 0xFFFFFFFF;
+pub const ATOMIC_COUNTER_BARRIER_BIT = 0x00001000;
+pub const TRANSFORM_FEEDBACK_BARRIER_BIT = 0x00000800;
+pub const FRAMEBUFFER_BARRIER_BIT = 0x00000400;
+pub const BUFFER_UPDATE_BARRIER_BIT = 0x00000200;
+pub const TEXTURE_UPDATE_BARRIER_BIT = 0x00000100;
+pub const PIXEL_BUFFER_BARRIER_BIT = 0x00000080;
+pub const COMMAND_BARRIER_BIT = 0x00000040;
+pub const SHADER_IMAGE_ACCESS_BARRIER_BIT = 0x00000020;
+pub const TEXTURE_FETCH_BARRIER_BIT = 0x00000008;
+pub const UNIFORM_BARRIER_BIT = 0x00000004;
+pub const ELEMENT_ARRAY_BARRIER_BIT = 0x00000002;
+pub const VERTEX_ATTRIB_ARRAY_BARRIER_BIT = 0x00000001;
+pub const UNSIGNED_INT_ATOMIC_COUNTER = 0x92DB;
+pub const UNIFORM_ATOMIC_COUNTER_BUFFER_INDEX = 0x92DA;
+pub const ACTIVE_ATOMIC_COUNTER_BUFFERS = 0x92D9;
+pub const MAX_ATOMIC_COUNTER_BUFFER_BINDINGS = 0x92DC;
+pub const MAX_ATOMIC_COUNTER_BUFFER_SIZE = 0x92D8;
+pub const MAX_COMBINED_ATOMIC_COUNTERS = 0x92D7;
+pub const MAX_FRAGMENT_ATOMIC_COUNTERS = 0x92D6;
+pub const MAX_GEOMETRY_ATOMIC_COUNTERS = 0x92D5;
+pub const MAX_TESS_EVALUATION_ATOMIC_COUNTERS = 0x92D4;
+pub const MAX_VERTEX_ATOMIC_COUNTERS = 0x92D2;
+pub const MAX_COMBINED_ATOMIC_COUNTER_BUFFERS = 0x92D1;
+pub const MAX_FRAGMENT_ATOMIC_COUNTER_BUFFERS = 0x92D0;
+pub const MAX_TESS_EVALUATION_ATOMIC_COUNTER_BUFFERS = 0x92CE;
+pub const MAX_TESS_CONTROL_ATOMIC_COUNTER_BUFFERS = 0x92CD;
+pub const MAX_VERTEX_ATOMIC_COUNTER_BUFFERS = 0x92CC;
+pub const ATOMIC_COUNTER_BUFFER_REFERENCED_BY_FRAGMENT_SHADER = 0x92CB;
+pub const ATOMIC_COUNTER_BUFFER_REFERENCED_BY_GEOMETRY_SHADER = 0x92CA;
+pub const ATOMIC_COUNTER_BUFFER_REFERENCED_BY_TESS_EVALUATION_SHADER = 0x92C9;
+pub const ATOMIC_COUNTER_BUFFER_REFERENCED_BY_TESS_CONTROL_SHADER = 0x92C8;
+pub const ATOMIC_COUNTER_BUFFER_REFERENCED_BY_VERTEX_SHADER = 0x92C7;
+pub const ATOMIC_COUNTER_BUFFER_ACTIVE_ATOMIC_COUNTER_INDICES = 0x92C6;
+pub const ATOMIC_COUNTER_BUFFER_ACTIVE_ATOMIC_COUNTERS = 0x92C5;
+pub const ATOMIC_COUNTER_BUFFER_DATA_SIZE = 0x92C4;
+pub const ATOMIC_COUNTER_BUFFER_SIZE = 0x92C3;
+pub const ATOMIC_COUNTER_BUFFER_START = 0x92C2;
+pub const ATOMIC_COUNTER_BUFFER_BINDING = 0x92C1;
+pub const ATOMIC_COUNTER_BUFFER = 0x92C0;
+pub const MIN_MAP_BUFFER_ALIGNMENT = 0x90BC;
+pub const NUM_SAMPLE_COUNTS = 0x9380;
+pub const PACK_COMPRESSED_BLOCK_SIZE = 0x912E;
+pub const PACK_COMPRESSED_BLOCK_DEPTH = 0x912D;
+pub const PACK_COMPRESSED_BLOCK_HEIGHT = 0x912C;
+pub const PACK_COMPRESSED_BLOCK_WIDTH = 0x912B;
+pub const UNPACK_COMPRESSED_BLOCK_SIZE = 0x912A;
+pub const UNPACK_COMPRESSED_BLOCK_DEPTH = 0x9129;
+pub const UNPACK_COMPRESSED_BLOCK_HEIGHT = 0x9128;
+pub const UNPACK_COMPRESSED_BLOCK_WIDTH = 0x9127;
+pub const TRANSFORM_FEEDBACK_PAUSED = 0x8E23;
+pub const TRANSFORM_FEEDBACK_ACTIVE = 0x8E24;
+pub const COPY_WRITE_BUFFER_BINDING = 0x8F37;
+pub const COPY_READ_BUFFER_BINDING = 0x8F36;
 pub const UNDEFINED_VERTEX = 0x8260;
 pub const VIEWPORT_INDEX_PROVOKING_VERTEX = 0x825F;
 pub const LAYER_PROVOKING_VERTEX = 0x825E;
@@ -302,6 +412,239 @@ pub const PATCH_DEFAULT_OUTER_LEVEL = 0x8E74;
 pub const PATCH_DEFAULT_INNER_LEVEL = 0x8E73;
 pub const PATCH_VERTICES = 0x8E72;
 pub const PATCHES = 0x000E;
+pub const VERTEX_BINDING_BUFFER = 0x8F4F;
+pub const MAX_VERTEX_ATTRIB_BINDINGS = 0x82DA;
+pub const MAX_VERTEX_ATTRIB_RELATIVE_OFFSET = 0x82D9;
+pub const VERTEX_BINDING_STRIDE = 0x82D8;
+pub const VERTEX_BINDING_OFFSET = 0x82D7;
+pub const VERTEX_BINDING_DIVISOR = 0x82D6;
+pub const VERTEX_ATTRIB_RELATIVE_OFFSET = 0x82D5;
+pub const VERTEX_ATTRIB_BINDING = 0x82D4;
+pub const TEXTURE_IMMUTABLE_LEVELS = 0x82DF;
+pub const TEXTURE_VIEW_NUM_LAYERS = 0x82DE;
+pub const TEXTURE_VIEW_MIN_LAYER = 0x82DD;
+pub const TEXTURE_VIEW_NUM_LEVELS = 0x82DC;
+pub const TEXTURE_VIEW_MIN_LEVEL = 0x82DB;
+pub const TEXTURE_BUFFER_OFFSET_ALIGNMENT = 0x919F;
+pub const TEXTURE_BUFFER_SIZE = 0x919E;
+pub const TEXTURE_BUFFER_OFFSET = 0x919D;
+pub const DEPTH_STENCIL_TEXTURE_MODE = 0x90EA;
+pub const MAX_COMBINED_SHADER_OUTPUT_RESOURCES = 0x8F39;
+pub const SHADER_STORAGE_BARRIER_BIT = 0x00002000;
+pub const SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT = 0x90DF;
+pub const MAX_SHADER_STORAGE_BLOCK_SIZE = 0x90DE;
+pub const MAX_SHADER_STORAGE_BUFFER_BINDINGS = 0x90DD;
+pub const MAX_COMBINED_SHADER_STORAGE_BLOCKS = 0x90DC;
+pub const MAX_COMPUTE_SHADER_STORAGE_BLOCKS = 0x90DB;
+pub const MAX_FRAGMENT_SHADER_STORAGE_BLOCKS = 0x90DA;
+pub const MAX_TESS_EVALUATION_SHADER_STORAGE_BLOCKS = 0x90D9;
+pub const MAX_TESS_CONTROL_SHADER_STORAGE_BLOCKS = 0x90D8;
+pub const MAX_GEOMETRY_SHADER_STORAGE_BLOCKS = 0x90D7;
+pub const MAX_VERTEX_SHADER_STORAGE_BLOCKS = 0x90D6;
+pub const SHADER_STORAGE_BUFFER_SIZE = 0x90D5;
+pub const SHADER_STORAGE_BUFFER_START = 0x90D4;
+pub const SHADER_STORAGE_BUFFER_BINDING = 0x90D3;
+pub const SHADER_STORAGE_BUFFER = 0x90D2;
+pub const IS_PER_PATCH = 0x92E7;
+pub const LOCATION_INDEX = 0x930F;
+pub const LOCATION = 0x930E;
+pub const TOP_LEVEL_ARRAY_STRIDE = 0x930D;
+pub const TOP_LEVEL_ARRAY_SIZE = 0x930C;
+pub const REFERENCED_BY_COMPUTE_SHADER = 0x930B;
+pub const REFERENCED_BY_FRAGMENT_SHADER = 0x930A;
+pub const REFERENCED_BY_GEOMETRY_SHADER = 0x9309;
+pub const REFERENCED_BY_TESS_EVALUATION_SHADER = 0x9308;
+pub const REFERENCED_BY_TESS_CONTROL_SHADER = 0x9307;
+pub const REFERENCED_BY_VERTEX_SHADER = 0x9306;
+pub const ACTIVE_VARIABLES = 0x9305;
+pub const NUM_ACTIVE_VARIABLES = 0x9304;
+pub const BUFFER_DATA_SIZE = 0x9303;
+pub const BUFFER_BINDING = 0x9302;
+pub const ATOMIC_COUNTER_BUFFER_INDEX = 0x9301;
+pub const IS_ROW_MAJOR = 0x9300;
+pub const MATRIX_STRIDE = 0x92FF;
+pub const ARRAY_STRIDE = 0x92FE;
+pub const BLOCK_INDEX = 0x92FD;
+pub const OFFSET = 0x92FC;
+pub const ARRAY_SIZE = 0x92FB;
+pub const TYPE = 0x92FA;
+pub const NAME_LENGTH = 0x92F9;
+pub const MAX_NUM_COMPATIBLE_SUBROUTINES = 0x92F8;
+pub const MAX_NUM_ACTIVE_VARIABLES = 0x92F7;
+pub const MAX_NAME_LENGTH = 0x92F6;
+pub const ACTIVE_RESOURCES = 0x92F5;
+pub const TRANSFORM_FEEDBACK_VARYING = 0x92F4;
+pub const COMPUTE_SUBROUTINE_UNIFORM = 0x92F3;
+pub const FRAGMENT_SUBROUTINE_UNIFORM = 0x92F2;
+pub const GEOMETRY_SUBROUTINE_UNIFORM = 0x92F1;
+pub const TESS_EVALUATION_SUBROUTINE_UNIFORM = 0x92F0;
+pub const TESS_CONTROL_SUBROUTINE_UNIFORM = 0x92EF;
+pub const VERTEX_SUBROUTINE_UNIFORM = 0x92EE;
+pub const COMPUTE_SUBROUTINE = 0x92ED;
+pub const FRAGMENT_SUBROUTINE = 0x92EC;
+pub const GEOMETRY_SUBROUTINE = 0x92EB;
+pub const TESS_EVALUATION_SUBROUTINE = 0x92EA;
+pub const TESS_CONTROL_SUBROUTINE = 0x92E9;
+pub const VERTEX_SUBROUTINE = 0x92E8;
+pub const SHADER_STORAGE_BLOCK = 0x92E6;
+pub const BUFFER_VARIABLE = 0x92E5;
+pub const PROGRAM_OUTPUT = 0x92E4;
+pub const PROGRAM_INPUT = 0x92E3;
+pub const UNIFORM_BLOCK = 0x92E2;
+pub const UNIFORM = 0x92E1;
+pub const VIEW_CLASS_BPTC_FLOAT = 0x82D3;
+pub const VIEW_CLASS_BPTC_UNORM = 0x82D2;
+pub const VIEW_CLASS_RGTC2_RG = 0x82D1;
+pub const VIEW_CLASS_RGTC1_RED = 0x82D0;
+pub const VIEW_CLASS_S3TC_DXT5_RGBA = 0x82CF;
+pub const VIEW_CLASS_S3TC_DXT3_RGBA = 0x82CE;
+pub const VIEW_CLASS_S3TC_DXT1_RGBA = 0x82CD;
+pub const VIEW_CLASS_S3TC_DXT1_RGB = 0x82CC;
+pub const VIEW_CLASS_8_BITS = 0x82CB;
+pub const VIEW_CLASS_16_BITS = 0x82CA;
+pub const VIEW_CLASS_24_BITS = 0x82C9;
+pub const VIEW_CLASS_32_BITS = 0x82C8;
+pub const VIEW_CLASS_48_BITS = 0x82C7;
+pub const VIEW_CLASS_64_BITS = 0x82C6;
+pub const VIEW_CLASS_96_BITS = 0x82C5;
+pub const VIEW_CLASS_128_BITS = 0x82C4;
+pub const IMAGE_CLASS_10_10_10_2 = 0x82C3;
+pub const IMAGE_CLASS_11_11_10 = 0x82C2;
+pub const IMAGE_CLASS_1_X_8 = 0x82C1;
+pub const IMAGE_CLASS_2_X_8 = 0x82C0;
+pub const IMAGE_CLASS_4_X_8 = 0x82BF;
+pub const IMAGE_CLASS_1_X_16 = 0x82BE;
+pub const IMAGE_CLASS_2_X_16 = 0x82BD;
+pub const IMAGE_CLASS_4_X_16 = 0x82BC;
+pub const IMAGE_CLASS_1_X_32 = 0x82BB;
+pub const IMAGE_CLASS_2_X_32 = 0x82BA;
+pub const IMAGE_CLASS_4_X_32 = 0x82B9;
+pub const CAVEAT_SUPPORT = 0x82B8;
+pub const FULL_SUPPORT = 0x82B7;
+pub const VIEW_COMPATIBILITY_CLASS = 0x82B6;
+pub const TEXTURE_VIEW = 0x82B5;
+pub const CLEAR_BUFFER = 0x82B4;
+pub const TEXTURE_COMPRESSED_BLOCK_SIZE = 0x82B3;
+pub const TEXTURE_COMPRESSED_BLOCK_HEIGHT = 0x82B2;
+pub const TEXTURE_COMPRESSED_BLOCK_WIDTH = 0x82B1;
+pub const SIMULTANEOUS_TEXTURE_AND_STENCIL_WRITE = 0x82AF;
+pub const SIMULTANEOUS_TEXTURE_AND_DEPTH_WRITE = 0x82AE;
+pub const SIMULTANEOUS_TEXTURE_AND_STENCIL_TEST = 0x82AD;
+pub const SIMULTANEOUS_TEXTURE_AND_DEPTH_TEST = 0x82AC;
+pub const IMAGE_PIXEL_TYPE = 0x82AA;
+pub const IMAGE_PIXEL_FORMAT = 0x82A9;
+pub const IMAGE_COMPATIBILITY_CLASS = 0x82A8;
+pub const IMAGE_TEXEL_SIZE = 0x82A7;
+pub const SHADER_IMAGE_ATOMIC = 0x82A6;
+pub const SHADER_IMAGE_STORE = 0x82A5;
+pub const SHADER_IMAGE_LOAD = 0x82A4;
+pub const TEXTURE_GATHER_SHADOW = 0x82A3;
+pub const TEXTURE_GATHER = 0x82A2;
+pub const TEXTURE_SHADOW = 0x82A1;
+pub const COMPUTE_TEXTURE = 0x82A0;
+pub const FRAGMENT_TEXTURE = 0x829F;
+pub const GEOMETRY_TEXTURE = 0x829E;
+pub const TESS_EVALUATION_TEXTURE = 0x829D;
+pub const TESS_CONTROL_TEXTURE = 0x829C;
+pub const VERTEX_TEXTURE = 0x829B;
+pub const FILTER = 0x829A;
+pub const SRGB_WRITE = 0x8298;
+pub const SRGB_READ = 0x8297;
+pub const COLOR_ENCODING = 0x8296;
+pub const AUTO_GENERATE_MIPMAP = 0x8295;
+pub const MANUAL_GENERATE_MIPMAP = 0x8294;
+pub const MIPMAP = 0x8293;
+pub const GET_TEXTURE_IMAGE_TYPE = 0x8292;
+pub const GET_TEXTURE_IMAGE_FORMAT = 0x8291;
+pub const TEXTURE_IMAGE_TYPE = 0x8290;
+pub const TEXTURE_IMAGE_FORMAT = 0x828F;
+pub const READ_PIXELS_TYPE = 0x828E;
+pub const READ_PIXELS_FORMAT = 0x828D;
+pub const READ_PIXELS = 0x828C;
+pub const FRAMEBUFFER_BLEND = 0x828B;
+pub const FRAMEBUFFER_RENDERABLE_LAYERED = 0x828A;
+pub const FRAMEBUFFER_RENDERABLE = 0x8289;
+pub const STENCIL_RENDERABLE = 0x8288;
+pub const DEPTH_RENDERABLE = 0x8287;
+pub const COLOR_RENDERABLE = 0x8286;
+pub const STENCIL_COMPONENTS = 0x8285;
+pub const DEPTH_COMPONENTS = 0x8284;
+pub const COLOR_COMPONENTS = 0x8283;
+pub const MAX_COMBINED_DIMENSIONS = 0x8282;
+pub const MAX_LAYERS = 0x8281;
+pub const MAX_DEPTH = 0x8280;
+pub const MAX_HEIGHT = 0x827F;
+pub const MAX_WIDTH = 0x827E;
+pub const INTERNALFORMAT_STENCIL_TYPE = 0x827D;
+pub const INTERNALFORMAT_DEPTH_TYPE = 0x827C;
+pub const INTERNALFORMAT_ALPHA_TYPE = 0x827B;
+pub const INTERNALFORMAT_BLUE_TYPE = 0x827A;
+pub const INTERNALFORMAT_GREEN_TYPE = 0x8279;
+pub const INTERNALFORMAT_RED_TYPE = 0x8278;
+pub const INTERNALFORMAT_SHARED_SIZE = 0x8277;
+pub const INTERNALFORMAT_STENCIL_SIZE = 0x8276;
+pub const INTERNALFORMAT_DEPTH_SIZE = 0x8275;
+pub const INTERNALFORMAT_ALPHA_SIZE = 0x8274;
+pub const INTERNALFORMAT_BLUE_SIZE = 0x8273;
+pub const INTERNALFORMAT_GREEN_SIZE = 0x8272;
+pub const INTERNALFORMAT_RED_SIZE = 0x8271;
+pub const INTERNALFORMAT_PREFERRED = 0x8270;
+pub const INTERNALFORMAT_SUPPORTED = 0x826F;
+pub const MAX_FRAMEBUFFER_SAMPLES = 0x9318;
+pub const MAX_FRAMEBUFFER_LAYERS = 0x9317;
+pub const MAX_FRAMEBUFFER_HEIGHT = 0x9316;
+pub const MAX_FRAMEBUFFER_WIDTH = 0x9315;
+pub const FRAMEBUFFER_DEFAULT_FIXED_SAMPLE_LOCATIONS = 0x9314;
+pub const FRAMEBUFFER_DEFAULT_SAMPLES = 0x9313;
+pub const FRAMEBUFFER_DEFAULT_LAYERS = 0x9312;
+pub const FRAMEBUFFER_DEFAULT_HEIGHT = 0x9311;
+pub const FRAMEBUFFER_DEFAULT_WIDTH = 0x9310;
+pub const MAX_UNIFORM_LOCATIONS = 0x826E;
+pub const CONTEXT_FLAG_DEBUG_BIT = 0x00000002;
+pub const DEBUG_OUTPUT = 0x92E0;
+pub const MAX_LABEL_LENGTH = 0x82E8;
+pub const SAMPLER = 0x82E6;
+pub const PROGRAM_PIPELINE = 0x82E4;
+pub const QUERY = 0x82E3;
+pub const VERTEX_ARRAY = 0x8074;
+pub const PROGRAM = 0x82E2;
+pub const SHADER = 0x82E1;
+pub const BUFFER = 0x82E0;
+pub const DEBUG_GROUP_STACK_DEPTH = 0x826D;
+pub const MAX_DEBUG_GROUP_STACK_DEPTH = 0x826C;
+pub const DEBUG_SEVERITY_NOTIFICATION = 0x826B;
+pub const DEBUG_TYPE_POP_GROUP = 0x826A;
+pub const DEBUG_TYPE_PUSH_GROUP = 0x8269;
+pub const DEBUG_TYPE_MARKER = 0x8268;
+pub const DEBUG_SEVERITY_LOW = 0x9148;
+pub const DEBUG_SEVERITY_MEDIUM = 0x9147;
+pub const DEBUG_SEVERITY_HIGH = 0x9146;
+pub const DEBUG_LOGGED_MESSAGES = 0x9145;
+pub const MAX_DEBUG_LOGGED_MESSAGES = 0x9144;
+pub const MAX_DEBUG_MESSAGE_LENGTH = 0x9143;
+pub const DEBUG_TYPE_OTHER = 0x8251;
+pub const DEBUG_TYPE_PERFORMANCE = 0x8250;
+pub const DEBUG_TYPE_PORTABILITY = 0x824F;
+pub const DEBUG_TYPE_UNDEFINED_BEHAVIOR = 0x824E;
+pub const DEBUG_TYPE_DEPRECATED_BEHAVIOR = 0x824D;
+pub const DEBUG_TYPE_ERROR = 0x824C;
+pub const DEBUG_SOURCE_OTHER = 0x824B;
+pub const DEBUG_SOURCE_APPLICATION = 0x824A;
+pub const DEBUG_SOURCE_THIRD_PARTY = 0x8249;
+pub const DEBUG_SOURCE_SHADER_COMPILER = 0x8248;
+pub const DEBUG_SOURCE_WINDOW_SYSTEM = 0x8247;
+pub const DEBUG_SOURCE_API = 0x8246;
+pub const DEBUG_CALLBACK_USER_PARAM = 0x8245;
+pub const DEBUG_CALLBACK_FUNCTION = 0x8244;
+pub const DEBUG_NEXT_LOGGED_MESSAGE_LENGTH = 0x8243;
+pub const DEBUG_OUTPUT_SYNCHRONOUS = 0x8242;
+pub const COMPUTE_SHADER_BIT = 0x00000020;
+pub const DISPATCH_INDIRECT_BUFFER_BINDING = 0x90EF;
+pub const DISPATCH_INDIRECT_BUFFER = 0x90EE;
+pub const ATOMIC_COUNTER_BUFFER_REFERENCED_BY_COMPUTE_SHADER = 0x90ED;
+pub const UNIFORM_BLOCK_REFERENCED_BY_COMPUTE_SHADER = 0x90EC;
+pub const COMPUTE_WORK_GROUP_SIZE = 0x8267;
+pub const MAX_COMPUTE_WORK_GROUP_SIZE = 0x91BF;
 pub const COLOR_LOGIC_OP = 0x0BF2;
 pub const POLYGON_OFFSET_UNITS = 0x2A00;
 pub const POLYGON_OFFSET_POINT = 0x2A01;
@@ -332,6 +675,19 @@ pub const RGBA8 = 0x8058;
 pub const RGB10_A2 = 0x8059;
 pub const RGBA12 = 0x805A;
 pub const RGBA16 = 0x805B;
+pub const COMPRESSED_SRGB8_ALPHA8_ETC2_EAC = 0x9279;
+pub const COMPRESSED_RGBA8_ETC2_EAC = 0x9278;
+pub const COMPRESSED_SRGB8_PUNCHTHROUGH_ALPHA1_ETC2 = 0x9277;
+pub const UNSIGNED_INT_IMAGE_2D = 0x9063;
+pub const UNSIGNED_INT_IMAGE_1D = 0x9062;
+pub const INT_IMAGE_2D_MULTISAMPLE_ARRAY = 0x9061;
+pub const INT_IMAGE_2D_MULTISAMPLE = 0x9060;
+pub const INT_IMAGE_CUBE_MAP_ARRAY = 0x905F;
+pub const INT_IMAGE_2D_ARRAY = 0x905E;
+pub const INT_IMAGE_1D_ARRAY = 0x905D;
+pub const INT_IMAGE_BUFFER = 0x905C;
+pub const MAX_TESS_CONTROL_ATOMIC_COUNTERS = 0x92D3;
+pub const MAX_GEOMETRY_ATOMIC_COUNTER_BUFFERS = 0x92CF;
 pub const TRANSFORM_FEEDBACK_BINDING = 0x8E25;
 pub const TRANSFORM_FEEDBACK_BUFFER_ACTIVE = 0x8E24;
 pub const TRANSFORM_FEEDBACK_BUFFER_PAUSED = 0x8E23;
@@ -1017,7 +1373,57 @@ pub const UNIFORM_BLOCK_REFERENCED_BY_VERTEX_SHADER = 0x8A44;
 pub const UNIFORM_BLOCK_REFERENCED_BY_GEOMETRY_SHADER = 0x8A45;
 pub const UNIFORM_BLOCK_REFERENCED_BY_FRAGMENT_SHADER = 0x8A46;
 pub const INVALID_INDEX = 0xFFFFFFFF;
+pub const STACK_UNDERFLOW = 0x0504;
+pub const STACK_OVERFLOW = 0x0503;
 
+
+pub fn texStorage2D(_target: GLenum, _levels: GLsizei, _internalformat: GLenum, _width: GLsizei, _height: GLsizei) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glTexStorage2D, .{_target, _levels, _internalformat, _width, _height});
+}
+
+pub fn texStorage1D(_target: GLenum, _levels: GLsizei, _internalformat: GLenum, _width: GLsizei) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glTexStorage1D, .{_target, _levels, _internalformat, _width});
+}
+
+pub fn drawTransformFeedbackStreamInstanced(_mode: GLenum, _id: GLuint, _stream: GLuint, _instancecount: GLsizei) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glDrawTransformFeedbackStreamInstanced, .{_mode, _id, _stream, _instancecount});
+}
+
+pub fn drawTransformFeedbackInstanced(_mode: GLenum, _id: GLuint, _instancecount: GLsizei) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glDrawTransformFeedbackInstanced, .{_mode, _id, _instancecount});
+}
+
+pub fn texStorage3D(_target: GLenum, _levels: GLsizei, _internalformat: GLenum, _width: GLsizei, _height: GLsizei, _depth: GLsizei) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glTexStorage3D, .{_target, _levels, _internalformat, _width, _height, _depth});
+}
+
+pub fn memoryBarrier(_barriers: GLbitfield) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glMemoryBarrier, .{_barriers});
+}
+
+pub fn bindImageTexture(_unit: GLuint, _texture: GLuint, _level: GLint, _layered: GLboolean, _layer: GLint, _access: GLenum, _format: GLenum) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glBindImageTexture, .{_unit, _texture, _level, _layered, _layer, _access, _format});
+}
+
+pub fn getActiveAtomicCounterBufferiv(_program: GLuint, _bufferIndex: GLuint, _pname: GLenum, _params: [*c]GLint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetActiveAtomicCounterBufferiv, .{_program, _bufferIndex, _pname, _params});
+}
+
+pub fn getInternalformativ(_target: GLenum, _internalformat: GLenum, _pname: GLenum, _count: GLsizei, _params: [*c]GLint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetInternalformativ, .{_target, _internalformat, _pname, _count, _params});
+}
+
+pub fn drawElementsInstancedBaseVertexBaseInstance(_mode: GLenum, _count: GLsizei, _type: GLenum, _indices: ?*const anyopaque, _instancecount: GLsizei, _basevertex: GLint, _baseinstance: GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glDrawElementsInstancedBaseVertexBaseInstance, .{_mode, _count, _type, _indices, _instancecount, _basevertex, _baseinstance});
+}
+
+pub fn drawElementsInstancedBaseInstance(_mode: GLenum, _count: GLsizei, _type: GLenum, _indices: ?*const anyopaque, _instancecount: GLsizei, _baseinstance: GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glDrawElementsInstancedBaseInstance, .{_mode, _count, _type, _indices, _instancecount, _baseinstance});
+}
+
+pub fn drawArraysInstancedBaseInstance(_mode: GLenum, _first: GLint, _count: GLsizei, _instancecount: GLsizei, _baseinstance: GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glDrawArraysInstancedBaseInstance, .{_mode, _first, _count, _instancecount, _baseinstance});
+}
 
 pub fn getDoublei_v(_target: GLenum, _index: GLuint, _data: [*c]GLdouble) callconv(.C) void {
     return @call(.always_tail, function_pointers.glGetDoublei_v, .{_target, _index, _data});
@@ -1493,6 +1899,106 @@ pub fn depthRange(_n: GLdouble, _f: GLdouble) callconv(.C) void {
 
 pub fn viewport(_x: GLint, _y: GLint, _width: GLsizei, _height: GLsizei) callconv(.C) void {
     return @call(.always_tail, function_pointers.glViewport, .{_x, _y, _width, _height});
+}
+
+pub fn texStorage2DMultisample(_target: GLenum, _samples: GLsizei, _internalformat: GLenum, _width: GLsizei, _height: GLsizei, _fixedsamplelocations: GLboolean) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glTexStorage2DMultisample, .{_target, _samples, _internalformat, _width, _height, _fixedsamplelocations});
+}
+
+pub fn texBufferRange(_target: GLenum, _internalformat: GLenum, _buffer: GLuint, _offset: GLintptr, _size: GLsizeiptr) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glTexBufferRange, .{_target, _internalformat, _buffer, _offset, _size});
+}
+
+pub fn shaderStorageBlockBinding(_program: GLuint, _storageBlockIndex: GLuint, _storageBlockBinding: GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glShaderStorageBlockBinding, .{_program, _storageBlockIndex, _storageBlockBinding});
+}
+
+pub fn getProgramResourceLocationIndex(_program: GLuint, _programInterface: GLenum, _name: [*c]const GLchar) callconv(.C) GLint {
+    return @call(.always_tail, function_pointers.glGetProgramResourceLocationIndex, .{_program, _programInterface, _name});
+}
+
+pub fn getProgramResourceLocation(_program: GLuint, _programInterface: GLenum, _name: [*c]const GLchar) callconv(.C) GLint {
+    return @call(.always_tail, function_pointers.glGetProgramResourceLocation, .{_program, _programInterface, _name});
+}
+
+pub fn getProgramResourceiv(_program: GLuint, _programInterface: GLenum, _index: GLuint, _propCount: GLsizei, _props: [*c]const GLenum, _count: GLsizei, _length: [*c]GLsizei, _params: [*c]GLint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetProgramResourceiv, .{_program, _programInterface, _index, _propCount, _props, _count, _length, _params});
+}
+
+pub fn getProgramResourceName(_program: GLuint, _programInterface: GLenum, _index: GLuint, _bufSize: GLsizei, _length: [*c]GLsizei, _name: [*c]GLchar) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetProgramResourceName, .{_program, _programInterface, _index, _bufSize, _length, _name});
+}
+
+pub fn getProgramResourceIndex(_program: GLuint, _programInterface: GLenum, _name: [*c]const GLchar) callconv(.C) GLuint {
+    return @call(.always_tail, function_pointers.glGetProgramResourceIndex, .{_program, _programInterface, _name});
+}
+
+pub fn getProgramInterfaceiv(_program: GLuint, _programInterface: GLenum, _pname: GLenum, _params: [*c]GLint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetProgramInterfaceiv, .{_program, _programInterface, _pname, _params});
+}
+
+pub fn multiDrawElementsIndirect(_mode: GLenum, _type: GLenum, _indirect: ?*const anyopaque, _drawcount: GLsizei, _stride: GLsizei) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glMultiDrawElementsIndirect, .{_mode, _type, _indirect, _drawcount, _stride});
+}
+
+pub fn multiDrawArraysIndirect(_mode: GLenum, _indirect: ?*const anyopaque, _drawcount: GLsizei, _stride: GLsizei) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glMultiDrawArraysIndirect, .{_mode, _indirect, _drawcount, _stride});
+}
+
+pub fn invalidateSubFramebuffer(_target: GLenum, _numAttachments: GLsizei, _attachments: [*c]const GLenum, _x: GLint, _y: GLint, _width: GLsizei, _height: GLsizei) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glInvalidateSubFramebuffer, .{_target, _numAttachments, _attachments, _x, _y, _width, _height});
+}
+
+pub fn invalidateFramebuffer(_target: GLenum, _numAttachments: GLsizei, _attachments: [*c]const GLenum) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glInvalidateFramebuffer, .{_target, _numAttachments, _attachments});
+}
+
+pub fn invalidateBufferData(_buffer: GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glInvalidateBufferData, .{_buffer});
+}
+
+pub fn invalidateBufferSubData(_buffer: GLuint, _offset: GLintptr, _length: GLsizeiptr) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glInvalidateBufferSubData, .{_buffer, _offset, _length});
+}
+
+pub fn invalidateTexImage(_texture: GLuint, _level: GLint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glInvalidateTexImage, .{_texture, _level});
+}
+
+pub fn invalidateTexSubImage(_texture: GLuint, _level: GLint, _xoffset: GLint, _yoffset: GLint, _zoffset: GLint, _width: GLsizei, _height: GLsizei, _depth: GLsizei) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glInvalidateTexSubImage, .{_texture, _level, _xoffset, _yoffset, _zoffset, _width, _height, _depth});
+}
+
+pub fn getInternalformati64v(_target: GLenum, _internalformat: GLenum, _pname: GLenum, _count: GLsizei, _params: [*c]GLint64) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetInternalformati64v, .{_target, _internalformat, _pname, _count, _params});
+}
+
+pub fn getFramebufferParameteriv(_target: GLenum, _pname: GLenum, _params: [*c]GLint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetFramebufferParameteriv, .{_target, _pname, _params});
+}
+
+pub fn framebufferParameteri(_target: GLenum, _pname: GLenum, _param: GLint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glFramebufferParameteri, .{_target, _pname, _param});
+}
+
+pub fn copyImageSubData(_srcName: GLuint, _srcTarget: GLenum, _srcLevel: GLint, _srcX: GLint, _srcY: GLint, _srcZ: GLint, _dstName: GLuint, _dstTarget: GLenum, _dstLevel: GLint, _dstX: GLint, _dstY: GLint, _dstZ: GLint, _srcWidth: GLsizei, _srcHeight: GLsizei, _srcDepth: GLsizei) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glCopyImageSubData, .{_srcName, _srcTarget, _srcLevel, _srcX, _srcY, _srcZ, _dstName, _dstTarget, _dstLevel, _dstX, _dstY, _dstZ, _srcWidth, _srcHeight, _srcDepth});
+}
+
+pub fn dispatchComputeIndirect(_indirect: GLintptr) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glDispatchComputeIndirect, .{_indirect});
+}
+
+pub fn dispatchCompute(_num_groups_x: GLuint, _num_groups_y: GLuint, _num_groups_z: GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glDispatchCompute, .{_num_groups_x, _num_groups_y, _num_groups_z});
+}
+
+pub fn clearBufferSubData(_target: GLenum, _internalformat: GLenum, _offset: GLintptr, _size: GLsizeiptr, _format: GLenum, _type: GLenum, _data: ?*const anyopaque) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glClearBufferSubData, .{_target, _internalformat, _offset, _size, _format, _type, _data});
+}
+
+pub fn clearBufferData(_target: GLenum, _internalformat: GLenum, _format: GLenum, _type: GLenum, _data: ?*const anyopaque) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glClearBufferData, .{_target, _internalformat, _format, _type, _data});
 }
 
 pub fn getProgramPipelineInfoLog(_pipeline: GLuint, _bufSize: GLsizei, _length: [*c]GLsizei, _infoLog: [*c]GLchar) callconv(.C) void {
@@ -2930,11 +3436,159 @@ pub fn getActiveUniformBlockName(_program: GLuint, _uniformBlockIndex: GLuint, _
 pub fn uniformBlockBinding(_program: GLuint, _uniformBlockIndex: GLuint, _uniformBlockBinding: GLuint) callconv(.C) void {
     return @call(.always_tail, function_pointers.glUniformBlockBinding, .{_program, _uniformBlockIndex, _uniformBlockBinding});
 }
+
+pub fn texStorage3DMultisample(_target: GLenum, _samples: GLsizei, _internalformat: GLenum, _width: GLsizei, _height: GLsizei, _depth: GLsizei, _fixedsamplelocations: GLboolean) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glTexStorage3DMultisample, .{_target, _samples, _internalformat, _width, _height, _depth, _fixedsamplelocations});
+}
+
+pub fn textureView(_texture: GLuint, _target: GLenum, _origtexture: GLuint, _internalformat: GLenum, _minlevel: GLuint, _numlevels: GLuint, _minlayer: GLuint, _numlayers: GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glTextureView, .{_texture, _target, _origtexture, _internalformat, _minlevel, _numlevels, _minlayer, _numlayers});
+}
+
+pub fn bindVertexBuffer(_bindingindex: GLuint, _buffer: GLuint, _offset: GLintptr, _stride: GLsizei) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glBindVertexBuffer, .{_bindingindex, _buffer, _offset, _stride});
+}
+
+pub fn vertexAttribFormat(_attribindex: GLuint, _size: GLint, _type: GLenum, _normalized: GLboolean, _relativeoffset: GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glVertexAttribFormat, .{_attribindex, _size, _type, _normalized, _relativeoffset});
+}
+
+pub fn vertexAttribIFormat(_attribindex: GLuint, _size: GLint, _type: GLenum, _relativeoffset: GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glVertexAttribIFormat, .{_attribindex, _size, _type, _relativeoffset});
+}
+
+pub fn vertexAttribLFormat(_attribindex: GLuint, _size: GLint, _type: GLenum, _relativeoffset: GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glVertexAttribLFormat, .{_attribindex, _size, _type, _relativeoffset});
+}
+
+pub fn vertexAttribBinding(_attribindex: GLuint, _bindingindex: GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glVertexAttribBinding, .{_attribindex, _bindingindex});
+}
+
+pub fn vertexBindingDivisor(_bindingindex: GLuint, _divisor: GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glVertexBindingDivisor, .{_bindingindex, _divisor});
+}
+
+pub fn debugMessageControl(_source: GLenum, _type: GLenum, _severity: GLenum, _count: GLsizei, _ids: [*c]const GLuint, _enabled: GLboolean) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glDebugMessageControl, .{_source, _type, _severity, _count, _ids, _enabled});
+}
+
+pub fn debugMessageInsert(_source: GLenum, _type: GLenum, _id: GLuint, _severity: GLenum, _length: GLsizei, _buf: [*c]const GLchar) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glDebugMessageInsert, .{_source, _type, _id, _severity, _length, _buf});
+}
+
+pub fn debugMessageCallback(_callback: GLDEBUGPROC, _userParam: ?*const anyopaque) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glDebugMessageCallback, .{_callback, _userParam});
+}
+
+pub fn getDebugMessageLog(_count: GLuint, _bufSize: GLsizei, _sources: [*c]GLenum, _types: [*c]GLenum, _ids: [*c]GLuint, _severities: [*c]GLenum, _lengths: [*c]GLsizei, _messageLog: [*c]GLchar) callconv(.C) GLuint {
+    return @call(.always_tail, function_pointers.glGetDebugMessageLog, .{_count, _bufSize, _sources, _types, _ids, _severities, _lengths, _messageLog});
+}
+
+pub fn pushDebugGroup(_source: GLenum, _id: GLuint, _length: GLsizei, _message: [*c]const GLchar) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glPushDebugGroup, .{_source, _id, _length, _message});
+}
+
+pub fn popDebugGroup() callconv(.C) void {
+    return @call(.always_tail, function_pointers.glPopDebugGroup, .{});
+}
+
+pub fn objectLabel(_identifier: GLenum, _name: GLuint, _length: GLsizei, _label: [*c]const GLchar) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glObjectLabel, .{_identifier, _name, _length, _label});
+}
+
+pub fn getObjectLabel(_identifier: GLenum, _name: GLuint, _bufSize: GLsizei, _length: [*c]GLsizei, _label: [*c]GLchar) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetObjectLabel, .{_identifier, _name, _bufSize, _length, _label});
+}
+
+pub fn objectPtrLabel(_ptr: ?*const anyopaque, _length: GLsizei, _label: [*c]const GLchar) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glObjectPtrLabel, .{_ptr, _length, _label});
+}
+
+pub fn getObjectPtrLabel(_ptr: ?*const anyopaque, _bufSize: GLsizei, _length: [*c]GLsizei, _label: [*c]GLchar) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetObjectPtrLabel, .{_ptr, _bufSize, _length, _label});
+}
+
+pub fn getPointerv(_pname: GLenum, _params: ?*?*anyopaque) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetPointerv, .{_pname, _params});
+}
 // Extensions:
 
 // Loader API:
 pub fn load(load_ctx: anytype, get_proc_address: fn(@TypeOf(load_ctx), [:0]const u8) ?FunctionPointer) !void {
     var success = true;
+    if(get_proc_address(load_ctx, "glTexStorage2D")) |proc| {
+        function_pointers.glTexStorage2D = @ptrCast(proc);
+    } else {
+        log.err("entry point glTexStorage2D not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glTexStorage1D")) |proc| {
+        function_pointers.glTexStorage1D = @ptrCast(proc);
+    } else {
+        log.err("entry point glTexStorage1D not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glDrawTransformFeedbackStreamInstanced")) |proc| {
+        function_pointers.glDrawTransformFeedbackStreamInstanced = @ptrCast(proc);
+    } else {
+        log.err("entry point glDrawTransformFeedbackStreamInstanced not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glDrawTransformFeedbackInstanced")) |proc| {
+        function_pointers.glDrawTransformFeedbackInstanced = @ptrCast(proc);
+    } else {
+        log.err("entry point glDrawTransformFeedbackInstanced not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glTexStorage3D")) |proc| {
+        function_pointers.glTexStorage3D = @ptrCast(proc);
+    } else {
+        log.err("entry point glTexStorage3D not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glMemoryBarrier")) |proc| {
+        function_pointers.glMemoryBarrier = @ptrCast(proc);
+    } else {
+        log.err("entry point glMemoryBarrier not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glBindImageTexture")) |proc| {
+        function_pointers.glBindImageTexture = @ptrCast(proc);
+    } else {
+        log.err("entry point glBindImageTexture not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetActiveAtomicCounterBufferiv")) |proc| {
+        function_pointers.glGetActiveAtomicCounterBufferiv = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetActiveAtomicCounterBufferiv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetInternalformativ")) |proc| {
+        function_pointers.glGetInternalformativ = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetInternalformativ not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glDrawElementsInstancedBaseVertexBaseInstance")) |proc| {
+        function_pointers.glDrawElementsInstancedBaseVertexBaseInstance = @ptrCast(proc);
+    } else {
+        log.err("entry point glDrawElementsInstancedBaseVertexBaseInstance not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glDrawElementsInstancedBaseInstance")) |proc| {
+        function_pointers.glDrawElementsInstancedBaseInstance = @ptrCast(proc);
+    } else {
+        log.err("entry point glDrawElementsInstancedBaseInstance not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glDrawArraysInstancedBaseInstance")) |proc| {
+        function_pointers.glDrawArraysInstancedBaseInstance = @ptrCast(proc);
+    } else {
+        log.err("entry point glDrawArraysInstancedBaseInstance not found!", .{});
+        success = false;
+    }
     if(get_proc_address(load_ctx, "glGetDoublei_v")) |proc| {
         function_pointers.glGetDoublei_v = @ptrCast(proc);
     } else {
@@ -3647,6 +4301,156 @@ pub fn load(load_ctx: anytype, get_proc_address: fn(@TypeOf(load_ctx), [:0]const
         function_pointers.glViewport = @ptrCast(proc);
     } else {
         log.err("entry point glViewport not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glTexStorage2DMultisample")) |proc| {
+        function_pointers.glTexStorage2DMultisample = @ptrCast(proc);
+    } else {
+        log.err("entry point glTexStorage2DMultisample not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glTexBufferRange")) |proc| {
+        function_pointers.glTexBufferRange = @ptrCast(proc);
+    } else {
+        log.err("entry point glTexBufferRange not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glShaderStorageBlockBinding")) |proc| {
+        function_pointers.glShaderStorageBlockBinding = @ptrCast(proc);
+    } else {
+        log.err("entry point glShaderStorageBlockBinding not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetProgramResourceLocationIndex")) |proc| {
+        function_pointers.glGetProgramResourceLocationIndex = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetProgramResourceLocationIndex not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetProgramResourceLocation")) |proc| {
+        function_pointers.glGetProgramResourceLocation = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetProgramResourceLocation not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetProgramResourceiv")) |proc| {
+        function_pointers.glGetProgramResourceiv = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetProgramResourceiv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetProgramResourceName")) |proc| {
+        function_pointers.glGetProgramResourceName = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetProgramResourceName not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetProgramResourceIndex")) |proc| {
+        function_pointers.glGetProgramResourceIndex = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetProgramResourceIndex not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetProgramInterfaceiv")) |proc| {
+        function_pointers.glGetProgramInterfaceiv = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetProgramInterfaceiv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glMultiDrawElementsIndirect")) |proc| {
+        function_pointers.glMultiDrawElementsIndirect = @ptrCast(proc);
+    } else {
+        log.err("entry point glMultiDrawElementsIndirect not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glMultiDrawArraysIndirect")) |proc| {
+        function_pointers.glMultiDrawArraysIndirect = @ptrCast(proc);
+    } else {
+        log.err("entry point glMultiDrawArraysIndirect not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glInvalidateSubFramebuffer")) |proc| {
+        function_pointers.glInvalidateSubFramebuffer = @ptrCast(proc);
+    } else {
+        log.err("entry point glInvalidateSubFramebuffer not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glInvalidateFramebuffer")) |proc| {
+        function_pointers.glInvalidateFramebuffer = @ptrCast(proc);
+    } else {
+        log.err("entry point glInvalidateFramebuffer not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glInvalidateBufferData")) |proc| {
+        function_pointers.glInvalidateBufferData = @ptrCast(proc);
+    } else {
+        log.err("entry point glInvalidateBufferData not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glInvalidateBufferSubData")) |proc| {
+        function_pointers.glInvalidateBufferSubData = @ptrCast(proc);
+    } else {
+        log.err("entry point glInvalidateBufferSubData not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glInvalidateTexImage")) |proc| {
+        function_pointers.glInvalidateTexImage = @ptrCast(proc);
+    } else {
+        log.err("entry point glInvalidateTexImage not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glInvalidateTexSubImage")) |proc| {
+        function_pointers.glInvalidateTexSubImage = @ptrCast(proc);
+    } else {
+        log.err("entry point glInvalidateTexSubImage not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetInternalformati64v")) |proc| {
+        function_pointers.glGetInternalformati64v = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetInternalformati64v not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetFramebufferParameteriv")) |proc| {
+        function_pointers.glGetFramebufferParameteriv = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetFramebufferParameteriv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glFramebufferParameteri")) |proc| {
+        function_pointers.glFramebufferParameteri = @ptrCast(proc);
+    } else {
+        log.err("entry point glFramebufferParameteri not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glCopyImageSubData")) |proc| {
+        function_pointers.glCopyImageSubData = @ptrCast(proc);
+    } else {
+        log.err("entry point glCopyImageSubData not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glDispatchComputeIndirect")) |proc| {
+        function_pointers.glDispatchComputeIndirect = @ptrCast(proc);
+    } else {
+        log.err("entry point glDispatchComputeIndirect not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glDispatchCompute")) |proc| {
+        function_pointers.glDispatchCompute = @ptrCast(proc);
+    } else {
+        log.err("entry point glDispatchCompute not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glClearBufferSubData")) |proc| {
+        function_pointers.glClearBufferSubData = @ptrCast(proc);
+    } else {
+        log.err("entry point glClearBufferSubData not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glClearBufferData")) |proc| {
+        function_pointers.glClearBufferData = @ptrCast(proc);
+    } else {
+        log.err("entry point glClearBufferData not found!", .{});
         success = false;
     }
     if(get_proc_address(load_ctx, "glGetProgramPipelineInfoLog")) |proc| {
@@ -5803,11 +6607,137 @@ pub fn load(load_ctx: anytype, get_proc_address: fn(@TypeOf(load_ctx), [:0]const
         log.err("entry point glUniformBlockBinding not found!", .{});
         success = false;
     }
+    if(get_proc_address(load_ctx, "glTexStorage3DMultisample")) |proc| {
+        function_pointers.glTexStorage3DMultisample = @ptrCast(proc);
+    } else {
+        log.err("entry point glTexStorage3DMultisample not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glTextureView")) |proc| {
+        function_pointers.glTextureView = @ptrCast(proc);
+    } else {
+        log.err("entry point glTextureView not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glBindVertexBuffer")) |proc| {
+        function_pointers.glBindVertexBuffer = @ptrCast(proc);
+    } else {
+        log.err("entry point glBindVertexBuffer not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glVertexAttribFormat")) |proc| {
+        function_pointers.glVertexAttribFormat = @ptrCast(proc);
+    } else {
+        log.err("entry point glVertexAttribFormat not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glVertexAttribIFormat")) |proc| {
+        function_pointers.glVertexAttribIFormat = @ptrCast(proc);
+    } else {
+        log.err("entry point glVertexAttribIFormat not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glVertexAttribLFormat")) |proc| {
+        function_pointers.glVertexAttribLFormat = @ptrCast(proc);
+    } else {
+        log.err("entry point glVertexAttribLFormat not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glVertexAttribBinding")) |proc| {
+        function_pointers.glVertexAttribBinding = @ptrCast(proc);
+    } else {
+        log.err("entry point glVertexAttribBinding not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glVertexBindingDivisor")) |proc| {
+        function_pointers.glVertexBindingDivisor = @ptrCast(proc);
+    } else {
+        log.err("entry point glVertexBindingDivisor not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glDebugMessageControl")) |proc| {
+        function_pointers.glDebugMessageControl = @ptrCast(proc);
+    } else {
+        log.err("entry point glDebugMessageControl not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glDebugMessageInsert")) |proc| {
+        function_pointers.glDebugMessageInsert = @ptrCast(proc);
+    } else {
+        log.err("entry point glDebugMessageInsert not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glDebugMessageCallback")) |proc| {
+        function_pointers.glDebugMessageCallback = @ptrCast(proc);
+    } else {
+        log.err("entry point glDebugMessageCallback not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetDebugMessageLog")) |proc| {
+        function_pointers.glGetDebugMessageLog = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetDebugMessageLog not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glPushDebugGroup")) |proc| {
+        function_pointers.glPushDebugGroup = @ptrCast(proc);
+    } else {
+        log.err("entry point glPushDebugGroup not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glPopDebugGroup")) |proc| {
+        function_pointers.glPopDebugGroup = @ptrCast(proc);
+    } else {
+        log.err("entry point glPopDebugGroup not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glObjectLabel")) |proc| {
+        function_pointers.glObjectLabel = @ptrCast(proc);
+    } else {
+        log.err("entry point glObjectLabel not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetObjectLabel")) |proc| {
+        function_pointers.glGetObjectLabel = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetObjectLabel not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glObjectPtrLabel")) |proc| {
+        function_pointers.glObjectPtrLabel = @ptrCast(proc);
+    } else {
+        log.err("entry point glObjectPtrLabel not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetObjectPtrLabel")) |proc| {
+        function_pointers.glGetObjectPtrLabel = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetObjectPtrLabel not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetPointerv")) |proc| {
+        function_pointers.glGetPointerv = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetPointerv not found!", .{});
+        success = false;
+    }
     if(!success)
         return error.EntryPointNotFound;
 }
 
 const function_signatures = struct {
+    const glTexStorage2D = fn(_target: GLenum, _levels: GLsizei, _internalformat: GLenum, _width: GLsizei, _height: GLsizei) callconv(.C) void;
+    const glTexStorage1D = fn(_target: GLenum, _levels: GLsizei, _internalformat: GLenum, _width: GLsizei) callconv(.C) void;
+    const glDrawTransformFeedbackStreamInstanced = fn(_mode: GLenum, _id: GLuint, _stream: GLuint, _instancecount: GLsizei) callconv(.C) void;
+    const glDrawTransformFeedbackInstanced = fn(_mode: GLenum, _id: GLuint, _instancecount: GLsizei) callconv(.C) void;
+    const glTexStorage3D = fn(_target: GLenum, _levels: GLsizei, _internalformat: GLenum, _width: GLsizei, _height: GLsizei, _depth: GLsizei) callconv(.C) void;
+    const glMemoryBarrier = fn(_barriers: GLbitfield) callconv(.C) void;
+    const glBindImageTexture = fn(_unit: GLuint, _texture: GLuint, _level: GLint, _layered: GLboolean, _layer: GLint, _access: GLenum, _format: GLenum) callconv(.C) void;
+    const glGetActiveAtomicCounterBufferiv = fn(_program: GLuint, _bufferIndex: GLuint, _pname: GLenum, _params: [*c]GLint) callconv(.C) void;
+    const glGetInternalformativ = fn(_target: GLenum, _internalformat: GLenum, _pname: GLenum, _count: GLsizei, _params: [*c]GLint) callconv(.C) void;
+    const glDrawElementsInstancedBaseVertexBaseInstance = fn(_mode: GLenum, _count: GLsizei, _type: GLenum, _indices: ?*const anyopaque, _instancecount: GLsizei, _basevertex: GLint, _baseinstance: GLuint) callconv(.C) void;
+    const glDrawElementsInstancedBaseInstance = fn(_mode: GLenum, _count: GLsizei, _type: GLenum, _indices: ?*const anyopaque, _instancecount: GLsizei, _baseinstance: GLuint) callconv(.C) void;
+    const glDrawArraysInstancedBaseInstance = fn(_mode: GLenum, _first: GLint, _count: GLsizei, _instancecount: GLsizei, _baseinstance: GLuint) callconv(.C) void;
     const glGetDoublei_v = fn(_target: GLenum, _index: GLuint, _data: [*c]GLdouble) callconv(.C) void;
     const glGetFloati_v = fn(_target: GLenum, _index: GLuint, _data: [*c]GLfloat) callconv(.C) void;
     const glDepthRangeIndexed = fn(_index: GLuint, _n: GLdouble, _f: GLdouble) callconv(.C) void;
@@ -5927,6 +6857,31 @@ const function_signatures = struct {
     const glIsEnabled = fn(_cap: GLenum) callconv(.C) GLboolean;
     const glDepthRange = fn(_n: GLdouble, _f: GLdouble) callconv(.C) void;
     const glViewport = fn(_x: GLint, _y: GLint, _width: GLsizei, _height: GLsizei) callconv(.C) void;
+    const glTexStorage2DMultisample = fn(_target: GLenum, _samples: GLsizei, _internalformat: GLenum, _width: GLsizei, _height: GLsizei, _fixedsamplelocations: GLboolean) callconv(.C) void;
+    const glTexBufferRange = fn(_target: GLenum, _internalformat: GLenum, _buffer: GLuint, _offset: GLintptr, _size: GLsizeiptr) callconv(.C) void;
+    const glShaderStorageBlockBinding = fn(_program: GLuint, _storageBlockIndex: GLuint, _storageBlockBinding: GLuint) callconv(.C) void;
+    const glGetProgramResourceLocationIndex = fn(_program: GLuint, _programInterface: GLenum, _name: [*c]const GLchar) callconv(.C) GLint;
+    const glGetProgramResourceLocation = fn(_program: GLuint, _programInterface: GLenum, _name: [*c]const GLchar) callconv(.C) GLint;
+    const glGetProgramResourceiv = fn(_program: GLuint, _programInterface: GLenum, _index: GLuint, _propCount: GLsizei, _props: [*c]const GLenum, _count: GLsizei, _length: [*c]GLsizei, _params: [*c]GLint) callconv(.C) void;
+    const glGetProgramResourceName = fn(_program: GLuint, _programInterface: GLenum, _index: GLuint, _bufSize: GLsizei, _length: [*c]GLsizei, _name: [*c]GLchar) callconv(.C) void;
+    const glGetProgramResourceIndex = fn(_program: GLuint, _programInterface: GLenum, _name: [*c]const GLchar) callconv(.C) GLuint;
+    const glGetProgramInterfaceiv = fn(_program: GLuint, _programInterface: GLenum, _pname: GLenum, _params: [*c]GLint) callconv(.C) void;
+    const glMultiDrawElementsIndirect = fn(_mode: GLenum, _type: GLenum, _indirect: ?*const anyopaque, _drawcount: GLsizei, _stride: GLsizei) callconv(.C) void;
+    const glMultiDrawArraysIndirect = fn(_mode: GLenum, _indirect: ?*const anyopaque, _drawcount: GLsizei, _stride: GLsizei) callconv(.C) void;
+    const glInvalidateSubFramebuffer = fn(_target: GLenum, _numAttachments: GLsizei, _attachments: [*c]const GLenum, _x: GLint, _y: GLint, _width: GLsizei, _height: GLsizei) callconv(.C) void;
+    const glInvalidateFramebuffer = fn(_target: GLenum, _numAttachments: GLsizei, _attachments: [*c]const GLenum) callconv(.C) void;
+    const glInvalidateBufferData = fn(_buffer: GLuint) callconv(.C) void;
+    const glInvalidateBufferSubData = fn(_buffer: GLuint, _offset: GLintptr, _length: GLsizeiptr) callconv(.C) void;
+    const glInvalidateTexImage = fn(_texture: GLuint, _level: GLint) callconv(.C) void;
+    const glInvalidateTexSubImage = fn(_texture: GLuint, _level: GLint, _xoffset: GLint, _yoffset: GLint, _zoffset: GLint, _width: GLsizei, _height: GLsizei, _depth: GLsizei) callconv(.C) void;
+    const glGetInternalformati64v = fn(_target: GLenum, _internalformat: GLenum, _pname: GLenum, _count: GLsizei, _params: [*c]GLint64) callconv(.C) void;
+    const glGetFramebufferParameteriv = fn(_target: GLenum, _pname: GLenum, _params: [*c]GLint) callconv(.C) void;
+    const glFramebufferParameteri = fn(_target: GLenum, _pname: GLenum, _param: GLint) callconv(.C) void;
+    const glCopyImageSubData = fn(_srcName: GLuint, _srcTarget: GLenum, _srcLevel: GLint, _srcX: GLint, _srcY: GLint, _srcZ: GLint, _dstName: GLuint, _dstTarget: GLenum, _dstLevel: GLint, _dstX: GLint, _dstY: GLint, _dstZ: GLint, _srcWidth: GLsizei, _srcHeight: GLsizei, _srcDepth: GLsizei) callconv(.C) void;
+    const glDispatchComputeIndirect = fn(_indirect: GLintptr) callconv(.C) void;
+    const glDispatchCompute = fn(_num_groups_x: GLuint, _num_groups_y: GLuint, _num_groups_z: GLuint) callconv(.C) void;
+    const glClearBufferSubData = fn(_target: GLenum, _internalformat: GLenum, _offset: GLintptr, _size: GLsizeiptr, _format: GLenum, _type: GLenum, _data: ?*const anyopaque) callconv(.C) void;
+    const glClearBufferData = fn(_target: GLenum, _internalformat: GLenum, _format: GLenum, _type: GLenum, _data: ?*const anyopaque) callconv(.C) void;
     const glGetProgramPipelineInfoLog = fn(_pipeline: GLuint, _bufSize: GLsizei, _length: [*c]GLsizei, _infoLog: [*c]GLchar) callconv(.C) void;
     const glProgramUniform2uiv = fn(_program: GLuint, _location: GLint, _count: GLsizei, _value: [*c]const GLuint) callconv(.C) void;
     const glProgramUniform2ui = fn(_program: GLuint, _location: GLint, _v0: GLuint, _v1: GLuint) callconv(.C) void;
@@ -6286,487 +7241,562 @@ const function_signatures = struct {
     const glGetActiveUniformBlockiv = fn(_program: GLuint, _uniformBlockIndex: GLuint, _pname: GLenum, _params: [*c]GLint) callconv(.C) void;
     const glGetActiveUniformBlockName = fn(_program: GLuint, _uniformBlockIndex: GLuint, _bufSize: GLsizei, _length: [*c]GLsizei, _uniformBlockName: [*c]GLchar) callconv(.C) void;
     const glUniformBlockBinding = fn(_program: GLuint, _uniformBlockIndex: GLuint, _uniformBlockBinding: GLuint) callconv(.C) void;
+    const glTexStorage3DMultisample = fn(_target: GLenum, _samples: GLsizei, _internalformat: GLenum, _width: GLsizei, _height: GLsizei, _depth: GLsizei, _fixedsamplelocations: GLboolean) callconv(.C) void;
+    const glTextureView = fn(_texture: GLuint, _target: GLenum, _origtexture: GLuint, _internalformat: GLenum, _minlevel: GLuint, _numlevels: GLuint, _minlayer: GLuint, _numlayers: GLuint) callconv(.C) void;
+    const glBindVertexBuffer = fn(_bindingindex: GLuint, _buffer: GLuint, _offset: GLintptr, _stride: GLsizei) callconv(.C) void;
+    const glVertexAttribFormat = fn(_attribindex: GLuint, _size: GLint, _type: GLenum, _normalized: GLboolean, _relativeoffset: GLuint) callconv(.C) void;
+    const glVertexAttribIFormat = fn(_attribindex: GLuint, _size: GLint, _type: GLenum, _relativeoffset: GLuint) callconv(.C) void;
+    const glVertexAttribLFormat = fn(_attribindex: GLuint, _size: GLint, _type: GLenum, _relativeoffset: GLuint) callconv(.C) void;
+    const glVertexAttribBinding = fn(_attribindex: GLuint, _bindingindex: GLuint) callconv(.C) void;
+    const glVertexBindingDivisor = fn(_bindingindex: GLuint, _divisor: GLuint) callconv(.C) void;
+    const glDebugMessageControl = fn(_source: GLenum, _type: GLenum, _severity: GLenum, _count: GLsizei, _ids: [*c]const GLuint, _enabled: GLboolean) callconv(.C) void;
+    const glDebugMessageInsert = fn(_source: GLenum, _type: GLenum, _id: GLuint, _severity: GLenum, _length: GLsizei, _buf: [*c]const GLchar) callconv(.C) void;
+    const glDebugMessageCallback = fn(_callback: GLDEBUGPROC, _userParam: ?*const anyopaque) callconv(.C) void;
+    const glGetDebugMessageLog = fn(_count: GLuint, _bufSize: GLsizei, _sources: [*c]GLenum, _types: [*c]GLenum, _ids: [*c]GLuint, _severities: [*c]GLenum, _lengths: [*c]GLsizei, _messageLog: [*c]GLchar) callconv(.C) GLuint;
+    const glPushDebugGroup = fn(_source: GLenum, _id: GLuint, _length: GLsizei, _message: [*c]const GLchar) callconv(.C) void;
+    const glPopDebugGroup = fn() callconv(.C) void;
+    const glObjectLabel = fn(_identifier: GLenum, _name: GLuint, _length: GLsizei, _label: [*c]const GLchar) callconv(.C) void;
+    const glGetObjectLabel = fn(_identifier: GLenum, _name: GLuint, _bufSize: GLsizei, _length: [*c]GLsizei, _label: [*c]GLchar) callconv(.C) void;
+    const glObjectPtrLabel = fn(_ptr: ?*const anyopaque, _length: GLsizei, _label: [*c]const GLchar) callconv(.C) void;
+    const glGetObjectPtrLabel = fn(_ptr: ?*const anyopaque, _bufSize: GLsizei, _length: [*c]GLsizei, _label: [*c]GLchar) callconv(.C) void;
+    const glGetPointerv = fn(_pname: GLenum, _params: ?*?*anyopaque) callconv(.C) void;
 };
 
 const function_pointers = struct {
-    var glGetDoublei_v: FnPtr(function_signatures.glGetDoublei_v) = undefined;
-    var glGetFloati_v: FnPtr(function_signatures.glGetFloati_v) = undefined;
-    var glDepthRangeIndexed: FnPtr(function_signatures.glDepthRangeIndexed) = undefined;
-    var glDepthRangeArrayv: FnPtr(function_signatures.glDepthRangeArrayv) = undefined;
-    var glScissorIndexedv: FnPtr(function_signatures.glScissorIndexedv) = undefined;
-    var glScissorIndexed: FnPtr(function_signatures.glScissorIndexed) = undefined;
-    var glScissorArrayv: FnPtr(function_signatures.glScissorArrayv) = undefined;
-    var glViewportIndexedfv: FnPtr(function_signatures.glViewportIndexedfv) = undefined;
-    var glViewportIndexedf: FnPtr(function_signatures.glViewportIndexedf) = undefined;
-    var glViewportArrayv: FnPtr(function_signatures.glViewportArrayv) = undefined;
-    var glGetVertexAttribLdv: FnPtr(function_signatures.glGetVertexAttribLdv) = undefined;
-    var glVertexAttribLPointer: FnPtr(function_signatures.glVertexAttribLPointer) = undefined;
-    var glVertexAttribL4dv: FnPtr(function_signatures.glVertexAttribL4dv) = undefined;
-    var glVertexAttribL3dv: FnPtr(function_signatures.glVertexAttribL3dv) = undefined;
-    var glVertexAttribL2dv: FnPtr(function_signatures.glVertexAttribL2dv) = undefined;
-    var glVertexAttribL1dv: FnPtr(function_signatures.glVertexAttribL1dv) = undefined;
-    var glVertexAttribL4d: FnPtr(function_signatures.glVertexAttribL4d) = undefined;
-    var glVertexAttribL3d: FnPtr(function_signatures.glVertexAttribL3d) = undefined;
-    var glVertexAttribL2d: FnPtr(function_signatures.glVertexAttribL2d) = undefined;
-    var glVertexAttribL1d: FnPtr(function_signatures.glVertexAttribL1d) = undefined;
-    var glValidateProgramPipeline: FnPtr(function_signatures.glValidateProgramPipeline) = undefined;
-    var glProgramUniformMatrix4x3dv: FnPtr(function_signatures.glProgramUniformMatrix4x3dv) = undefined;
-    var glProgramUniformMatrix3x4dv: FnPtr(function_signatures.glProgramUniformMatrix3x4dv) = undefined;
-    var glProgramUniformMatrix4x2dv: FnPtr(function_signatures.glProgramUniformMatrix4x2dv) = undefined;
-    var glProgramUniformMatrix2x4dv: FnPtr(function_signatures.glProgramUniformMatrix2x4dv) = undefined;
-    var glProgramUniformMatrix3x2dv: FnPtr(function_signatures.glProgramUniformMatrix3x2dv) = undefined;
-    var glProgramUniformMatrix2x3dv: FnPtr(function_signatures.glProgramUniformMatrix2x3dv) = undefined;
-    var glProgramUniformMatrix4x3fv: FnPtr(function_signatures.glProgramUniformMatrix4x3fv) = undefined;
-    var glProgramUniformMatrix3x4fv: FnPtr(function_signatures.glProgramUniformMatrix3x4fv) = undefined;
-    var glProgramUniformMatrix4x2fv: FnPtr(function_signatures.glProgramUniformMatrix4x2fv) = undefined;
-    var glProgramUniformMatrix2x4fv: FnPtr(function_signatures.glProgramUniformMatrix2x4fv) = undefined;
-    var glProgramUniformMatrix3x2fv: FnPtr(function_signatures.glProgramUniformMatrix3x2fv) = undefined;
-    var glProgramUniformMatrix2x3fv: FnPtr(function_signatures.glProgramUniformMatrix2x3fv) = undefined;
-    var glProgramUniformMatrix4dv: FnPtr(function_signatures.glProgramUniformMatrix4dv) = undefined;
-    var glProgramUniformMatrix3dv: FnPtr(function_signatures.glProgramUniformMatrix3dv) = undefined;
-    var glProgramUniformMatrix2dv: FnPtr(function_signatures.glProgramUniformMatrix2dv) = undefined;
-    var glProgramUniformMatrix4fv: FnPtr(function_signatures.glProgramUniformMatrix4fv) = undefined;
-    var glProgramUniformMatrix3fv: FnPtr(function_signatures.glProgramUniformMatrix3fv) = undefined;
-    var glProgramUniformMatrix2fv: FnPtr(function_signatures.glProgramUniformMatrix2fv) = undefined;
-    var glProgramUniform4uiv: FnPtr(function_signatures.glProgramUniform4uiv) = undefined;
-    var glProgramUniform4ui: FnPtr(function_signatures.glProgramUniform4ui) = undefined;
-    var glProgramUniform4dv: FnPtr(function_signatures.glProgramUniform4dv) = undefined;
-    var glProgramUniform4d: FnPtr(function_signatures.glProgramUniform4d) = undefined;
-    var glProgramUniform4fv: FnPtr(function_signatures.glProgramUniform4fv) = undefined;
-    var glProgramUniform4f: FnPtr(function_signatures.glProgramUniform4f) = undefined;
-    var glProgramUniform4iv: FnPtr(function_signatures.glProgramUniform4iv) = undefined;
-    var glProgramUniform4i: FnPtr(function_signatures.glProgramUniform4i) = undefined;
-    var glProgramUniform3uiv: FnPtr(function_signatures.glProgramUniform3uiv) = undefined;
-    var glProgramUniform3ui: FnPtr(function_signatures.glProgramUniform3ui) = undefined;
-    var glProgramUniform3dv: FnPtr(function_signatures.glProgramUniform3dv) = undefined;
-    var glProgramUniform3d: FnPtr(function_signatures.glProgramUniform3d) = undefined;
-    var glProgramUniform3fv: FnPtr(function_signatures.glProgramUniform3fv) = undefined;
-    var glProgramUniform3f: FnPtr(function_signatures.glProgramUniform3f) = undefined;
-    var glProgramUniform3iv: FnPtr(function_signatures.glProgramUniform3iv) = undefined;
-    var glProgramUniform3i: FnPtr(function_signatures.glProgramUniform3i) = undefined;
-    var glUseProgramStages: FnPtr(function_signatures.glUseProgramStages) = undefined;
-    var glProgramParameteri: FnPtr(function_signatures.glProgramParameteri) = undefined;
-    var glGetShaderPrecisionFormat: FnPtr(function_signatures.glGetShaderPrecisionFormat) = undefined;
-    var glShaderBinary: FnPtr(function_signatures.glShaderBinary) = undefined;
-    var glReleaseShaderCompiler: FnPtr(function_signatures.glReleaseShaderCompiler) = undefined;
-    var glGetQueryIndexediv: FnPtr(function_signatures.glGetQueryIndexediv) = undefined;
-    var glEndQueryIndexed: FnPtr(function_signatures.glEndQueryIndexed) = undefined;
-    var glBeginQueryIndexed: FnPtr(function_signatures.glBeginQueryIndexed) = undefined;
-    var glDrawTransformFeedbackStream: FnPtr(function_signatures.glDrawTransformFeedbackStream) = undefined;
-    var glDrawTransformFeedback: FnPtr(function_signatures.glDrawTransformFeedback) = undefined;
-    var glResumeTransformFeedback: FnPtr(function_signatures.glResumeTransformFeedback) = undefined;
-    var glPauseTransformFeedback: FnPtr(function_signatures.glPauseTransformFeedback) = undefined;
-    var glGetProgramStageiv: FnPtr(function_signatures.glGetProgramStageiv) = undefined;
-    var glGetUniformSubroutineuiv: FnPtr(function_signatures.glGetUniformSubroutineuiv) = undefined;
-    var glUniformSubroutinesuiv: FnPtr(function_signatures.glUniformSubroutinesuiv) = undefined;
-    var glGetActiveSubroutineName: FnPtr(function_signatures.glGetActiveSubroutineName) = undefined;
-    var glCullFace: FnPtr(function_signatures.glCullFace) = undefined;
-    var glFrontFace: FnPtr(function_signatures.glFrontFace) = undefined;
-    var glHint: FnPtr(function_signatures.glHint) = undefined;
-    var glLineWidth: FnPtr(function_signatures.glLineWidth) = undefined;
-    var glPointSize: FnPtr(function_signatures.glPointSize) = undefined;
-    var glPolygonMode: FnPtr(function_signatures.glPolygonMode) = undefined;
-    var glScissor: FnPtr(function_signatures.glScissor) = undefined;
-    var glTexParameterf: FnPtr(function_signatures.glTexParameterf) = undefined;
-    var glTexParameterfv: FnPtr(function_signatures.glTexParameterfv) = undefined;
-    var glTexParameteri: FnPtr(function_signatures.glTexParameteri) = undefined;
-    var glTexParameteriv: FnPtr(function_signatures.glTexParameteriv) = undefined;
-    var glTexImage1D: FnPtr(function_signatures.glTexImage1D) = undefined;
-    var glTexImage2D: FnPtr(function_signatures.glTexImage2D) = undefined;
-    var glDrawBuffer: FnPtr(function_signatures.glDrawBuffer) = undefined;
-    var glClear: FnPtr(function_signatures.glClear) = undefined;
-    var glClearColor: FnPtr(function_signatures.glClearColor) = undefined;
-    var glClearStencil: FnPtr(function_signatures.glClearStencil) = undefined;
-    var glClearDepth: FnPtr(function_signatures.glClearDepth) = undefined;
-    var glStencilMask: FnPtr(function_signatures.glStencilMask) = undefined;
-    var glColorMask: FnPtr(function_signatures.glColorMask) = undefined;
-    var glDepthMask: FnPtr(function_signatures.glDepthMask) = undefined;
-    var glDisable: FnPtr(function_signatures.glDisable) = undefined;
-    var glEnable: FnPtr(function_signatures.glEnable) = undefined;
-    var glFinish: FnPtr(function_signatures.glFinish) = undefined;
-    var glFlush: FnPtr(function_signatures.glFlush) = undefined;
-    var glBlendFunc: FnPtr(function_signatures.glBlendFunc) = undefined;
-    var glLogicOp: FnPtr(function_signatures.glLogicOp) = undefined;
-    var glStencilFunc: FnPtr(function_signatures.glStencilFunc) = undefined;
-    var glStencilOp: FnPtr(function_signatures.glStencilOp) = undefined;
-    var glDepthFunc: FnPtr(function_signatures.glDepthFunc) = undefined;
-    var glPixelStoref: FnPtr(function_signatures.glPixelStoref) = undefined;
-    var glPixelStorei: FnPtr(function_signatures.glPixelStorei) = undefined;
-    var glReadBuffer: FnPtr(function_signatures.glReadBuffer) = undefined;
-    var glReadPixels: FnPtr(function_signatures.glReadPixels) = undefined;
-    var glGetBooleanv: FnPtr(function_signatures.glGetBooleanv) = undefined;
-    var glGetDoublev: FnPtr(function_signatures.glGetDoublev) = undefined;
-    var glGetError: FnPtr(function_signatures.glGetError) = undefined;
-    var glGetFloatv: FnPtr(function_signatures.glGetFloatv) = undefined;
-    var glGetIntegerv: FnPtr(function_signatures.glGetIntegerv) = undefined;
-    var glGetString: FnPtr(function_signatures.glGetString) = undefined;
-    var glGetTexImage: FnPtr(function_signatures.glGetTexImage) = undefined;
-    var glGetTexParameterfv: FnPtr(function_signatures.glGetTexParameterfv) = undefined;
-    var glGetTexParameteriv: FnPtr(function_signatures.glGetTexParameteriv) = undefined;
-    var glGetTexLevelParameterfv: FnPtr(function_signatures.glGetTexLevelParameterfv) = undefined;
-    var glGetTexLevelParameteriv: FnPtr(function_signatures.glGetTexLevelParameteriv) = undefined;
-    var glIsEnabled: FnPtr(function_signatures.glIsEnabled) = undefined;
-    var glDepthRange: FnPtr(function_signatures.glDepthRange) = undefined;
-    var glViewport: FnPtr(function_signatures.glViewport) = undefined;
-    var glGetProgramPipelineInfoLog: FnPtr(function_signatures.glGetProgramPipelineInfoLog) = undefined;
-    var glProgramUniform2uiv: FnPtr(function_signatures.glProgramUniform2uiv) = undefined;
-    var glProgramUniform2ui: FnPtr(function_signatures.glProgramUniform2ui) = undefined;
-    var glProgramUniform2dv: FnPtr(function_signatures.glProgramUniform2dv) = undefined;
-    var glProgramUniform2d: FnPtr(function_signatures.glProgramUniform2d) = undefined;
-    var glProgramUniform2fv: FnPtr(function_signatures.glProgramUniform2fv) = undefined;
-    var glProgramUniform2f: FnPtr(function_signatures.glProgramUniform2f) = undefined;
-    var glProgramUniform2iv: FnPtr(function_signatures.glProgramUniform2iv) = undefined;
-    var glProgramUniform2i: FnPtr(function_signatures.glProgramUniform2i) = undefined;
-    var glProgramUniform1uiv: FnPtr(function_signatures.glProgramUniform1uiv) = undefined;
-    var glProgramUniform1ui: FnPtr(function_signatures.glProgramUniform1ui) = undefined;
-    var glProgramUniform1dv: FnPtr(function_signatures.glProgramUniform1dv) = undefined;
-    var glProgramUniform1d: FnPtr(function_signatures.glProgramUniform1d) = undefined;
-    var glProgramUniform1fv: FnPtr(function_signatures.glProgramUniform1fv) = undefined;
-    var glProgramUniform1f: FnPtr(function_signatures.glProgramUniform1f) = undefined;
-    var glProgramUniform1iv: FnPtr(function_signatures.glProgramUniform1iv) = undefined;
-    var glProgramUniform1i: FnPtr(function_signatures.glProgramUniform1i) = undefined;
-    var glGetProgramPipelineiv: FnPtr(function_signatures.glGetProgramPipelineiv) = undefined;
-    var glIsProgramPipeline: FnPtr(function_signatures.glIsProgramPipeline) = undefined;
-    var glGenProgramPipelines: FnPtr(function_signatures.glGenProgramPipelines) = undefined;
-    var glDeleteProgramPipelines: FnPtr(function_signatures.glDeleteProgramPipelines) = undefined;
-    var glBindProgramPipeline: FnPtr(function_signatures.glBindProgramPipeline) = undefined;
-    var glCreateShaderProgramv: FnPtr(function_signatures.glCreateShaderProgramv) = undefined;
-    var glActiveShaderProgram: FnPtr(function_signatures.glActiveShaderProgram) = undefined;
-    var glProgramBinary: FnPtr(function_signatures.glProgramBinary) = undefined;
-    var glGetProgramBinary: FnPtr(function_signatures.glGetProgramBinary) = undefined;
-    var glClearDepthf: FnPtr(function_signatures.glClearDepthf) = undefined;
-    var glDepthRangef: FnPtr(function_signatures.glDepthRangef) = undefined;
-    var glIsTransformFeedback: FnPtr(function_signatures.glIsTransformFeedback) = undefined;
-    var glGenTransformFeedbacks: FnPtr(function_signatures.glGenTransformFeedbacks) = undefined;
-    var glDeleteTransformFeedbacks: FnPtr(function_signatures.glDeleteTransformFeedbacks) = undefined;
-    var glBindTransformFeedback: FnPtr(function_signatures.glBindTransformFeedback) = undefined;
-    var glPatchParameterfv: FnPtr(function_signatures.glPatchParameterfv) = undefined;
-    var glPatchParameteri: FnPtr(function_signatures.glPatchParameteri) = undefined;
-    var glDrawArrays: FnPtr(function_signatures.glDrawArrays) = undefined;
-    var glDrawElements: FnPtr(function_signatures.glDrawElements) = undefined;
-    var glPolygonOffset: FnPtr(function_signatures.glPolygonOffset) = undefined;
-    var glCopyTexImage1D: FnPtr(function_signatures.glCopyTexImage1D) = undefined;
-    var glCopyTexImage2D: FnPtr(function_signatures.glCopyTexImage2D) = undefined;
-    var glCopyTexSubImage1D: FnPtr(function_signatures.glCopyTexSubImage1D) = undefined;
-    var glCopyTexSubImage2D: FnPtr(function_signatures.glCopyTexSubImage2D) = undefined;
-    var glTexSubImage1D: FnPtr(function_signatures.glTexSubImage1D) = undefined;
-    var glTexSubImage2D: FnPtr(function_signatures.glTexSubImage2D) = undefined;
-    var glBindTexture: FnPtr(function_signatures.glBindTexture) = undefined;
-    var glDeleteTextures: FnPtr(function_signatures.glDeleteTextures) = undefined;
-    var glGenTextures: FnPtr(function_signatures.glGenTextures) = undefined;
-    var glIsTexture: FnPtr(function_signatures.glIsTexture) = undefined;
-    var glGetActiveSubroutineUniformName: FnPtr(function_signatures.glGetActiveSubroutineUniformName) = undefined;
-    var glGetActiveSubroutineUniformiv: FnPtr(function_signatures.glGetActiveSubroutineUniformiv) = undefined;
-    var glGetSubroutineIndex: FnPtr(function_signatures.glGetSubroutineIndex) = undefined;
-    var glGetSubroutineUniformLocation: FnPtr(function_signatures.glGetSubroutineUniformLocation) = undefined;
-    var glGetUniformdv: FnPtr(function_signatures.glGetUniformdv) = undefined;
-    var glUniformMatrix4x3dv: FnPtr(function_signatures.glUniformMatrix4x3dv) = undefined;
-    var glUniformMatrix4x2dv: FnPtr(function_signatures.glUniformMatrix4x2dv) = undefined;
-    var glUniformMatrix3x4dv: FnPtr(function_signatures.glUniformMatrix3x4dv) = undefined;
-    var glUniformMatrix3x2dv: FnPtr(function_signatures.glUniformMatrix3x2dv) = undefined;
-    var glUniformMatrix2x4dv: FnPtr(function_signatures.glUniformMatrix2x4dv) = undefined;
-    var glUniformMatrix2x3dv: FnPtr(function_signatures.glUniformMatrix2x3dv) = undefined;
-    var glUniformMatrix4dv: FnPtr(function_signatures.glUniformMatrix4dv) = undefined;
-    var glUniformMatrix3dv: FnPtr(function_signatures.glUniformMatrix3dv) = undefined;
-    var glDrawRangeElements: FnPtr(function_signatures.glDrawRangeElements) = undefined;
-    var glTexImage3D: FnPtr(function_signatures.glTexImage3D) = undefined;
-    var glTexSubImage3D: FnPtr(function_signatures.glTexSubImage3D) = undefined;
-    var glCopyTexSubImage3D: FnPtr(function_signatures.glCopyTexSubImage3D) = undefined;
-    var glUniformMatrix2dv: FnPtr(function_signatures.glUniformMatrix2dv) = undefined;
-    var glUniform4dv: FnPtr(function_signatures.glUniform4dv) = undefined;
-    var glUniform3dv: FnPtr(function_signatures.glUniform3dv) = undefined;
-    var glUniform2dv: FnPtr(function_signatures.glUniform2dv) = undefined;
-    var glUniform1dv: FnPtr(function_signatures.glUniform1dv) = undefined;
-    var glUniform4d: FnPtr(function_signatures.glUniform4d) = undefined;
-    var glUniform3d: FnPtr(function_signatures.glUniform3d) = undefined;
-    var glUniform2d: FnPtr(function_signatures.glUniform2d) = undefined;
-    var glUniform1d: FnPtr(function_signatures.glUniform1d) = undefined;
-    var glDrawElementsIndirect: FnPtr(function_signatures.glDrawElementsIndirect) = undefined;
-    var glDrawArraysIndirect: FnPtr(function_signatures.glDrawArraysIndirect) = undefined;
-    var glBlendFuncSeparatei: FnPtr(function_signatures.glBlendFuncSeparatei) = undefined;
-    var glBlendFunci: FnPtr(function_signatures.glBlendFunci) = undefined;
-    var glBlendEquationSeparatei: FnPtr(function_signatures.glBlendEquationSeparatei) = undefined;
-    var glBlendEquationi: FnPtr(function_signatures.glBlendEquationi) = undefined;
-    var glMinSampleShading: FnPtr(function_signatures.glMinSampleShading) = undefined;
-    var glActiveTexture: FnPtr(function_signatures.glActiveTexture) = undefined;
-    var glSampleCoverage: FnPtr(function_signatures.glSampleCoverage) = undefined;
-    var glCompressedTexImage3D: FnPtr(function_signatures.glCompressedTexImage3D) = undefined;
-    var glCompressedTexImage2D: FnPtr(function_signatures.glCompressedTexImage2D) = undefined;
-    var glCompressedTexImage1D: FnPtr(function_signatures.glCompressedTexImage1D) = undefined;
-    var glCompressedTexSubImage3D: FnPtr(function_signatures.glCompressedTexSubImage3D) = undefined;
-    var glCompressedTexSubImage2D: FnPtr(function_signatures.glCompressedTexSubImage2D) = undefined;
-    var glCompressedTexSubImage1D: FnPtr(function_signatures.glCompressedTexSubImage1D) = undefined;
-    var glGetCompressedTexImage: FnPtr(function_signatures.glGetCompressedTexImage) = undefined;
-    var glVertexAttribP4uiv: FnPtr(function_signatures.glVertexAttribP4uiv) = undefined;
-    var glVertexAttribP4ui: FnPtr(function_signatures.glVertexAttribP4ui) = undefined;
-    var glVertexAttribP3uiv: FnPtr(function_signatures.glVertexAttribP3uiv) = undefined;
-    var glVertexAttribP3ui: FnPtr(function_signatures.glVertexAttribP3ui) = undefined;
-    var glVertexAttribP2uiv: FnPtr(function_signatures.glVertexAttribP2uiv) = undefined;
-    var glVertexAttribP2ui: FnPtr(function_signatures.glVertexAttribP2ui) = undefined;
-    var glVertexAttribP1uiv: FnPtr(function_signatures.glVertexAttribP1uiv) = undefined;
-    var glVertexAttribP1ui: FnPtr(function_signatures.glVertexAttribP1ui) = undefined;
-    var glVertexAttribDivisor: FnPtr(function_signatures.glVertexAttribDivisor) = undefined;
-    var glGetQueryObjectui64v: FnPtr(function_signatures.glGetQueryObjectui64v) = undefined;
-    var glGetQueryObjecti64v: FnPtr(function_signatures.glGetQueryObjecti64v) = undefined;
-    var glQueryCounter: FnPtr(function_signatures.glQueryCounter) = undefined;
-    var glGetSamplerParameterIuiv: FnPtr(function_signatures.glGetSamplerParameterIuiv) = undefined;
-    var glGetSamplerParameterfv: FnPtr(function_signatures.glGetSamplerParameterfv) = undefined;
-    var glGetSamplerParameterIiv: FnPtr(function_signatures.glGetSamplerParameterIiv) = undefined;
-    var glGetSamplerParameteriv: FnPtr(function_signatures.glGetSamplerParameteriv) = undefined;
-    var glSamplerParameterIuiv: FnPtr(function_signatures.glSamplerParameterIuiv) = undefined;
-    var glSamplerParameterIiv: FnPtr(function_signatures.glSamplerParameterIiv) = undefined;
-    var glSamplerParameterfv: FnPtr(function_signatures.glSamplerParameterfv) = undefined;
-    var glSamplerParameterf: FnPtr(function_signatures.glSamplerParameterf) = undefined;
-    var glSamplerParameteriv: FnPtr(function_signatures.glSamplerParameteriv) = undefined;
-    var glSamplerParameteri: FnPtr(function_signatures.glSamplerParameteri) = undefined;
-    var glBindSampler: FnPtr(function_signatures.glBindSampler) = undefined;
-    var glIsSampler: FnPtr(function_signatures.glIsSampler) = undefined;
-    var glDeleteSamplers: FnPtr(function_signatures.glDeleteSamplers) = undefined;
-    var glGenSamplers: FnPtr(function_signatures.glGenSamplers) = undefined;
-    var glGetFragDataIndex: FnPtr(function_signatures.glGetFragDataIndex) = undefined;
-    var glBindFragDataLocationIndexed: FnPtr(function_signatures.glBindFragDataLocationIndexed) = undefined;
-    var glSampleMaski: FnPtr(function_signatures.glSampleMaski) = undefined;
-    var glGetMultisamplefv: FnPtr(function_signatures.glGetMultisamplefv) = undefined;
-    var glTexImage3DMultisample: FnPtr(function_signatures.glTexImage3DMultisample) = undefined;
-    var glTexImage2DMultisample: FnPtr(function_signatures.glTexImage2DMultisample) = undefined;
-    var glFramebufferTexture: FnPtr(function_signatures.glFramebufferTexture) = undefined;
-    var glGetBufferParameteri64v: FnPtr(function_signatures.glGetBufferParameteri64v) = undefined;
-    var glBlendFuncSeparate: FnPtr(function_signatures.glBlendFuncSeparate) = undefined;
-    var glMultiDrawArrays: FnPtr(function_signatures.glMultiDrawArrays) = undefined;
-    var glMultiDrawElements: FnPtr(function_signatures.glMultiDrawElements) = undefined;
-    var glPointParameterf: FnPtr(function_signatures.glPointParameterf) = undefined;
-    var glPointParameterfv: FnPtr(function_signatures.glPointParameterfv) = undefined;
-    var glPointParameteri: FnPtr(function_signatures.glPointParameteri) = undefined;
-    var glPointParameteriv: FnPtr(function_signatures.glPointParameteriv) = undefined;
-    var glGetInteger64i_v: FnPtr(function_signatures.glGetInteger64i_v) = undefined;
-    var glGetSynciv: FnPtr(function_signatures.glGetSynciv) = undefined;
-    var glGetInteger64v: FnPtr(function_signatures.glGetInteger64v) = undefined;
-    var glWaitSync: FnPtr(function_signatures.glWaitSync) = undefined;
-    var glClientWaitSync: FnPtr(function_signatures.glClientWaitSync) = undefined;
-    var glDeleteSync: FnPtr(function_signatures.glDeleteSync) = undefined;
-    var glIsSync: FnPtr(function_signatures.glIsSync) = undefined;
-    var glFenceSync: FnPtr(function_signatures.glFenceSync) = undefined;
-    var glBlendColor: FnPtr(function_signatures.glBlendColor) = undefined;
-    var glBlendEquation: FnPtr(function_signatures.glBlendEquation) = undefined;
-    var glProvokingVertex: FnPtr(function_signatures.glProvokingVertex) = undefined;
-    var glMultiDrawElementsBaseVertex: FnPtr(function_signatures.glMultiDrawElementsBaseVertex) = undefined;
-    var glDrawElementsInstancedBaseVertex: FnPtr(function_signatures.glDrawElementsInstancedBaseVertex) = undefined;
-    var glDrawRangeElementsBaseVertex: FnPtr(function_signatures.glDrawRangeElementsBaseVertex) = undefined;
-    var glDrawElementsBaseVertex: FnPtr(function_signatures.glDrawElementsBaseVertex) = undefined;
-    var glGenQueries: FnPtr(function_signatures.glGenQueries) = undefined;
-    var glDeleteQueries: FnPtr(function_signatures.glDeleteQueries) = undefined;
-    var glIsQuery: FnPtr(function_signatures.glIsQuery) = undefined;
-    var glBeginQuery: FnPtr(function_signatures.glBeginQuery) = undefined;
-    var glEndQuery: FnPtr(function_signatures.glEndQuery) = undefined;
-    var glGetQueryiv: FnPtr(function_signatures.glGetQueryiv) = undefined;
-    var glGetQueryObjectiv: FnPtr(function_signatures.glGetQueryObjectiv) = undefined;
-    var glGetQueryObjectuiv: FnPtr(function_signatures.glGetQueryObjectuiv) = undefined;
-    var glBindBuffer: FnPtr(function_signatures.glBindBuffer) = undefined;
-    var glDeleteBuffers: FnPtr(function_signatures.glDeleteBuffers) = undefined;
-    var glGenBuffers: FnPtr(function_signatures.glGenBuffers) = undefined;
-    var glIsBuffer: FnPtr(function_signatures.glIsBuffer) = undefined;
-    var glBufferData: FnPtr(function_signatures.glBufferData) = undefined;
-    var glBufferSubData: FnPtr(function_signatures.glBufferSubData) = undefined;
-    var glGetBufferSubData: FnPtr(function_signatures.glGetBufferSubData) = undefined;
-    var glMapBuffer: FnPtr(function_signatures.glMapBuffer) = undefined;
-    var glUnmapBuffer: FnPtr(function_signatures.glUnmapBuffer) = undefined;
-    var glGetBufferParameteriv: FnPtr(function_signatures.glGetBufferParameteriv) = undefined;
-    var glGetBufferPointerv: FnPtr(function_signatures.glGetBufferPointerv) = undefined;
-    var glBlendEquationSeparate: FnPtr(function_signatures.glBlendEquationSeparate) = undefined;
-    var glDrawBuffers: FnPtr(function_signatures.glDrawBuffers) = undefined;
-    var glStencilOpSeparate: FnPtr(function_signatures.glStencilOpSeparate) = undefined;
-    var glStencilFuncSeparate: FnPtr(function_signatures.glStencilFuncSeparate) = undefined;
-    var glStencilMaskSeparate: FnPtr(function_signatures.glStencilMaskSeparate) = undefined;
-    var glAttachShader: FnPtr(function_signatures.glAttachShader) = undefined;
-    var glBindAttribLocation: FnPtr(function_signatures.glBindAttribLocation) = undefined;
-    var glCompileShader: FnPtr(function_signatures.glCompileShader) = undefined;
-    var glCreateProgram: FnPtr(function_signatures.glCreateProgram) = undefined;
-    var glCreateShader: FnPtr(function_signatures.glCreateShader) = undefined;
-    var glDeleteProgram: FnPtr(function_signatures.glDeleteProgram) = undefined;
-    var glDeleteShader: FnPtr(function_signatures.glDeleteShader) = undefined;
-    var glDetachShader: FnPtr(function_signatures.glDetachShader) = undefined;
-    var glDisableVertexAttribArray: FnPtr(function_signatures.glDisableVertexAttribArray) = undefined;
-    var glEnableVertexAttribArray: FnPtr(function_signatures.glEnableVertexAttribArray) = undefined;
-    var glGetActiveAttrib: FnPtr(function_signatures.glGetActiveAttrib) = undefined;
-    var glGetActiveUniform: FnPtr(function_signatures.glGetActiveUniform) = undefined;
-    var glGetAttachedShaders: FnPtr(function_signatures.glGetAttachedShaders) = undefined;
-    var glGetAttribLocation: FnPtr(function_signatures.glGetAttribLocation) = undefined;
-    var glGetProgramiv: FnPtr(function_signatures.glGetProgramiv) = undefined;
-    var glGetProgramInfoLog: FnPtr(function_signatures.glGetProgramInfoLog) = undefined;
-    var glGetShaderiv: FnPtr(function_signatures.glGetShaderiv) = undefined;
-    var glGetShaderInfoLog: FnPtr(function_signatures.glGetShaderInfoLog) = undefined;
-    var glGetShaderSource: FnPtr(function_signatures.glGetShaderSource) = undefined;
-    var glGetUniformLocation: FnPtr(function_signatures.glGetUniformLocation) = undefined;
-    var glGetUniformfv: FnPtr(function_signatures.glGetUniformfv) = undefined;
-    var glGetUniformiv: FnPtr(function_signatures.glGetUniformiv) = undefined;
-    var glGetVertexAttribdv: FnPtr(function_signatures.glGetVertexAttribdv) = undefined;
-    var glGetVertexAttribfv: FnPtr(function_signatures.glGetVertexAttribfv) = undefined;
-    var glGetVertexAttribiv: FnPtr(function_signatures.glGetVertexAttribiv) = undefined;
-    var glGetVertexAttribPointerv: FnPtr(function_signatures.glGetVertexAttribPointerv) = undefined;
-    var glIsProgram: FnPtr(function_signatures.glIsProgram) = undefined;
-    var glIsShader: FnPtr(function_signatures.glIsShader) = undefined;
-    var glLinkProgram: FnPtr(function_signatures.glLinkProgram) = undefined;
-    var glShaderSource: FnPtr(function_signatures.glShaderSource) = undefined;
-    var glUseProgram: FnPtr(function_signatures.glUseProgram) = undefined;
-    var glUniform1f: FnPtr(function_signatures.glUniform1f) = undefined;
-    var glUniform2f: FnPtr(function_signatures.glUniform2f) = undefined;
-    var glUniform3f: FnPtr(function_signatures.glUniform3f) = undefined;
-    var glUniform4f: FnPtr(function_signatures.glUniform4f) = undefined;
-    var glUniform1i: FnPtr(function_signatures.glUniform1i) = undefined;
-    var glUniform2i: FnPtr(function_signatures.glUniform2i) = undefined;
-    var glUniform3i: FnPtr(function_signatures.glUniform3i) = undefined;
-    var glUniform4i: FnPtr(function_signatures.glUniform4i) = undefined;
-    var glUniform1fv: FnPtr(function_signatures.glUniform1fv) = undefined;
-    var glUniform2fv: FnPtr(function_signatures.glUniform2fv) = undefined;
-    var glUniform3fv: FnPtr(function_signatures.glUniform3fv) = undefined;
-    var glUniform4fv: FnPtr(function_signatures.glUniform4fv) = undefined;
-    var glUniform1iv: FnPtr(function_signatures.glUniform1iv) = undefined;
-    var glUniform2iv: FnPtr(function_signatures.glUniform2iv) = undefined;
-    var glUniform3iv: FnPtr(function_signatures.glUniform3iv) = undefined;
-    var glUniform4iv: FnPtr(function_signatures.glUniform4iv) = undefined;
-    var glUniformMatrix2fv: FnPtr(function_signatures.glUniformMatrix2fv) = undefined;
-    var glUniformMatrix3fv: FnPtr(function_signatures.glUniformMatrix3fv) = undefined;
-    var glUniformMatrix4fv: FnPtr(function_signatures.glUniformMatrix4fv) = undefined;
-    var glValidateProgram: FnPtr(function_signatures.glValidateProgram) = undefined;
-    var glVertexAttrib1d: FnPtr(function_signatures.glVertexAttrib1d) = undefined;
-    var glVertexAttrib1dv: FnPtr(function_signatures.glVertexAttrib1dv) = undefined;
-    var glVertexAttrib1f: FnPtr(function_signatures.glVertexAttrib1f) = undefined;
-    var glVertexAttrib1fv: FnPtr(function_signatures.glVertexAttrib1fv) = undefined;
-    var glVertexAttrib1s: FnPtr(function_signatures.glVertexAttrib1s) = undefined;
-    var glVertexAttrib1sv: FnPtr(function_signatures.glVertexAttrib1sv) = undefined;
-    var glVertexAttrib2d: FnPtr(function_signatures.glVertexAttrib2d) = undefined;
-    var glVertexAttrib2dv: FnPtr(function_signatures.glVertexAttrib2dv) = undefined;
-    var glVertexAttrib2f: FnPtr(function_signatures.glVertexAttrib2f) = undefined;
-    var glVertexAttrib2fv: FnPtr(function_signatures.glVertexAttrib2fv) = undefined;
-    var glVertexAttrib2s: FnPtr(function_signatures.glVertexAttrib2s) = undefined;
-    var glVertexAttrib2sv: FnPtr(function_signatures.glVertexAttrib2sv) = undefined;
-    var glVertexAttrib3d: FnPtr(function_signatures.glVertexAttrib3d) = undefined;
-    var glVertexAttrib3dv: FnPtr(function_signatures.glVertexAttrib3dv) = undefined;
-    var glVertexAttrib3f: FnPtr(function_signatures.glVertexAttrib3f) = undefined;
-    var glVertexAttrib3fv: FnPtr(function_signatures.glVertexAttrib3fv) = undefined;
-    var glVertexAttrib3s: FnPtr(function_signatures.glVertexAttrib3s) = undefined;
-    var glVertexAttrib3sv: FnPtr(function_signatures.glVertexAttrib3sv) = undefined;
-    var glVertexAttrib4Nbv: FnPtr(function_signatures.glVertexAttrib4Nbv) = undefined;
-    var glVertexAttrib4Niv: FnPtr(function_signatures.glVertexAttrib4Niv) = undefined;
-    var glVertexAttrib4Nsv: FnPtr(function_signatures.glVertexAttrib4Nsv) = undefined;
-    var glVertexAttrib4Nub: FnPtr(function_signatures.glVertexAttrib4Nub) = undefined;
-    var glVertexAttrib4Nubv: FnPtr(function_signatures.glVertexAttrib4Nubv) = undefined;
-    var glVertexAttrib4Nuiv: FnPtr(function_signatures.glVertexAttrib4Nuiv) = undefined;
-    var glVertexAttrib4Nusv: FnPtr(function_signatures.glVertexAttrib4Nusv) = undefined;
-    var glVertexAttrib4bv: FnPtr(function_signatures.glVertexAttrib4bv) = undefined;
-    var glVertexAttrib4d: FnPtr(function_signatures.glVertexAttrib4d) = undefined;
-    var glVertexAttrib4dv: FnPtr(function_signatures.glVertexAttrib4dv) = undefined;
-    var glVertexAttrib4f: FnPtr(function_signatures.glVertexAttrib4f) = undefined;
-    var glVertexAttrib4fv: FnPtr(function_signatures.glVertexAttrib4fv) = undefined;
-    var glVertexAttrib4iv: FnPtr(function_signatures.glVertexAttrib4iv) = undefined;
-    var glVertexAttrib4s: FnPtr(function_signatures.glVertexAttrib4s) = undefined;
-    var glVertexAttrib4sv: FnPtr(function_signatures.glVertexAttrib4sv) = undefined;
-    var glVertexAttrib4ubv: FnPtr(function_signatures.glVertexAttrib4ubv) = undefined;
-    var glVertexAttrib4uiv: FnPtr(function_signatures.glVertexAttrib4uiv) = undefined;
-    var glVertexAttrib4usv: FnPtr(function_signatures.glVertexAttrib4usv) = undefined;
-    var glVertexAttribPointer: FnPtr(function_signatures.glVertexAttribPointer) = undefined;
-    var glUniformMatrix2x3fv: FnPtr(function_signatures.glUniformMatrix2x3fv) = undefined;
-    var glUniformMatrix3x2fv: FnPtr(function_signatures.glUniformMatrix3x2fv) = undefined;
-    var glUniformMatrix2x4fv: FnPtr(function_signatures.glUniformMatrix2x4fv) = undefined;
-    var glUniformMatrix4x2fv: FnPtr(function_signatures.glUniformMatrix4x2fv) = undefined;
-    var glUniformMatrix3x4fv: FnPtr(function_signatures.glUniformMatrix3x4fv) = undefined;
-    var glUniformMatrix4x3fv: FnPtr(function_signatures.glUniformMatrix4x3fv) = undefined;
-    var glColorMaski: FnPtr(function_signatures.glColorMaski) = undefined;
-    var glGetBooleani_v: FnPtr(function_signatures.glGetBooleani_v) = undefined;
-    var glGetIntegeri_v: FnPtr(function_signatures.glGetIntegeri_v) = undefined;
-    var glEnablei: FnPtr(function_signatures.glEnablei) = undefined;
-    var glDisablei: FnPtr(function_signatures.glDisablei) = undefined;
-    var glIsEnabledi: FnPtr(function_signatures.glIsEnabledi) = undefined;
-    var glBeginTransformFeedback: FnPtr(function_signatures.glBeginTransformFeedback) = undefined;
-    var glEndTransformFeedback: FnPtr(function_signatures.glEndTransformFeedback) = undefined;
-    var glBindBufferRange: FnPtr(function_signatures.glBindBufferRange) = undefined;
-    var glBindBufferBase: FnPtr(function_signatures.glBindBufferBase) = undefined;
-    var glTransformFeedbackVaryings: FnPtr(function_signatures.glTransformFeedbackVaryings) = undefined;
-    var glGetTransformFeedbackVarying: FnPtr(function_signatures.glGetTransformFeedbackVarying) = undefined;
-    var glClampColor: FnPtr(function_signatures.glClampColor) = undefined;
-    var glBeginConditionalRender: FnPtr(function_signatures.glBeginConditionalRender) = undefined;
-    var glEndConditionalRender: FnPtr(function_signatures.glEndConditionalRender) = undefined;
-    var glVertexAttribIPointer: FnPtr(function_signatures.glVertexAttribIPointer) = undefined;
-    var glGetVertexAttribIiv: FnPtr(function_signatures.glGetVertexAttribIiv) = undefined;
-    var glGetVertexAttribIuiv: FnPtr(function_signatures.glGetVertexAttribIuiv) = undefined;
-    var glVertexAttribI1i: FnPtr(function_signatures.glVertexAttribI1i) = undefined;
-    var glVertexAttribI2i: FnPtr(function_signatures.glVertexAttribI2i) = undefined;
-    var glVertexAttribI3i: FnPtr(function_signatures.glVertexAttribI3i) = undefined;
-    var glVertexAttribI4i: FnPtr(function_signatures.glVertexAttribI4i) = undefined;
-    var glVertexAttribI1ui: FnPtr(function_signatures.glVertexAttribI1ui) = undefined;
-    var glVertexAttribI2ui: FnPtr(function_signatures.glVertexAttribI2ui) = undefined;
-    var glVertexAttribI3ui: FnPtr(function_signatures.glVertexAttribI3ui) = undefined;
-    var glVertexAttribI4ui: FnPtr(function_signatures.glVertexAttribI4ui) = undefined;
-    var glVertexAttribI1iv: FnPtr(function_signatures.glVertexAttribI1iv) = undefined;
-    var glVertexAttribI2iv: FnPtr(function_signatures.glVertexAttribI2iv) = undefined;
-    var glVertexAttribI3iv: FnPtr(function_signatures.glVertexAttribI3iv) = undefined;
-    var glVertexAttribI4iv: FnPtr(function_signatures.glVertexAttribI4iv) = undefined;
-    var glVertexAttribI1uiv: FnPtr(function_signatures.glVertexAttribI1uiv) = undefined;
-    var glVertexAttribI2uiv: FnPtr(function_signatures.glVertexAttribI2uiv) = undefined;
-    var glVertexAttribI3uiv: FnPtr(function_signatures.glVertexAttribI3uiv) = undefined;
-    var glVertexAttribI4uiv: FnPtr(function_signatures.glVertexAttribI4uiv) = undefined;
-    var glVertexAttribI4bv: FnPtr(function_signatures.glVertexAttribI4bv) = undefined;
-    var glVertexAttribI4sv: FnPtr(function_signatures.glVertexAttribI4sv) = undefined;
-    var glVertexAttribI4ubv: FnPtr(function_signatures.glVertexAttribI4ubv) = undefined;
-    var glVertexAttribI4usv: FnPtr(function_signatures.glVertexAttribI4usv) = undefined;
-    var glGetUniformuiv: FnPtr(function_signatures.glGetUniformuiv) = undefined;
-    var glBindFragDataLocation: FnPtr(function_signatures.glBindFragDataLocation) = undefined;
-    var glGetFragDataLocation: FnPtr(function_signatures.glGetFragDataLocation) = undefined;
-    var glUniform1ui: FnPtr(function_signatures.glUniform1ui) = undefined;
-    var glUniform2ui: FnPtr(function_signatures.glUniform2ui) = undefined;
-    var glUniform3ui: FnPtr(function_signatures.glUniform3ui) = undefined;
-    var glUniform4ui: FnPtr(function_signatures.glUniform4ui) = undefined;
-    var glUniform1uiv: FnPtr(function_signatures.glUniform1uiv) = undefined;
-    var glUniform2uiv: FnPtr(function_signatures.glUniform2uiv) = undefined;
-    var glUniform3uiv: FnPtr(function_signatures.glUniform3uiv) = undefined;
-    var glUniform4uiv: FnPtr(function_signatures.glUniform4uiv) = undefined;
-    var glTexParameterIiv: FnPtr(function_signatures.glTexParameterIiv) = undefined;
-    var glTexParameterIuiv: FnPtr(function_signatures.glTexParameterIuiv) = undefined;
-    var glGetTexParameterIiv: FnPtr(function_signatures.glGetTexParameterIiv) = undefined;
-    var glGetTexParameterIuiv: FnPtr(function_signatures.glGetTexParameterIuiv) = undefined;
-    var glClearBufferiv: FnPtr(function_signatures.glClearBufferiv) = undefined;
-    var glClearBufferuiv: FnPtr(function_signatures.glClearBufferuiv) = undefined;
-    var glClearBufferfv: FnPtr(function_signatures.glClearBufferfv) = undefined;
-    var glClearBufferfi: FnPtr(function_signatures.glClearBufferfi) = undefined;
-    var glGetStringi: FnPtr(function_signatures.glGetStringi) = undefined;
-    var glIsRenderbuffer: FnPtr(function_signatures.glIsRenderbuffer) = undefined;
-    var glBindRenderbuffer: FnPtr(function_signatures.glBindRenderbuffer) = undefined;
-    var glDeleteRenderbuffers: FnPtr(function_signatures.glDeleteRenderbuffers) = undefined;
-    var glGenRenderbuffers: FnPtr(function_signatures.glGenRenderbuffers) = undefined;
-    var glRenderbufferStorage: FnPtr(function_signatures.glRenderbufferStorage) = undefined;
-    var glGetRenderbufferParameteriv: FnPtr(function_signatures.glGetRenderbufferParameteriv) = undefined;
-    var glIsFramebuffer: FnPtr(function_signatures.glIsFramebuffer) = undefined;
-    var glBindFramebuffer: FnPtr(function_signatures.glBindFramebuffer) = undefined;
-    var glDeleteFramebuffers: FnPtr(function_signatures.glDeleteFramebuffers) = undefined;
-    var glGenFramebuffers: FnPtr(function_signatures.glGenFramebuffers) = undefined;
-    var glCheckFramebufferStatus: FnPtr(function_signatures.glCheckFramebufferStatus) = undefined;
-    var glFramebufferTexture1D: FnPtr(function_signatures.glFramebufferTexture1D) = undefined;
-    var glFramebufferTexture2D: FnPtr(function_signatures.glFramebufferTexture2D) = undefined;
-    var glFramebufferTexture3D: FnPtr(function_signatures.glFramebufferTexture3D) = undefined;
-    var glFramebufferRenderbuffer: FnPtr(function_signatures.glFramebufferRenderbuffer) = undefined;
-    var glGetFramebufferAttachmentParameteriv: FnPtr(function_signatures.glGetFramebufferAttachmentParameteriv) = undefined;
-    var glGenerateMipmap: FnPtr(function_signatures.glGenerateMipmap) = undefined;
-    var glBlitFramebuffer: FnPtr(function_signatures.glBlitFramebuffer) = undefined;
-    var glRenderbufferStorageMultisample: FnPtr(function_signatures.glRenderbufferStorageMultisample) = undefined;
-    var glFramebufferTextureLayer: FnPtr(function_signatures.glFramebufferTextureLayer) = undefined;
-    var glMapBufferRange: FnPtr(function_signatures.glMapBufferRange) = undefined;
-    var glFlushMappedBufferRange: FnPtr(function_signatures.glFlushMappedBufferRange) = undefined;
-    var glBindVertexArray: FnPtr(function_signatures.glBindVertexArray) = undefined;
-    var glDeleteVertexArrays: FnPtr(function_signatures.glDeleteVertexArrays) = undefined;
-    var glGenVertexArrays: FnPtr(function_signatures.glGenVertexArrays) = undefined;
-    var glIsVertexArray: FnPtr(function_signatures.glIsVertexArray) = undefined;
-    var glDrawArraysInstanced: FnPtr(function_signatures.glDrawArraysInstanced) = undefined;
-    var glDrawElementsInstanced: FnPtr(function_signatures.glDrawElementsInstanced) = undefined;
-    var glTexBuffer: FnPtr(function_signatures.glTexBuffer) = undefined;
-    var glPrimitiveRestartIndex: FnPtr(function_signatures.glPrimitiveRestartIndex) = undefined;
-    var glCopyBufferSubData: FnPtr(function_signatures.glCopyBufferSubData) = undefined;
-    var glGetUniformIndices: FnPtr(function_signatures.glGetUniformIndices) = undefined;
-    var glGetActiveUniformsiv: FnPtr(function_signatures.glGetActiveUniformsiv) = undefined;
-    var glGetActiveUniformName: FnPtr(function_signatures.glGetActiveUniformName) = undefined;
-    var glGetUniformBlockIndex: FnPtr(function_signatures.glGetUniformBlockIndex) = undefined;
-    var glGetActiveUniformBlockiv: FnPtr(function_signatures.glGetActiveUniformBlockiv) = undefined;
-    var glGetActiveUniformBlockName: FnPtr(function_signatures.glGetActiveUniformBlockName) = undefined;
-    var glUniformBlockBinding: FnPtr(function_signatures.glUniformBlockBinding) = undefined;
+    var glTexStorage2D: *const function_signatures.glTexStorage2D = undefined;
+    var glTexStorage1D: *const function_signatures.glTexStorage1D = undefined;
+    var glDrawTransformFeedbackStreamInstanced: *const function_signatures.glDrawTransformFeedbackStreamInstanced = undefined;
+    var glDrawTransformFeedbackInstanced: *const function_signatures.glDrawTransformFeedbackInstanced = undefined;
+    var glTexStorage3D: *const function_signatures.glTexStorage3D = undefined;
+    var glMemoryBarrier: *const function_signatures.glMemoryBarrier = undefined;
+    var glBindImageTexture: *const function_signatures.glBindImageTexture = undefined;
+    var glGetActiveAtomicCounterBufferiv: *const function_signatures.glGetActiveAtomicCounterBufferiv = undefined;
+    var glGetInternalformativ: *const function_signatures.glGetInternalformativ = undefined;
+    var glDrawElementsInstancedBaseVertexBaseInstance: *const function_signatures.glDrawElementsInstancedBaseVertexBaseInstance = undefined;
+    var glDrawElementsInstancedBaseInstance: *const function_signatures.glDrawElementsInstancedBaseInstance = undefined;
+    var glDrawArraysInstancedBaseInstance: *const function_signatures.glDrawArraysInstancedBaseInstance = undefined;
+    var glGetDoublei_v: *const function_signatures.glGetDoublei_v = undefined;
+    var glGetFloati_v: *const function_signatures.glGetFloati_v = undefined;
+    var glDepthRangeIndexed: *const function_signatures.glDepthRangeIndexed = undefined;
+    var glDepthRangeArrayv: *const function_signatures.glDepthRangeArrayv = undefined;
+    var glScissorIndexedv: *const function_signatures.glScissorIndexedv = undefined;
+    var glScissorIndexed: *const function_signatures.glScissorIndexed = undefined;
+    var glScissorArrayv: *const function_signatures.glScissorArrayv = undefined;
+    var glViewportIndexedfv: *const function_signatures.glViewportIndexedfv = undefined;
+    var glViewportIndexedf: *const function_signatures.glViewportIndexedf = undefined;
+    var glViewportArrayv: *const function_signatures.glViewportArrayv = undefined;
+    var glGetVertexAttribLdv: *const function_signatures.glGetVertexAttribLdv = undefined;
+    var glVertexAttribLPointer: *const function_signatures.glVertexAttribLPointer = undefined;
+    var glVertexAttribL4dv: *const function_signatures.glVertexAttribL4dv = undefined;
+    var glVertexAttribL3dv: *const function_signatures.glVertexAttribL3dv = undefined;
+    var glVertexAttribL2dv: *const function_signatures.glVertexAttribL2dv = undefined;
+    var glVertexAttribL1dv: *const function_signatures.glVertexAttribL1dv = undefined;
+    var glVertexAttribL4d: *const function_signatures.glVertexAttribL4d = undefined;
+    var glVertexAttribL3d: *const function_signatures.glVertexAttribL3d = undefined;
+    var glVertexAttribL2d: *const function_signatures.glVertexAttribL2d = undefined;
+    var glVertexAttribL1d: *const function_signatures.glVertexAttribL1d = undefined;
+    var glValidateProgramPipeline: *const function_signatures.glValidateProgramPipeline = undefined;
+    var glProgramUniformMatrix4x3dv: *const function_signatures.glProgramUniformMatrix4x3dv = undefined;
+    var glProgramUniformMatrix3x4dv: *const function_signatures.glProgramUniformMatrix3x4dv = undefined;
+    var glProgramUniformMatrix4x2dv: *const function_signatures.glProgramUniformMatrix4x2dv = undefined;
+    var glProgramUniformMatrix2x4dv: *const function_signatures.glProgramUniformMatrix2x4dv = undefined;
+    var glProgramUniformMatrix3x2dv: *const function_signatures.glProgramUniformMatrix3x2dv = undefined;
+    var glProgramUniformMatrix2x3dv: *const function_signatures.glProgramUniformMatrix2x3dv = undefined;
+    var glProgramUniformMatrix4x3fv: *const function_signatures.glProgramUniformMatrix4x3fv = undefined;
+    var glProgramUniformMatrix3x4fv: *const function_signatures.glProgramUniformMatrix3x4fv = undefined;
+    var glProgramUniformMatrix4x2fv: *const function_signatures.glProgramUniformMatrix4x2fv = undefined;
+    var glProgramUniformMatrix2x4fv: *const function_signatures.glProgramUniformMatrix2x4fv = undefined;
+    var glProgramUniformMatrix3x2fv: *const function_signatures.glProgramUniformMatrix3x2fv = undefined;
+    var glProgramUniformMatrix2x3fv: *const function_signatures.glProgramUniformMatrix2x3fv = undefined;
+    var glProgramUniformMatrix4dv: *const function_signatures.glProgramUniformMatrix4dv = undefined;
+    var glProgramUniformMatrix3dv: *const function_signatures.glProgramUniformMatrix3dv = undefined;
+    var glProgramUniformMatrix2dv: *const function_signatures.glProgramUniformMatrix2dv = undefined;
+    var glProgramUniformMatrix4fv: *const function_signatures.glProgramUniformMatrix4fv = undefined;
+    var glProgramUniformMatrix3fv: *const function_signatures.glProgramUniformMatrix3fv = undefined;
+    var glProgramUniformMatrix2fv: *const function_signatures.glProgramUniformMatrix2fv = undefined;
+    var glProgramUniform4uiv: *const function_signatures.glProgramUniform4uiv = undefined;
+    var glProgramUniform4ui: *const function_signatures.glProgramUniform4ui = undefined;
+    var glProgramUniform4dv: *const function_signatures.glProgramUniform4dv = undefined;
+    var glProgramUniform4d: *const function_signatures.glProgramUniform4d = undefined;
+    var glProgramUniform4fv: *const function_signatures.glProgramUniform4fv = undefined;
+    var glProgramUniform4f: *const function_signatures.glProgramUniform4f = undefined;
+    var glProgramUniform4iv: *const function_signatures.glProgramUniform4iv = undefined;
+    var glProgramUniform4i: *const function_signatures.glProgramUniform4i = undefined;
+    var glProgramUniform3uiv: *const function_signatures.glProgramUniform3uiv = undefined;
+    var glProgramUniform3ui: *const function_signatures.glProgramUniform3ui = undefined;
+    var glProgramUniform3dv: *const function_signatures.glProgramUniform3dv = undefined;
+    var glProgramUniform3d: *const function_signatures.glProgramUniform3d = undefined;
+    var glProgramUniform3fv: *const function_signatures.glProgramUniform3fv = undefined;
+    var glProgramUniform3f: *const function_signatures.glProgramUniform3f = undefined;
+    var glProgramUniform3iv: *const function_signatures.glProgramUniform3iv = undefined;
+    var glProgramUniform3i: *const function_signatures.glProgramUniform3i = undefined;
+    var glUseProgramStages: *const function_signatures.glUseProgramStages = undefined;
+    var glProgramParameteri: *const function_signatures.glProgramParameteri = undefined;
+    var glGetShaderPrecisionFormat: *const function_signatures.glGetShaderPrecisionFormat = undefined;
+    var glShaderBinary: *const function_signatures.glShaderBinary = undefined;
+    var glReleaseShaderCompiler: *const function_signatures.glReleaseShaderCompiler = undefined;
+    var glGetQueryIndexediv: *const function_signatures.glGetQueryIndexediv = undefined;
+    var glEndQueryIndexed: *const function_signatures.glEndQueryIndexed = undefined;
+    var glBeginQueryIndexed: *const function_signatures.glBeginQueryIndexed = undefined;
+    var glDrawTransformFeedbackStream: *const function_signatures.glDrawTransformFeedbackStream = undefined;
+    var glDrawTransformFeedback: *const function_signatures.glDrawTransformFeedback = undefined;
+    var glResumeTransformFeedback: *const function_signatures.glResumeTransformFeedback = undefined;
+    var glPauseTransformFeedback: *const function_signatures.glPauseTransformFeedback = undefined;
+    var glGetProgramStageiv: *const function_signatures.glGetProgramStageiv = undefined;
+    var glGetUniformSubroutineuiv: *const function_signatures.glGetUniformSubroutineuiv = undefined;
+    var glUniformSubroutinesuiv: *const function_signatures.glUniformSubroutinesuiv = undefined;
+    var glGetActiveSubroutineName: *const function_signatures.glGetActiveSubroutineName = undefined;
+    var glCullFace: *const function_signatures.glCullFace = undefined;
+    var glFrontFace: *const function_signatures.glFrontFace = undefined;
+    var glHint: *const function_signatures.glHint = undefined;
+    var glLineWidth: *const function_signatures.glLineWidth = undefined;
+    var glPointSize: *const function_signatures.glPointSize = undefined;
+    var glPolygonMode: *const function_signatures.glPolygonMode = undefined;
+    var glScissor: *const function_signatures.glScissor = undefined;
+    var glTexParameterf: *const function_signatures.glTexParameterf = undefined;
+    var glTexParameterfv: *const function_signatures.glTexParameterfv = undefined;
+    var glTexParameteri: *const function_signatures.glTexParameteri = undefined;
+    var glTexParameteriv: *const function_signatures.glTexParameteriv = undefined;
+    var glTexImage1D: *const function_signatures.glTexImage1D = undefined;
+    var glTexImage2D: *const function_signatures.glTexImage2D = undefined;
+    var glDrawBuffer: *const function_signatures.glDrawBuffer = undefined;
+    var glClear: *const function_signatures.glClear = undefined;
+    var glClearColor: *const function_signatures.glClearColor = undefined;
+    var glClearStencil: *const function_signatures.glClearStencil = undefined;
+    var glClearDepth: *const function_signatures.glClearDepth = undefined;
+    var glStencilMask: *const function_signatures.glStencilMask = undefined;
+    var glColorMask: *const function_signatures.glColorMask = undefined;
+    var glDepthMask: *const function_signatures.glDepthMask = undefined;
+    var glDisable: *const function_signatures.glDisable = undefined;
+    var glEnable: *const function_signatures.glEnable = undefined;
+    var glFinish: *const function_signatures.glFinish = undefined;
+    var glFlush: *const function_signatures.glFlush = undefined;
+    var glBlendFunc: *const function_signatures.glBlendFunc = undefined;
+    var glLogicOp: *const function_signatures.glLogicOp = undefined;
+    var glStencilFunc: *const function_signatures.glStencilFunc = undefined;
+    var glStencilOp: *const function_signatures.glStencilOp = undefined;
+    var glDepthFunc: *const function_signatures.glDepthFunc = undefined;
+    var glPixelStoref: *const function_signatures.glPixelStoref = undefined;
+    var glPixelStorei: *const function_signatures.glPixelStorei = undefined;
+    var glReadBuffer: *const function_signatures.glReadBuffer = undefined;
+    var glReadPixels: *const function_signatures.glReadPixels = undefined;
+    var glGetBooleanv: *const function_signatures.glGetBooleanv = undefined;
+    var glGetDoublev: *const function_signatures.glGetDoublev = undefined;
+    var glGetError: *const function_signatures.glGetError = undefined;
+    var glGetFloatv: *const function_signatures.glGetFloatv = undefined;
+    var glGetIntegerv: *const function_signatures.glGetIntegerv = undefined;
+    var glGetString: *const function_signatures.glGetString = undefined;
+    var glGetTexImage: *const function_signatures.glGetTexImage = undefined;
+    var glGetTexParameterfv: *const function_signatures.glGetTexParameterfv = undefined;
+    var glGetTexParameteriv: *const function_signatures.glGetTexParameteriv = undefined;
+    var glGetTexLevelParameterfv: *const function_signatures.glGetTexLevelParameterfv = undefined;
+    var glGetTexLevelParameteriv: *const function_signatures.glGetTexLevelParameteriv = undefined;
+    var glIsEnabled: *const function_signatures.glIsEnabled = undefined;
+    var glDepthRange: *const function_signatures.glDepthRange = undefined;
+    var glViewport: *const function_signatures.glViewport = undefined;
+    var glTexStorage2DMultisample: *const function_signatures.glTexStorage2DMultisample = undefined;
+    var glTexBufferRange: *const function_signatures.glTexBufferRange = undefined;
+    var glShaderStorageBlockBinding: *const function_signatures.glShaderStorageBlockBinding = undefined;
+    var glGetProgramResourceLocationIndex: *const function_signatures.glGetProgramResourceLocationIndex = undefined;
+    var glGetProgramResourceLocation: *const function_signatures.glGetProgramResourceLocation = undefined;
+    var glGetProgramResourceiv: *const function_signatures.glGetProgramResourceiv = undefined;
+    var glGetProgramResourceName: *const function_signatures.glGetProgramResourceName = undefined;
+    var glGetProgramResourceIndex: *const function_signatures.glGetProgramResourceIndex = undefined;
+    var glGetProgramInterfaceiv: *const function_signatures.glGetProgramInterfaceiv = undefined;
+    var glMultiDrawElementsIndirect: *const function_signatures.glMultiDrawElementsIndirect = undefined;
+    var glMultiDrawArraysIndirect: *const function_signatures.glMultiDrawArraysIndirect = undefined;
+    var glInvalidateSubFramebuffer: *const function_signatures.glInvalidateSubFramebuffer = undefined;
+    var glInvalidateFramebuffer: *const function_signatures.glInvalidateFramebuffer = undefined;
+    var glInvalidateBufferData: *const function_signatures.glInvalidateBufferData = undefined;
+    var glInvalidateBufferSubData: *const function_signatures.glInvalidateBufferSubData = undefined;
+    var glInvalidateTexImage: *const function_signatures.glInvalidateTexImage = undefined;
+    var glInvalidateTexSubImage: *const function_signatures.glInvalidateTexSubImage = undefined;
+    var glGetInternalformati64v: *const function_signatures.glGetInternalformati64v = undefined;
+    var glGetFramebufferParameteriv: *const function_signatures.glGetFramebufferParameteriv = undefined;
+    var glFramebufferParameteri: *const function_signatures.glFramebufferParameteri = undefined;
+    var glCopyImageSubData: *const function_signatures.glCopyImageSubData = undefined;
+    var glDispatchComputeIndirect: *const function_signatures.glDispatchComputeIndirect = undefined;
+    var glDispatchCompute: *const function_signatures.glDispatchCompute = undefined;
+    var glClearBufferSubData: *const function_signatures.glClearBufferSubData = undefined;
+    var glClearBufferData: *const function_signatures.glClearBufferData = undefined;
+    var glGetProgramPipelineInfoLog: *const function_signatures.glGetProgramPipelineInfoLog = undefined;
+    var glProgramUniform2uiv: *const function_signatures.glProgramUniform2uiv = undefined;
+    var glProgramUniform2ui: *const function_signatures.glProgramUniform2ui = undefined;
+    var glProgramUniform2dv: *const function_signatures.glProgramUniform2dv = undefined;
+    var glProgramUniform2d: *const function_signatures.glProgramUniform2d = undefined;
+    var glProgramUniform2fv: *const function_signatures.glProgramUniform2fv = undefined;
+    var glProgramUniform2f: *const function_signatures.glProgramUniform2f = undefined;
+    var glProgramUniform2iv: *const function_signatures.glProgramUniform2iv = undefined;
+    var glProgramUniform2i: *const function_signatures.glProgramUniform2i = undefined;
+    var glProgramUniform1uiv: *const function_signatures.glProgramUniform1uiv = undefined;
+    var glProgramUniform1ui: *const function_signatures.glProgramUniform1ui = undefined;
+    var glProgramUniform1dv: *const function_signatures.glProgramUniform1dv = undefined;
+    var glProgramUniform1d: *const function_signatures.glProgramUniform1d = undefined;
+    var glProgramUniform1fv: *const function_signatures.glProgramUniform1fv = undefined;
+    var glProgramUniform1f: *const function_signatures.glProgramUniform1f = undefined;
+    var glProgramUniform1iv: *const function_signatures.glProgramUniform1iv = undefined;
+    var glProgramUniform1i: *const function_signatures.glProgramUniform1i = undefined;
+    var glGetProgramPipelineiv: *const function_signatures.glGetProgramPipelineiv = undefined;
+    var glIsProgramPipeline: *const function_signatures.glIsProgramPipeline = undefined;
+    var glGenProgramPipelines: *const function_signatures.glGenProgramPipelines = undefined;
+    var glDeleteProgramPipelines: *const function_signatures.glDeleteProgramPipelines = undefined;
+    var glBindProgramPipeline: *const function_signatures.glBindProgramPipeline = undefined;
+    var glCreateShaderProgramv: *const function_signatures.glCreateShaderProgramv = undefined;
+    var glActiveShaderProgram: *const function_signatures.glActiveShaderProgram = undefined;
+    var glProgramBinary: *const function_signatures.glProgramBinary = undefined;
+    var glGetProgramBinary: *const function_signatures.glGetProgramBinary = undefined;
+    var glClearDepthf: *const function_signatures.glClearDepthf = undefined;
+    var glDepthRangef: *const function_signatures.glDepthRangef = undefined;
+    var glIsTransformFeedback: *const function_signatures.glIsTransformFeedback = undefined;
+    var glGenTransformFeedbacks: *const function_signatures.glGenTransformFeedbacks = undefined;
+    var glDeleteTransformFeedbacks: *const function_signatures.glDeleteTransformFeedbacks = undefined;
+    var glBindTransformFeedback: *const function_signatures.glBindTransformFeedback = undefined;
+    var glPatchParameterfv: *const function_signatures.glPatchParameterfv = undefined;
+    var glPatchParameteri: *const function_signatures.glPatchParameteri = undefined;
+    var glDrawArrays: *const function_signatures.glDrawArrays = undefined;
+    var glDrawElements: *const function_signatures.glDrawElements = undefined;
+    var glPolygonOffset: *const function_signatures.glPolygonOffset = undefined;
+    var glCopyTexImage1D: *const function_signatures.glCopyTexImage1D = undefined;
+    var glCopyTexImage2D: *const function_signatures.glCopyTexImage2D = undefined;
+    var glCopyTexSubImage1D: *const function_signatures.glCopyTexSubImage1D = undefined;
+    var glCopyTexSubImage2D: *const function_signatures.glCopyTexSubImage2D = undefined;
+    var glTexSubImage1D: *const function_signatures.glTexSubImage1D = undefined;
+    var glTexSubImage2D: *const function_signatures.glTexSubImage2D = undefined;
+    var glBindTexture: *const function_signatures.glBindTexture = undefined;
+    var glDeleteTextures: *const function_signatures.glDeleteTextures = undefined;
+    var glGenTextures: *const function_signatures.glGenTextures = undefined;
+    var glIsTexture: *const function_signatures.glIsTexture = undefined;
+    var glGetActiveSubroutineUniformName: *const function_signatures.glGetActiveSubroutineUniformName = undefined;
+    var glGetActiveSubroutineUniformiv: *const function_signatures.glGetActiveSubroutineUniformiv = undefined;
+    var glGetSubroutineIndex: *const function_signatures.glGetSubroutineIndex = undefined;
+    var glGetSubroutineUniformLocation: *const function_signatures.glGetSubroutineUniformLocation = undefined;
+    var glGetUniformdv: *const function_signatures.glGetUniformdv = undefined;
+    var glUniformMatrix4x3dv: *const function_signatures.glUniformMatrix4x3dv = undefined;
+    var glUniformMatrix4x2dv: *const function_signatures.glUniformMatrix4x2dv = undefined;
+    var glUniformMatrix3x4dv: *const function_signatures.glUniformMatrix3x4dv = undefined;
+    var glUniformMatrix3x2dv: *const function_signatures.glUniformMatrix3x2dv = undefined;
+    var glUniformMatrix2x4dv: *const function_signatures.glUniformMatrix2x4dv = undefined;
+    var glUniformMatrix2x3dv: *const function_signatures.glUniformMatrix2x3dv = undefined;
+    var glUniformMatrix4dv: *const function_signatures.glUniformMatrix4dv = undefined;
+    var glUniformMatrix3dv: *const function_signatures.glUniformMatrix3dv = undefined;
+    var glDrawRangeElements: *const function_signatures.glDrawRangeElements = undefined;
+    var glTexImage3D: *const function_signatures.glTexImage3D = undefined;
+    var glTexSubImage3D: *const function_signatures.glTexSubImage3D = undefined;
+    var glCopyTexSubImage3D: *const function_signatures.glCopyTexSubImage3D = undefined;
+    var glUniformMatrix2dv: *const function_signatures.glUniformMatrix2dv = undefined;
+    var glUniform4dv: *const function_signatures.glUniform4dv = undefined;
+    var glUniform3dv: *const function_signatures.glUniform3dv = undefined;
+    var glUniform2dv: *const function_signatures.glUniform2dv = undefined;
+    var glUniform1dv: *const function_signatures.glUniform1dv = undefined;
+    var glUniform4d: *const function_signatures.glUniform4d = undefined;
+    var glUniform3d: *const function_signatures.glUniform3d = undefined;
+    var glUniform2d: *const function_signatures.glUniform2d = undefined;
+    var glUniform1d: *const function_signatures.glUniform1d = undefined;
+    var glDrawElementsIndirect: *const function_signatures.glDrawElementsIndirect = undefined;
+    var glDrawArraysIndirect: *const function_signatures.glDrawArraysIndirect = undefined;
+    var glBlendFuncSeparatei: *const function_signatures.glBlendFuncSeparatei = undefined;
+    var glBlendFunci: *const function_signatures.glBlendFunci = undefined;
+    var glBlendEquationSeparatei: *const function_signatures.glBlendEquationSeparatei = undefined;
+    var glBlendEquationi: *const function_signatures.glBlendEquationi = undefined;
+    var glMinSampleShading: *const function_signatures.glMinSampleShading = undefined;
+    var glActiveTexture: *const function_signatures.glActiveTexture = undefined;
+    var glSampleCoverage: *const function_signatures.glSampleCoverage = undefined;
+    var glCompressedTexImage3D: *const function_signatures.glCompressedTexImage3D = undefined;
+    var glCompressedTexImage2D: *const function_signatures.glCompressedTexImage2D = undefined;
+    var glCompressedTexImage1D: *const function_signatures.glCompressedTexImage1D = undefined;
+    var glCompressedTexSubImage3D: *const function_signatures.glCompressedTexSubImage3D = undefined;
+    var glCompressedTexSubImage2D: *const function_signatures.glCompressedTexSubImage2D = undefined;
+    var glCompressedTexSubImage1D: *const function_signatures.glCompressedTexSubImage1D = undefined;
+    var glGetCompressedTexImage: *const function_signatures.glGetCompressedTexImage = undefined;
+    var glVertexAttribP4uiv: *const function_signatures.glVertexAttribP4uiv = undefined;
+    var glVertexAttribP4ui: *const function_signatures.glVertexAttribP4ui = undefined;
+    var glVertexAttribP3uiv: *const function_signatures.glVertexAttribP3uiv = undefined;
+    var glVertexAttribP3ui: *const function_signatures.glVertexAttribP3ui = undefined;
+    var glVertexAttribP2uiv: *const function_signatures.glVertexAttribP2uiv = undefined;
+    var glVertexAttribP2ui: *const function_signatures.glVertexAttribP2ui = undefined;
+    var glVertexAttribP1uiv: *const function_signatures.glVertexAttribP1uiv = undefined;
+    var glVertexAttribP1ui: *const function_signatures.glVertexAttribP1ui = undefined;
+    var glVertexAttribDivisor: *const function_signatures.glVertexAttribDivisor = undefined;
+    var glGetQueryObjectui64v: *const function_signatures.glGetQueryObjectui64v = undefined;
+    var glGetQueryObjecti64v: *const function_signatures.glGetQueryObjecti64v = undefined;
+    var glQueryCounter: *const function_signatures.glQueryCounter = undefined;
+    var glGetSamplerParameterIuiv: *const function_signatures.glGetSamplerParameterIuiv = undefined;
+    var glGetSamplerParameterfv: *const function_signatures.glGetSamplerParameterfv = undefined;
+    var glGetSamplerParameterIiv: *const function_signatures.glGetSamplerParameterIiv = undefined;
+    var glGetSamplerParameteriv: *const function_signatures.glGetSamplerParameteriv = undefined;
+    var glSamplerParameterIuiv: *const function_signatures.glSamplerParameterIuiv = undefined;
+    var glSamplerParameterIiv: *const function_signatures.glSamplerParameterIiv = undefined;
+    var glSamplerParameterfv: *const function_signatures.glSamplerParameterfv = undefined;
+    var glSamplerParameterf: *const function_signatures.glSamplerParameterf = undefined;
+    var glSamplerParameteriv: *const function_signatures.glSamplerParameteriv = undefined;
+    var glSamplerParameteri: *const function_signatures.glSamplerParameteri = undefined;
+    var glBindSampler: *const function_signatures.glBindSampler = undefined;
+    var glIsSampler: *const function_signatures.glIsSampler = undefined;
+    var glDeleteSamplers: *const function_signatures.glDeleteSamplers = undefined;
+    var glGenSamplers: *const function_signatures.glGenSamplers = undefined;
+    var glGetFragDataIndex: *const function_signatures.glGetFragDataIndex = undefined;
+    var glBindFragDataLocationIndexed: *const function_signatures.glBindFragDataLocationIndexed = undefined;
+    var glSampleMaski: *const function_signatures.glSampleMaski = undefined;
+    var glGetMultisamplefv: *const function_signatures.glGetMultisamplefv = undefined;
+    var glTexImage3DMultisample: *const function_signatures.glTexImage3DMultisample = undefined;
+    var glTexImage2DMultisample: *const function_signatures.glTexImage2DMultisample = undefined;
+    var glFramebufferTexture: *const function_signatures.glFramebufferTexture = undefined;
+    var glGetBufferParameteri64v: *const function_signatures.glGetBufferParameteri64v = undefined;
+    var glBlendFuncSeparate: *const function_signatures.glBlendFuncSeparate = undefined;
+    var glMultiDrawArrays: *const function_signatures.glMultiDrawArrays = undefined;
+    var glMultiDrawElements: *const function_signatures.glMultiDrawElements = undefined;
+    var glPointParameterf: *const function_signatures.glPointParameterf = undefined;
+    var glPointParameterfv: *const function_signatures.glPointParameterfv = undefined;
+    var glPointParameteri: *const function_signatures.glPointParameteri = undefined;
+    var glPointParameteriv: *const function_signatures.glPointParameteriv = undefined;
+    var glGetInteger64i_v: *const function_signatures.glGetInteger64i_v = undefined;
+    var glGetSynciv: *const function_signatures.glGetSynciv = undefined;
+    var glGetInteger64v: *const function_signatures.glGetInteger64v = undefined;
+    var glWaitSync: *const function_signatures.glWaitSync = undefined;
+    var glClientWaitSync: *const function_signatures.glClientWaitSync = undefined;
+    var glDeleteSync: *const function_signatures.glDeleteSync = undefined;
+    var glIsSync: *const function_signatures.glIsSync = undefined;
+    var glFenceSync: *const function_signatures.glFenceSync = undefined;
+    var glBlendColor: *const function_signatures.glBlendColor = undefined;
+    var glBlendEquation: *const function_signatures.glBlendEquation = undefined;
+    var glProvokingVertex: *const function_signatures.glProvokingVertex = undefined;
+    var glMultiDrawElementsBaseVertex: *const function_signatures.glMultiDrawElementsBaseVertex = undefined;
+    var glDrawElementsInstancedBaseVertex: *const function_signatures.glDrawElementsInstancedBaseVertex = undefined;
+    var glDrawRangeElementsBaseVertex: *const function_signatures.glDrawRangeElementsBaseVertex = undefined;
+    var glDrawElementsBaseVertex: *const function_signatures.glDrawElementsBaseVertex = undefined;
+    var glGenQueries: *const function_signatures.glGenQueries = undefined;
+    var glDeleteQueries: *const function_signatures.glDeleteQueries = undefined;
+    var glIsQuery: *const function_signatures.glIsQuery = undefined;
+    var glBeginQuery: *const function_signatures.glBeginQuery = undefined;
+    var glEndQuery: *const function_signatures.glEndQuery = undefined;
+    var glGetQueryiv: *const function_signatures.glGetQueryiv = undefined;
+    var glGetQueryObjectiv: *const function_signatures.glGetQueryObjectiv = undefined;
+    var glGetQueryObjectuiv: *const function_signatures.glGetQueryObjectuiv = undefined;
+    var glBindBuffer: *const function_signatures.glBindBuffer = undefined;
+    var glDeleteBuffers: *const function_signatures.glDeleteBuffers = undefined;
+    var glGenBuffers: *const function_signatures.glGenBuffers = undefined;
+    var glIsBuffer: *const function_signatures.glIsBuffer = undefined;
+    var glBufferData: *const function_signatures.glBufferData = undefined;
+    var glBufferSubData: *const function_signatures.glBufferSubData = undefined;
+    var glGetBufferSubData: *const function_signatures.glGetBufferSubData = undefined;
+    var glMapBuffer: *const function_signatures.glMapBuffer = undefined;
+    var glUnmapBuffer: *const function_signatures.glUnmapBuffer = undefined;
+    var glGetBufferParameteriv: *const function_signatures.glGetBufferParameteriv = undefined;
+    var glGetBufferPointerv: *const function_signatures.glGetBufferPointerv = undefined;
+    var glBlendEquationSeparate: *const function_signatures.glBlendEquationSeparate = undefined;
+    var glDrawBuffers: *const function_signatures.glDrawBuffers = undefined;
+    var glStencilOpSeparate: *const function_signatures.glStencilOpSeparate = undefined;
+    var glStencilFuncSeparate: *const function_signatures.glStencilFuncSeparate = undefined;
+    var glStencilMaskSeparate: *const function_signatures.glStencilMaskSeparate = undefined;
+    var glAttachShader: *const function_signatures.glAttachShader = undefined;
+    var glBindAttribLocation: *const function_signatures.glBindAttribLocation = undefined;
+    var glCompileShader: *const function_signatures.glCompileShader = undefined;
+    var glCreateProgram: *const function_signatures.glCreateProgram = undefined;
+    var glCreateShader: *const function_signatures.glCreateShader = undefined;
+    var glDeleteProgram: *const function_signatures.glDeleteProgram = undefined;
+    var glDeleteShader: *const function_signatures.glDeleteShader = undefined;
+    var glDetachShader: *const function_signatures.glDetachShader = undefined;
+    var glDisableVertexAttribArray: *const function_signatures.glDisableVertexAttribArray = undefined;
+    var glEnableVertexAttribArray: *const function_signatures.glEnableVertexAttribArray = undefined;
+    var glGetActiveAttrib: *const function_signatures.glGetActiveAttrib = undefined;
+    var glGetActiveUniform: *const function_signatures.glGetActiveUniform = undefined;
+    var glGetAttachedShaders: *const function_signatures.glGetAttachedShaders = undefined;
+    var glGetAttribLocation: *const function_signatures.glGetAttribLocation = undefined;
+    var glGetProgramiv: *const function_signatures.glGetProgramiv = undefined;
+    var glGetProgramInfoLog: *const function_signatures.glGetProgramInfoLog = undefined;
+    var glGetShaderiv: *const function_signatures.glGetShaderiv = undefined;
+    var glGetShaderInfoLog: *const function_signatures.glGetShaderInfoLog = undefined;
+    var glGetShaderSource: *const function_signatures.glGetShaderSource = undefined;
+    var glGetUniformLocation: *const function_signatures.glGetUniformLocation = undefined;
+    var glGetUniformfv: *const function_signatures.glGetUniformfv = undefined;
+    var glGetUniformiv: *const function_signatures.glGetUniformiv = undefined;
+    var glGetVertexAttribdv: *const function_signatures.glGetVertexAttribdv = undefined;
+    var glGetVertexAttribfv: *const function_signatures.glGetVertexAttribfv = undefined;
+    var glGetVertexAttribiv: *const function_signatures.glGetVertexAttribiv = undefined;
+    var glGetVertexAttribPointerv: *const function_signatures.glGetVertexAttribPointerv = undefined;
+    var glIsProgram: *const function_signatures.glIsProgram = undefined;
+    var glIsShader: *const function_signatures.glIsShader = undefined;
+    var glLinkProgram: *const function_signatures.glLinkProgram = undefined;
+    var glShaderSource: *const function_signatures.glShaderSource = undefined;
+    var glUseProgram: *const function_signatures.glUseProgram = undefined;
+    var glUniform1f: *const function_signatures.glUniform1f = undefined;
+    var glUniform2f: *const function_signatures.glUniform2f = undefined;
+    var glUniform3f: *const function_signatures.glUniform3f = undefined;
+    var glUniform4f: *const function_signatures.glUniform4f = undefined;
+    var glUniform1i: *const function_signatures.glUniform1i = undefined;
+    var glUniform2i: *const function_signatures.glUniform2i = undefined;
+    var glUniform3i: *const function_signatures.glUniform3i = undefined;
+    var glUniform4i: *const function_signatures.glUniform4i = undefined;
+    var glUniform1fv: *const function_signatures.glUniform1fv = undefined;
+    var glUniform2fv: *const function_signatures.glUniform2fv = undefined;
+    var glUniform3fv: *const function_signatures.glUniform3fv = undefined;
+    var glUniform4fv: *const function_signatures.glUniform4fv = undefined;
+    var glUniform1iv: *const function_signatures.glUniform1iv = undefined;
+    var glUniform2iv: *const function_signatures.glUniform2iv = undefined;
+    var glUniform3iv: *const function_signatures.glUniform3iv = undefined;
+    var glUniform4iv: *const function_signatures.glUniform4iv = undefined;
+    var glUniformMatrix2fv: *const function_signatures.glUniformMatrix2fv = undefined;
+    var glUniformMatrix3fv: *const function_signatures.glUniformMatrix3fv = undefined;
+    var glUniformMatrix4fv: *const function_signatures.glUniformMatrix4fv = undefined;
+    var glValidateProgram: *const function_signatures.glValidateProgram = undefined;
+    var glVertexAttrib1d: *const function_signatures.glVertexAttrib1d = undefined;
+    var glVertexAttrib1dv: *const function_signatures.glVertexAttrib1dv = undefined;
+    var glVertexAttrib1f: *const function_signatures.glVertexAttrib1f = undefined;
+    var glVertexAttrib1fv: *const function_signatures.glVertexAttrib1fv = undefined;
+    var glVertexAttrib1s: *const function_signatures.glVertexAttrib1s = undefined;
+    var glVertexAttrib1sv: *const function_signatures.glVertexAttrib1sv = undefined;
+    var glVertexAttrib2d: *const function_signatures.glVertexAttrib2d = undefined;
+    var glVertexAttrib2dv: *const function_signatures.glVertexAttrib2dv = undefined;
+    var glVertexAttrib2f: *const function_signatures.glVertexAttrib2f = undefined;
+    var glVertexAttrib2fv: *const function_signatures.glVertexAttrib2fv = undefined;
+    var glVertexAttrib2s: *const function_signatures.glVertexAttrib2s = undefined;
+    var glVertexAttrib2sv: *const function_signatures.glVertexAttrib2sv = undefined;
+    var glVertexAttrib3d: *const function_signatures.glVertexAttrib3d = undefined;
+    var glVertexAttrib3dv: *const function_signatures.glVertexAttrib3dv = undefined;
+    var glVertexAttrib3f: *const function_signatures.glVertexAttrib3f = undefined;
+    var glVertexAttrib3fv: *const function_signatures.glVertexAttrib3fv = undefined;
+    var glVertexAttrib3s: *const function_signatures.glVertexAttrib3s = undefined;
+    var glVertexAttrib3sv: *const function_signatures.glVertexAttrib3sv = undefined;
+    var glVertexAttrib4Nbv: *const function_signatures.glVertexAttrib4Nbv = undefined;
+    var glVertexAttrib4Niv: *const function_signatures.glVertexAttrib4Niv = undefined;
+    var glVertexAttrib4Nsv: *const function_signatures.glVertexAttrib4Nsv = undefined;
+    var glVertexAttrib4Nub: *const function_signatures.glVertexAttrib4Nub = undefined;
+    var glVertexAttrib4Nubv: *const function_signatures.glVertexAttrib4Nubv = undefined;
+    var glVertexAttrib4Nuiv: *const function_signatures.glVertexAttrib4Nuiv = undefined;
+    var glVertexAttrib4Nusv: *const function_signatures.glVertexAttrib4Nusv = undefined;
+    var glVertexAttrib4bv: *const function_signatures.glVertexAttrib4bv = undefined;
+    var glVertexAttrib4d: *const function_signatures.glVertexAttrib4d = undefined;
+    var glVertexAttrib4dv: *const function_signatures.glVertexAttrib4dv = undefined;
+    var glVertexAttrib4f: *const function_signatures.glVertexAttrib4f = undefined;
+    var glVertexAttrib4fv: *const function_signatures.glVertexAttrib4fv = undefined;
+    var glVertexAttrib4iv: *const function_signatures.glVertexAttrib4iv = undefined;
+    var glVertexAttrib4s: *const function_signatures.glVertexAttrib4s = undefined;
+    var glVertexAttrib4sv: *const function_signatures.glVertexAttrib4sv = undefined;
+    var glVertexAttrib4ubv: *const function_signatures.glVertexAttrib4ubv = undefined;
+    var glVertexAttrib4uiv: *const function_signatures.glVertexAttrib4uiv = undefined;
+    var glVertexAttrib4usv: *const function_signatures.glVertexAttrib4usv = undefined;
+    var glVertexAttribPointer: *const function_signatures.glVertexAttribPointer = undefined;
+    var glUniformMatrix2x3fv: *const function_signatures.glUniformMatrix2x3fv = undefined;
+    var glUniformMatrix3x2fv: *const function_signatures.glUniformMatrix3x2fv = undefined;
+    var glUniformMatrix2x4fv: *const function_signatures.glUniformMatrix2x4fv = undefined;
+    var glUniformMatrix4x2fv: *const function_signatures.glUniformMatrix4x2fv = undefined;
+    var glUniformMatrix3x4fv: *const function_signatures.glUniformMatrix3x4fv = undefined;
+    var glUniformMatrix4x3fv: *const function_signatures.glUniformMatrix4x3fv = undefined;
+    var glColorMaski: *const function_signatures.glColorMaski = undefined;
+    var glGetBooleani_v: *const function_signatures.glGetBooleani_v = undefined;
+    var glGetIntegeri_v: *const function_signatures.glGetIntegeri_v = undefined;
+    var glEnablei: *const function_signatures.glEnablei = undefined;
+    var glDisablei: *const function_signatures.glDisablei = undefined;
+    var glIsEnabledi: *const function_signatures.glIsEnabledi = undefined;
+    var glBeginTransformFeedback: *const function_signatures.glBeginTransformFeedback = undefined;
+    var glEndTransformFeedback: *const function_signatures.glEndTransformFeedback = undefined;
+    var glBindBufferRange: *const function_signatures.glBindBufferRange = undefined;
+    var glBindBufferBase: *const function_signatures.glBindBufferBase = undefined;
+    var glTransformFeedbackVaryings: *const function_signatures.glTransformFeedbackVaryings = undefined;
+    var glGetTransformFeedbackVarying: *const function_signatures.glGetTransformFeedbackVarying = undefined;
+    var glClampColor: *const function_signatures.glClampColor = undefined;
+    var glBeginConditionalRender: *const function_signatures.glBeginConditionalRender = undefined;
+    var glEndConditionalRender: *const function_signatures.glEndConditionalRender = undefined;
+    var glVertexAttribIPointer: *const function_signatures.glVertexAttribIPointer = undefined;
+    var glGetVertexAttribIiv: *const function_signatures.glGetVertexAttribIiv = undefined;
+    var glGetVertexAttribIuiv: *const function_signatures.glGetVertexAttribIuiv = undefined;
+    var glVertexAttribI1i: *const function_signatures.glVertexAttribI1i = undefined;
+    var glVertexAttribI2i: *const function_signatures.glVertexAttribI2i = undefined;
+    var glVertexAttribI3i: *const function_signatures.glVertexAttribI3i = undefined;
+    var glVertexAttribI4i: *const function_signatures.glVertexAttribI4i = undefined;
+    var glVertexAttribI1ui: *const function_signatures.glVertexAttribI1ui = undefined;
+    var glVertexAttribI2ui: *const function_signatures.glVertexAttribI2ui = undefined;
+    var glVertexAttribI3ui: *const function_signatures.glVertexAttribI3ui = undefined;
+    var glVertexAttribI4ui: *const function_signatures.glVertexAttribI4ui = undefined;
+    var glVertexAttribI1iv: *const function_signatures.glVertexAttribI1iv = undefined;
+    var glVertexAttribI2iv: *const function_signatures.glVertexAttribI2iv = undefined;
+    var glVertexAttribI3iv: *const function_signatures.glVertexAttribI3iv = undefined;
+    var glVertexAttribI4iv: *const function_signatures.glVertexAttribI4iv = undefined;
+    var glVertexAttribI1uiv: *const function_signatures.glVertexAttribI1uiv = undefined;
+    var glVertexAttribI2uiv: *const function_signatures.glVertexAttribI2uiv = undefined;
+    var glVertexAttribI3uiv: *const function_signatures.glVertexAttribI3uiv = undefined;
+    var glVertexAttribI4uiv: *const function_signatures.glVertexAttribI4uiv = undefined;
+    var glVertexAttribI4bv: *const function_signatures.glVertexAttribI4bv = undefined;
+    var glVertexAttribI4sv: *const function_signatures.glVertexAttribI4sv = undefined;
+    var glVertexAttribI4ubv: *const function_signatures.glVertexAttribI4ubv = undefined;
+    var glVertexAttribI4usv: *const function_signatures.glVertexAttribI4usv = undefined;
+    var glGetUniformuiv: *const function_signatures.glGetUniformuiv = undefined;
+    var glBindFragDataLocation: *const function_signatures.glBindFragDataLocation = undefined;
+    var glGetFragDataLocation: *const function_signatures.glGetFragDataLocation = undefined;
+    var glUniform1ui: *const function_signatures.glUniform1ui = undefined;
+    var glUniform2ui: *const function_signatures.glUniform2ui = undefined;
+    var glUniform3ui: *const function_signatures.glUniform3ui = undefined;
+    var glUniform4ui: *const function_signatures.glUniform4ui = undefined;
+    var glUniform1uiv: *const function_signatures.glUniform1uiv = undefined;
+    var glUniform2uiv: *const function_signatures.glUniform2uiv = undefined;
+    var glUniform3uiv: *const function_signatures.glUniform3uiv = undefined;
+    var glUniform4uiv: *const function_signatures.glUniform4uiv = undefined;
+    var glTexParameterIiv: *const function_signatures.glTexParameterIiv = undefined;
+    var glTexParameterIuiv: *const function_signatures.glTexParameterIuiv = undefined;
+    var glGetTexParameterIiv: *const function_signatures.glGetTexParameterIiv = undefined;
+    var glGetTexParameterIuiv: *const function_signatures.glGetTexParameterIuiv = undefined;
+    var glClearBufferiv: *const function_signatures.glClearBufferiv = undefined;
+    var glClearBufferuiv: *const function_signatures.glClearBufferuiv = undefined;
+    var glClearBufferfv: *const function_signatures.glClearBufferfv = undefined;
+    var glClearBufferfi: *const function_signatures.glClearBufferfi = undefined;
+    var glGetStringi: *const function_signatures.glGetStringi = undefined;
+    var glIsRenderbuffer: *const function_signatures.glIsRenderbuffer = undefined;
+    var glBindRenderbuffer: *const function_signatures.glBindRenderbuffer = undefined;
+    var glDeleteRenderbuffers: *const function_signatures.glDeleteRenderbuffers = undefined;
+    var glGenRenderbuffers: *const function_signatures.glGenRenderbuffers = undefined;
+    var glRenderbufferStorage: *const function_signatures.glRenderbufferStorage = undefined;
+    var glGetRenderbufferParameteriv: *const function_signatures.glGetRenderbufferParameteriv = undefined;
+    var glIsFramebuffer: *const function_signatures.glIsFramebuffer = undefined;
+    var glBindFramebuffer: *const function_signatures.glBindFramebuffer = undefined;
+    var glDeleteFramebuffers: *const function_signatures.glDeleteFramebuffers = undefined;
+    var glGenFramebuffers: *const function_signatures.glGenFramebuffers = undefined;
+    var glCheckFramebufferStatus: *const function_signatures.glCheckFramebufferStatus = undefined;
+    var glFramebufferTexture1D: *const function_signatures.glFramebufferTexture1D = undefined;
+    var glFramebufferTexture2D: *const function_signatures.glFramebufferTexture2D = undefined;
+    var glFramebufferTexture3D: *const function_signatures.glFramebufferTexture3D = undefined;
+    var glFramebufferRenderbuffer: *const function_signatures.glFramebufferRenderbuffer = undefined;
+    var glGetFramebufferAttachmentParameteriv: *const function_signatures.glGetFramebufferAttachmentParameteriv = undefined;
+    var glGenerateMipmap: *const function_signatures.glGenerateMipmap = undefined;
+    var glBlitFramebuffer: *const function_signatures.glBlitFramebuffer = undefined;
+    var glRenderbufferStorageMultisample: *const function_signatures.glRenderbufferStorageMultisample = undefined;
+    var glFramebufferTextureLayer: *const function_signatures.glFramebufferTextureLayer = undefined;
+    var glMapBufferRange: *const function_signatures.glMapBufferRange = undefined;
+    var glFlushMappedBufferRange: *const function_signatures.glFlushMappedBufferRange = undefined;
+    var glBindVertexArray: *const function_signatures.glBindVertexArray = undefined;
+    var glDeleteVertexArrays: *const function_signatures.glDeleteVertexArrays = undefined;
+    var glGenVertexArrays: *const function_signatures.glGenVertexArrays = undefined;
+    var glIsVertexArray: *const function_signatures.glIsVertexArray = undefined;
+    var glDrawArraysInstanced: *const function_signatures.glDrawArraysInstanced = undefined;
+    var glDrawElementsInstanced: *const function_signatures.glDrawElementsInstanced = undefined;
+    var glTexBuffer: *const function_signatures.glTexBuffer = undefined;
+    var glPrimitiveRestartIndex: *const function_signatures.glPrimitiveRestartIndex = undefined;
+    var glCopyBufferSubData: *const function_signatures.glCopyBufferSubData = undefined;
+    var glGetUniformIndices: *const function_signatures.glGetUniformIndices = undefined;
+    var glGetActiveUniformsiv: *const function_signatures.glGetActiveUniformsiv = undefined;
+    var glGetActiveUniformName: *const function_signatures.glGetActiveUniformName = undefined;
+    var glGetUniformBlockIndex: *const function_signatures.glGetUniformBlockIndex = undefined;
+    var glGetActiveUniformBlockiv: *const function_signatures.glGetActiveUniformBlockiv = undefined;
+    var glGetActiveUniformBlockName: *const function_signatures.glGetActiveUniformBlockName = undefined;
+    var glUniformBlockBinding: *const function_signatures.glUniformBlockBinding = undefined;
+    var glTexStorage3DMultisample: *const function_signatures.glTexStorage3DMultisample = undefined;
+    var glTextureView: *const function_signatures.glTextureView = undefined;
+    var glBindVertexBuffer: *const function_signatures.glBindVertexBuffer = undefined;
+    var glVertexAttribFormat: *const function_signatures.glVertexAttribFormat = undefined;
+    var glVertexAttribIFormat: *const function_signatures.glVertexAttribIFormat = undefined;
+    var glVertexAttribLFormat: *const function_signatures.glVertexAttribLFormat = undefined;
+    var glVertexAttribBinding: *const function_signatures.glVertexAttribBinding = undefined;
+    var glVertexBindingDivisor: *const function_signatures.glVertexBindingDivisor = undefined;
+    var glDebugMessageControl: *const function_signatures.glDebugMessageControl = undefined;
+    var glDebugMessageInsert: *const function_signatures.glDebugMessageInsert = undefined;
+    var glDebugMessageCallback: *const function_signatures.glDebugMessageCallback = undefined;
+    var glGetDebugMessageLog: *const function_signatures.glGetDebugMessageLog = undefined;
+    var glPushDebugGroup: *const function_signatures.glPushDebugGroup = undefined;
+    var glPopDebugGroup: *const function_signatures.glPopDebugGroup = undefined;
+    var glObjectLabel: *const function_signatures.glObjectLabel = undefined;
+    var glGetObjectLabel: *const function_signatures.glGetObjectLabel = undefined;
+    var glObjectPtrLabel: *const function_signatures.glObjectPtrLabel = undefined;
+    var glGetObjectPtrLabel: *const function_signatures.glGetObjectPtrLabel = undefined;
+    var glGetPointerv: *const function_signatures.glGetPointerv = undefined;
 };
 
 test {
