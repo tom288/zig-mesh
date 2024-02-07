@@ -7,9 +7,21 @@ pub fn Pool(comptime Data: type) type {
         workers: []Worker,
 
         const Worker = struct {
+            // Whether the worker is busy or is able to recieve new work
+            // This is managed by the main thread in work() and finish()
             busy: bool,
+            // Whether the worker has finished work and is waiting for a sync
+            // This is set to false by main thread and true by worker thread
             wait: std.atomic.Value(bool),
             data: Data,
+
+            pub fn finish(worker: *Worker) bool {
+                if (!worker.wait.load(.Unordered)) return false;
+                // Reset worker state
+                worker.wait.store(false, .Unordered);
+                worker.busy = false;
+                return true;
+            }
         };
 
         pub fn init(alloc: std.mem.Allocator) !@This() {

@@ -22,7 +22,6 @@ pub const World = struct {
     // This is quite a lot but the chunks themselves will surely use lots more
     // Storing chunks simplifies creation, reduces allocations and indirection
     // Therefore it makes sense to have a large []chunk rather than a []*chunk
-    // We are likely to use 70% or so of the chunks anyway, so are wasting 30%
     chunks: []Chunk,
     cam_pos: zm.Vec,
     splits: zm.Vec,
@@ -458,11 +457,8 @@ pub const World = struct {
         const min = if (Chunk.SURFACE.NEG_ADJ) 0 else 1;
         // Iterate over pool workers
         for (world.pool.workers) |*worker| {
-            // Look for workers who are finished and waiting for a sync
-            if (!worker.wait.load(.Unordered)) continue;
-            // Reset worker state
-            worker.wait.store(false, .Unordered);
-            worker.busy = false;
+            // Find workers who are finished and waiting for a sync
+            if (!worker.finish()) continue;
             var chunk = worker.data.chunk;
             // If the task was to generate vertices
             if (worker.data.task == .vertices) {
@@ -554,9 +550,9 @@ pub const World = struct {
     };
 
     fn workerThread(data: WorkerData) void {
-        switch (data.task) {
-            .density => data.chunk.genDensity(data.offset) catch unreachable,
-            .vertices => data.chunk.genVerts(data.world.*, data.offset) catch unreachable,
-        }
+        (switch (data.task) {
+            .density => data.chunk.genDensity(data.offset),
+            .vertices => data.chunk.genVerts(data.world.*, data.offset),
+        }) catch unreachable;
     }
 };
