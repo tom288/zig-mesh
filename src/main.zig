@@ -14,7 +14,8 @@ pub fn main() !void {
     defer if (gpa.deinit() == .leak) unreachable;
     const chunk_alloc = gpa.allocator();
 
-    var window = try Window.init(alloc);
+    var camera = Camera.init();
+    var window = try Window.init(alloc, &camera);
     defer window.kill();
 
     var shader = try Shader.init(
@@ -23,11 +24,22 @@ pub fn main() !void {
         "perspective",
     );
     defer shader.kill();
-    var camera = Camera.init(window.resolution);
+
+    var density_shader = try Shader.init_comp("density");
+    defer density_shader.kill();
+    density_shader.bind_block("density_block", 0);
+
+    var surface_shader = try Shader.init_comp("surface");
+    defer surface_shader.kill();
+    surface_shader.bind_block("density_block", 0);
+    surface_shader.bind_block("surface_block", 1);
+
     var world = try World.init(
         alloc,
         chunk_alloc,
         shader,
+        density_shader,
+        surface_shader,
         camera.position,
     );
     defer world.kill() catch {};
@@ -42,7 +54,7 @@ pub fn main() !void {
         try world.gen(camera.position);
 
         shader.use();
-        try world.draw(shader, camera.position, camera.world_to_clip);
+        try world.draw(camera.position, camera.world_to_clip);
 
         window.swap();
     }

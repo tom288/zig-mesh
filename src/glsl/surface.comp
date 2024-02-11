@@ -1,0 +1,22 @@
+#version 430 core
+
+layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+readonly buffer density_block
+{
+    vec4 density[];
+};
+
+writeonly buffer surface_block
+{
+    vec4 surface[];
+};
+
+void main()
+{
+    const uint id = uint(dot(
+        gl_GlobalInvocationID,
+        vec3(1, gl_NumWorkGroups.x, gl_NumWorkGroups.y * gl_NumWorkGroups.x)
+    ));
+    surface[id] = density[id];
+}

@@ -15,7 +15,9 @@ pub const World = struct {
 
     alloc: std.mem.Allocator,
     chunk_alloc: std.mem.Allocator,
-    shader: ?Shader,
+    shader: Shader,
+    density_shader: Shader,
+    surface_shader: Shader,
 
     // Chunks are just 128 bytes ignoring memory allocated for density & verts
     // With a render distance of 128 chunks we would use 268 MB RAM, 32 = 4 MB
@@ -32,13 +34,17 @@ pub const World = struct {
     pub fn init(
         alloc: std.mem.Allocator,
         chunk_alloc: std.mem.Allocator,
-        shader: ?Shader,
+        shader: Shader,
+        density_shader: Shader,
+        surface_shader: Shader,
         cam_pos: ?zm.Vec,
     ) !World {
         var world = World{
             .alloc = alloc,
             .chunk_alloc = chunk_alloc,
             .shader = shader,
+            .density_shader = density_shader,
+            .surface_shader = surface_shader,
             .chunks = try alloc.alloc(Chunk, CHUNKS * CHUNKS * CHUNKS),
             .cam_pos = cam_pos orelse zm.f32x4s(0),
             .splits = undefined,
@@ -78,6 +84,27 @@ pub const World = struct {
 
         try world.gen(null);
 
+        // Create an array and buffer of equal size
+        var data_array: [4]zm.Vec = undefined;
+        var data_buffer: gl.GLuint = undefined;
+        gl.genBuffers(1, &data_buffer);
+        defer gl.deleteBuffers(1, &data_buffer);
+        gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, data_buffer);
+        gl.bufferData(gl.SHADER_STORAGE_BUFFER, @sizeOf(@TypeOf(data_array)), null, gl.STATIC_DRAW);
+        gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, 0);
+        gl.bindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, data_buffer); // 0 is the index chosen in main
+
+        // Dispatch the compute shader to populate the buffer
+        density_shader.use();
+        gl.dispatchCompute(data_array.len, 1, 1);
+        gl.memoryBarrier(gl.BUFFER_UPDATE_BARRIER_BIT);
+
+        // Read the results into the array
+        gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, data_buffer);
+        gl.getBufferSubData(gl.SHADER_STORAGE_BUFFER, 0, @sizeOf(@TypeOf(data_array)), &data_array);
+        std.debug.print("{d}\n", .{data_array});
+        gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, 0);
+
         return world;
     }
 
@@ -97,7 +124,7 @@ pub const World = struct {
         world.chunks = &.{};
     }
 
-    pub fn draw(world: World, shader: Shader, pos: zm.Vec, world_to_clip: zm.Mat) !void {
+    pub fn draw(world: World, pos: zm.Vec, world_to_clip: zm.Mat) !void {
         const cull = true;
         const count = false;
         const bench = false;
@@ -115,7 +142,7 @@ pub const World = struct {
             // Draw the chunk we are inside of no matter what
             // Chunk.SIZE is assumed to be sufficient - half of it is not...
             if (zm.all(@abs(pos - offset) < zm.f32x4s(Chunk.SIZE), 3) and !bench) {
-                shader.set("model_to_clip", f32, &zm.matToArr(model_to_clip));
+                world.shader.set("model_to_clip", f32, &zm.matToArr(model_to_clip));
                 chunk.mesh.draw(gl.TRIANGLES);
                 draws += 1;
                 continue;
@@ -139,7 +166,7 @@ pub const World = struct {
                     if (corner[2] < 0) continue :corners;
                 }
                 if (!bench) {
-                    shader.set("model_to_clip", f32, zm.matToArr(model_to_clip));
+                    world.shader.set("model_to_clip", f32, zm.matToArr(model_to_clip));
                     chunk.mesh.draw(gl.TRIANGLES);
                 }
                 draws += 1;

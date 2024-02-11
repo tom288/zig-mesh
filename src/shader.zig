@@ -18,6 +18,13 @@ pub const Shader = struct {
         );
     }
 
+    pub fn init_comp(comptime compute: []const u8) !Shader {
+        return _init(
+            &[_]?[]const u8{compute},
+            &[_]gl.GLenum{gl.COMPUTE_SHADER},
+        );
+    }
+
     fn _init(comptime srcs: []const ?[]const u8, comptime stages: []const gl.GLenum) !Shader {
         comptime std.debug.assert(srcs.len == stages.len);
         var ids: [srcs.len]?gl.GLuint = undefined;
@@ -42,7 +49,13 @@ pub const Shader = struct {
         for (ids) |id| if (id) |i| gl.deleteShader(i);
 
         if (shader.id) |id| {
-            if (compileError(id, true, srcs[srcs.len - 1])) {
+            var path: ?[]const u8 = null;
+            inline for (srcs, stages) |src, stage| {
+                if (src == null) continue;
+                const tmp = make_path(src, stage);
+                if (tmp != null) path = tmp;
+            }
+            if (compileError(id, true, path)) {
                 shader.kill();
             }
         }
@@ -58,9 +71,7 @@ pub const Shader = struct {
     }
 
     pub fn use(shader: Shader) void {
-        if (shader.id) |id| {
-            gl.useProgram(id);
-        }
+        if (shader.id) |id| gl.useProgram(id);
     }
 
     pub fn set(shader: Shader, name: [:0]const u8, comptime T: type, value: anytype) void {
@@ -154,6 +165,13 @@ pub const Shader = struct {
             },
         }
     }
+
+    pub fn bind_block(shader: Shader, name: [:0]const u8, binding: gl.GLuint) void {
+        if (shader.id) |id| {
+            const index = gl.getProgramResourceIndex(id, gl.SHADER_STORAGE_BLOCK, name);
+            gl.shaderStorageBlockBinding(id, index, binding);
+        }
+    }
 };
 
 fn compile(comptime name: ?[]const u8, comptime stage: gl.GLenum) ?gl.GLuint {
@@ -163,14 +181,9 @@ fn compile(comptime name: ?[]const u8, comptime stage: gl.GLenum) ?gl.GLuint {
         name.?,
         &std.ascii.whitespace,
     ).len > 0);
-    const path = "glsl/" ++ name.? ++ switch (stage) {
-        gl.VERTEX_SHADER => ".vert",
-        gl.GEOMETRY_SHADER => ".geom",
-        gl.FRAGMENT_SHADER => ".frag",
-        else => {
-            std.log.err("Invalid shader stage {}", .{stage});
-            return 0;
-        },
+    const path = comptime make_path(name, stage) orelse {
+        std.log.err("Invalid shader stage {}", .{stage});
+        return 0;
     };
     const buffer: [*c]const [*c]const u8 = &&@embedFile(path)[0];
     const id = gl.createShader(stage);
@@ -195,10 +208,20 @@ fn compileError(id: gl.GLuint, comptime is_program: bool, path: ?[]const u8) boo
         var len: gl.GLsizei = undefined;
         (if (is_program) gl.getProgramInfoLog else gl.getShaderInfoLog)(id, max_length, &len, &log);
         std.log.err("Failed to {s} {s}\n{s}", .{
-            if (is_program) "link shader program with vertex shader file" else "compile shader file",
+            if (is_program) "link shader program with shader file" else "compile shader file",
             path orelse "NO_PATH_GIVEN",
             log[0..@intCast(len)],
         });
     }
     return ok == gl.FALSE;
+}
+
+fn make_path(comptime name: ?[]const u8, comptime stage: gl.GLenum) ?[]const u8 {
+    return "glsl/" ++ name.? ++ switch (stage) {
+        gl.VERTEX_SHADER => ".vert",
+        gl.GEOMETRY_SHADER => ".geom",
+        gl.FRAGMENT_SHADER => ".frag",
+        gl.COMPUTE_SHADER => ".comp",
+        else => return null,
+    };
 }

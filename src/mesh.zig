@@ -240,47 +240,47 @@ pub fn Mesh(comptime attrs: anytype) type {
                 f,
             );
         }
+    };
+}
 
-        fn glOk() !void {
-            while (true) {
-                const error_code = gl.getError();
-                if (error_code == gl.NO_ERROR) break;
-                const error_str = switch (error_code) {
-                    gl.INVALID_ENUM => "INVALID_ENUM",
-                    gl.INVALID_VALUE => "INVALID_VALUE",
-                    gl.INVALID_OPERATION => "INVALID_OPERATION",
-                    gl.OUT_OF_MEMORY => "OUT_OF_MEMORY",
-                    gl.INVALID_FRAMEBUFFER_OPERATION => "INVALID_FRAMEBUFFER_OPERATION",
-                    else => {
-                        std.log.err("OpenGL error code {} missing from glOk\n", .{error_code});
-                        return error.OpenglOk;
-                    },
-                };
-                std.log.err("OpenGL error {s}\n", .{error_str});
-                return error.OpenGlError;
-            }
-        }
+pub fn glOk() !void {
+    while (true) {
+        const error_code = gl.getError();
+        if (error_code == gl.NO_ERROR) break;
+        const error_str = switch (error_code) {
+            gl.INVALID_ENUM => "INVALID_ENUM",
+            gl.INVALID_VALUE => "INVALID_VALUE",
+            gl.INVALID_OPERATION => "INVALID_OPERATION",
+            gl.OUT_OF_MEMORY => "OUT_OF_MEMORY",
+            gl.INVALID_FRAMEBUFFER_OPERATION => "INVALID_FRAMEBUFFER_OPERATION",
+            else => {
+                std.log.err("OpenGL error code {} missing from glOk\n", .{error_code});
+                return error.OpenglOk;
+            },
+        };
+        std.log.err("OpenGL error {s}\n", .{error_str});
+        return error.OpenGlError;
+    }
+}
 
-        fn glSizeOf(T: gl.GLenum) !usize {
-            return switch (T) {
-                gl.BYTE, gl.UNSIGNED_BYTE => @sizeOf(gl.GLbyte),
-                gl.SHORT, gl.UNSIGNED_SHORT => @sizeOf(gl.GLshort),
-                gl.INT_2_10_10_10_REV, gl.INT, gl.UNSIGNED_INT_2_10_10_10_REV, gl.UNSIGNED_INT => @sizeOf(gl.GLint),
-                gl.FLOAT => @sizeOf(gl.GLfloat),
-                gl.DOUBLE => @sizeOf(gl.GLdouble),
-                gl.FIXED => @sizeOf(gl.GLfixed),
-                gl.HALF_FLOAT => @sizeOf(gl.GLhalf),
-                else => error.UnknownOpenGlEnum,
-            };
-        }
+fn glSizeOf(T: gl.GLenum) !usize {
+    return switch (T) {
+        gl.BYTE, gl.UNSIGNED_BYTE => @sizeOf(gl.GLbyte),
+        gl.SHORT, gl.UNSIGNED_SHORT => @sizeOf(gl.GLshort),
+        gl.INT_2_10_10_10_REV, gl.INT, gl.UNSIGNED_INT_2_10_10_10_REV, gl.UNSIGNED_INT => @sizeOf(gl.GLint),
+        gl.FLOAT => @sizeOf(gl.GLfloat),
+        gl.DOUBLE => @sizeOf(gl.GLdouble),
+        gl.FIXED => @sizeOf(gl.GLfixed),
+        gl.HALF_FLOAT => @sizeOf(gl.GLhalf),
+        else => error.UnknownOpenGlEnum,
+    };
+}
 
-        fn glIndexTypeEnum(comptime T: type) !gl.GLenum {
-            return switch (T) {
-                gl.GLubyte => gl.UNSIGNED_BYTE,
-                gl.GLushort => gl.UNSIGNED_SHORT,
-                gl.GLuint => gl.UNSIGNED_INT,
-                else => error.InvalidOpenGlIndexType,
-            };
-        }
+fn glIndexTypeEnum(comptime T: type) !gl.GLenum {
+    return switch (T) {
+        gl.GLubyte => gl.UNSIGNED_BYTE,
+        gl.GLushort => gl.UNSIGNED_SHORT,
+        gl.GLuint => gl.UNSIGNED_INT,
+        else => error.InvalidOpenGlIndexType,
     };
 }

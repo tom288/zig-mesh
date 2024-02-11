@@ -23,14 +23,14 @@ pub const Camera = struct {
     proj: zm.Mat,
     world_to_clip: zm.Mat,
 
-    pub fn init(resolution: zm.Vec) Camera {
+    pub fn init() Camera {
         var cam = Camera{
             .position = @splat(0),
             .velocity = @splat(0),
 
             .yaw = -90,
             .pitch = 0,
-            .aspect = resolution[0] / resolution[1],
+            .aspect = 1,
             .fov = undefined,
 
             .look = undefined,
@@ -85,6 +85,11 @@ pub const Camera = struct {
         if (input[1] == 0) return;
         cam.position += cam.look * zm.f32x4s(input[1] * SPEED * SCROLL);
         cam.calcView();
+    }
+
+    pub fn calcAspect(cam: *Camera, resolution: zm.Vec) void {
+        cam.aspect = resolution[0] / resolution[1];
+        cam.calcProj();
     }
 
     fn setAngle(cam: *Camera, yaw: f32, pitch: f32) void {

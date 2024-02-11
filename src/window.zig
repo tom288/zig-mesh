@@ -4,6 +4,7 @@ const std = @import("std");
 const glfw = @import("glfw");
 const gl = @import("gl");
 const zm = @import("zmath");
+const Camera = @import("camera.zig").Camera;
 
 pub const Window = struct {
     var windows: usize = 0;
@@ -20,6 +21,7 @@ pub const Window = struct {
     binds: std.AutoHashMap(glfw.Key, Action),
     actionState: [@typeInfo(Action).Enum.fields.len]bool,
     input: zm.Vec,
+    camera: *Camera,
 
     const Action = enum {
         left,
@@ -32,7 +34,7 @@ pub const Window = struct {
         attack2,
     };
 
-    pub fn init(alloc: std.mem.Allocator) !Window {
+    pub fn init(alloc: std.mem.Allocator, camera: *Camera) !Window {
         // Ensure GLFW errors are logged
         glfw.setErrorCallback(errorCallback);
 
@@ -60,7 +62,7 @@ pub const Window = struct {
             return error.MonitorUnobtainable;
         };
 
-        const resolution = try calcResolution(windowed);
+        const resolution = try calcResolution(windowed, camera);
 
         // Create our window
         const window = glfw.Window.create(
@@ -151,6 +153,7 @@ pub const Window = struct {
             .binds = binds,
             .actionState = undefined,
             .input = @splat(0),
+            .camera = camera,
         };
     }
 
@@ -216,7 +219,7 @@ pub const Window = struct {
 
     fn toggleWindowed(win: *Window) !void {
         const windowed = win.window.getMonitor() == null;
-        const resolution = try calcResolution(!windowed);
+        const resolution = try calcResolution(!windowed, win.camera);
 
         const monitor = if (windowed) (glfw.Monitor.getPrimary() orelse {
             std.log.err("Failed to get primary monitor: {?s}", .{glfw.getErrorString()});
@@ -241,7 +244,7 @@ pub const Window = struct {
         win.new_viewport = size;
     }
 
-    fn calcResolution(windowed: bool) !zm.Vec {
+    fn calcResolution(windowed: bool, camera: *Camera) !zm.Vec {
         // Obtain primary monitor
         const monitor = glfw.Monitor.getPrimary() orelse {
             std.log.err("Failed to get primary monitor: {?s}", .{glfw.getErrorString()});
@@ -262,8 +265,9 @@ pub const Window = struct {
             @floatFromInt(mode.getHeight()),
             @floatFromInt(mode.getWidth()),
             @floatFromInt(mode.getHeight()),
-        );
-        return size * zm.f32x4(scale, scale, scale_gap, scale_gap);
+        ) * zm.f32x4(scale, scale, scale_gap, scale_gap);
+        camera.calcAspect(size);
+        return size;
     }
 
     fn glGetProcAddress(p: glfw.GLProc, proc: [:0]const u8) ?gl.FunctionPointer {
