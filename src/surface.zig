@@ -1,4 +1,4 @@
-//! A Surface describes the transformation of Chunk densities into vertices
+//! A Surface describes the transformation of Chunk densities into surface verts
 
 const std = @import("std");
 const zm = @import("zmath");
@@ -46,7 +46,7 @@ pub const Voxel = struct {
                     vert[(f / 2 + 1) % 3] += if (x) mip_scale * 0.5 else mip_scale * -0.5;
                     vert[(f / 2 + 2) % 3] += if (y) mip_scale * 0.5 else mip_scale * -0.5;
                     // Vertex positions
-                    try chunk.verts.appendSlice(&zm.vecToArr3(vert));
+                    try chunk.surface.appendSlice(&zm.vecToArr3(vert));
                     // Vertex colours
                     var colour = sampleColour(vert + offset, gen);
                     // Accumulate occlusion
@@ -59,7 +59,7 @@ pub const Voxel = struct {
                     ]) occ += 1;
                     // Darken occluded vertices
                     colour /= @splat(std.math.pow(f32, 1.1, occ));
-                    try chunk.verts.appendSlice(&zm.vecToArr3(colour));
+                    try chunk.surface.appendSlice(&zm.vecToArr3(colour));
                 }
             }
         }
@@ -221,14 +221,14 @@ pub const MarchingCubes = struct {
                     avg /= @splat(tri_verts.len);
                     const colour = sampleColour(avg + offset, gen);
                     for (tri_verts) |t| {
-                        try chunk.verts.appendSlice(&zm.vecToArr3(t));
-                        try chunk.verts.appendSlice(&zm.vecToArr3(colour));
+                        try chunk.surface.appendSlice(&zm.vecToArr3(t));
+                        try chunk.surface.appendSlice(&zm.vecToArr3(colour));
                     }
                 }
             } else {
-                try chunk.verts.appendSlice(&zm.vecToArr3(vert));
+                try chunk.surface.appendSlice(&zm.vecToArr3(vert));
                 const colour = sampleColour(vert + offset, gen);
-                try chunk.verts.appendSlice(&zm.vecToArr3(colour));
+                try chunk.surface.appendSlice(&zm.vecToArr3(colour));
             }
         }
     }

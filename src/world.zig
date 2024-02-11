@@ -1,5 +1,5 @@
 //! The World manages the visible environment and by subdividing it into Chunks.
-//! These Chunk densities and vertices are generated on separate Pool threads.
+//! These Chunk densities and surfaces are generated on separate Pool threads.
 
 const std = @import("std");
 const gl = @import("gl");
@@ -18,12 +18,6 @@ pub const World = struct {
     shader: Shader,
     density_shader: Shader,
     surface_shader: Shader,
-
-    // Chunks are just 128 bytes ignoring memory allocated for density & verts
-    // With a render distance of 128 chunks we would use 268 MB RAM, 32 = 4 MB
-    // This is quite a lot but the chunks themselves will surely use lots more
-    // Storing chunks simplifies creation, reduces allocations and indirection
-    // Therefore it makes sense to have a large []chunk rather than a []*chunk
     chunks: []Chunk,
     cam_pos: zm.Vec,
     splits: zm.Vec,
@@ -70,11 +64,11 @@ pub const World = struct {
         for (world.chunks) |*chunk| {
             chunk.* = .{
                 .density = &.{},
-                .verts = undefined,
+                .surface = undefined,
                 .mesh = try @TypeOf(chunk.mesh).init(shader),
                 .must_free = false,
                 .density_mip = null,
-                .vertices_mip = null,
+                .surface_mip = null,
                 .wip_mip = null,
                 .density_refs = 0,
                 .splits_copy = null,
@@ -133,7 +127,7 @@ pub const World = struct {
         var attempts: usize = 0;
         var draws: usize = 0;
         for (0.., world.chunks) |i, chunk| {
-            if (chunk.vertices_mip == null) continue; // The chunk has no verts
+            if (chunk.surface_mip == null) continue; // The chunk has no surface
             attempts += 1;
             const offset = world.offsetFromIndex(i, null);
             const model = zm.translationV(offset);
@@ -338,23 +332,23 @@ pub const World = struct {
         return true;
     }
 
-    pub fn genChunkVerts(
+    pub fn genChunkSurface(
         world: *World,
         chunk: *Chunk,
         chunk_index: usize,
         thread: bool,
         comptime min: comptime_int,
     ) !bool {
-        chunk.verts = std.ArrayList(f32).init(world.chunk_alloc);
-        const old_mip = chunk.vertices_mip;
-        chunk.vertices_mip = null;
+        chunk.surface = std.ArrayList(f32).init(world.chunk_alloc);
+        const old_mip = chunk.surface_mip;
+        chunk.surface_mip = null;
         chunk.wip_mip = chunk.density_mip;
         chunk.splits_copy = world.splits;
         if (thread) {
             if (!try world.pool.work(
                 workerThread,
                 .{
-                    .task = .vertices,
+                    .task = .surface,
                     .world = world,
                     .chunk = chunk,
                     .offset = world.offsetFromIndex(
@@ -363,8 +357,8 @@ pub const World = struct {
                     ),
                 },
             )) {
-                if (chunk.vertices_mip) |_| chunk.verts.deinit();
-                chunk.vertices_mip = old_mip;
+                if (chunk.surface_mip) |_| chunk.surface.deinit();
+                chunk.surface_mip = old_mip;
                 chunk.wip_mip = null;
                 chunk.splits_copy = null;
                 return false;
@@ -385,9 +379,9 @@ pub const World = struct {
                 }
             }
         } else {
-            try chunk.genVerts(world.*, world.offsetFromIndex(chunk_index, null));
-            try chunk.mesh.upload(.{chunk.verts.items});
-            chunk.vertices_mip = chunk.wip_mip;
+            try chunk.genSurface(world.*, world.offsetFromIndex(chunk_index, null));
+            try chunk.mesh.upload(.{chunk.surface.items});
+            chunk.surface_mip = chunk.wip_mip;
             chunk.wip_mip = null;
             chunk.splits_copy = null;
         }
@@ -424,13 +418,13 @@ pub const World = struct {
             };
         }
         // Skip chunks which are already generated
-        if (chunk.vertices_mip) |mip| if (mip <= mip_level) return true;
+        if (chunk.surface_mip) |mip| if (mip <= mip_level) return true;
 
-        // Whether all chunks ine surrounding 3x3 region have sufficity densities
+        // Whether all relevant neighbours have sufficient generated densities
         var all_ready = true;
 
         const min = if (Chunk.SURFACE.NEG_ADJ) 0 else 1;
-        // Iterate over 3x3 region and generate any missing densities
+        // Iterate over neighbour region and generate any missing densities
         for (min..3) |k| {
             for (min..3) |j| {
                 for (min..3) |i| {
@@ -468,8 +462,8 @@ pub const World = struct {
             }
         }
         if (!all_ready) return false;
-        // If all densities are already present then generate the vertices
-        return switch (try world.genChunkVerts(
+        // If all densities are already present then generate the surface
+        return switch (try world.genChunkSurface(
             chunk,
             chunk_index,
             THREAD,
@@ -487,8 +481,8 @@ pub const World = struct {
             // Find workers who are finished and waiting for a sync
             if (!worker.finish()) continue;
             var chunk = worker.data.chunk;
-            // If the task was to generate vertices
-            if (worker.data.task == .vertices) {
+            // If the task was to generate surface
+            if (worker.data.task == .surface) {
                 const splits = chunk.splits_copy.?;
                 for (min..3) |z| {
                     for (min..3) |y| {
@@ -513,11 +507,11 @@ pub const World = struct {
             }
             if (chunk.wip_mip == null) continue; // Already freed
 
-            // If the task was to generate vertices
-            if (worker.data.task == .vertices) {
-                // Upload the vertices
-                try chunk.mesh.upload(.{chunk.verts.items});
-                chunk.vertices_mip = chunk.wip_mip;
+            // If the task was to generate the surface
+            if (worker.data.task == .surface) {
+                // Upload the surface verts
+                try chunk.mesh.upload(.{chunk.surface.items});
+                chunk.surface_mip = chunk.wip_mip;
             } else {
                 chunk.density_mip = chunk.wip_mip;
             }
@@ -567,7 +561,7 @@ pub const World = struct {
     const WorkerData = struct {
         pub const Task = enum {
             density,
-            vertices,
+            surface,
         };
 
         task: Task,
@@ -579,7 +573,7 @@ pub const World = struct {
     fn workerThread(data: WorkerData) void {
         (switch (data.task) {
             .density => data.chunk.genDensity(data.offset),
-            .vertices => data.chunk.genVerts(data.world.*, data.offset),
+            .surface => data.chunk.genSurface(data.world.*, data.offset),
         }) catch unreachable;
     }
 };

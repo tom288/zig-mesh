@@ -1,6 +1,6 @@
 //! A Chunk holds information about a cubic region of the visible world.
 //! Chunk densities indicate the fullness at internal grid positions.
-//! Chunks also hold vertex data which is derived from the densities
+//! Chunks also hold surface data which is derived from the density.
 //! of the current Chunk and its neighbours.
 //! The memory of one distant Chunk may be reused to represent a closer Chunk.
 
@@ -19,8 +19,8 @@ pub const Chunk = struct {
     // The fullness at internal grid positions
     density: []f32,
 
-    // The triangle vertex data of this chunk
-    verts: std.ArrayList(f32),
+    // The triangle surface data of this chunk
+    surface: std.ArrayList(f32),
 
     mesh: Mesh(.{.{
         .{ .name = "position", .size = 3, .type = gl.FLOAT },
@@ -32,7 +32,7 @@ pub const Chunk = struct {
 
     // Mip levels
     density_mip: ?usize,
-    vertices_mip: ?usize,
+    surface_mip: ?usize,
 
     // The mip level currently being calculated
     wip_mip: ?usize,
@@ -47,8 +47,8 @@ pub const Chunk = struct {
         if (chunk.wip_mip) |_| unreachable;
         if (chunk.density_refs > 0) unreachable;
         if (gpu) chunk.mesh.upload(.{}) catch {};
-        if (chunk.vertices_mip) |_| chunk.verts.deinit();
-        chunk.vertices_mip = null;
+        if (chunk.surface_mip) |_| chunk.surface.deinit();
+        chunk.surface_mip = null;
         alloc.free(chunk.density);
         chunk.density = &.{};
         chunk.density_mip = null;
@@ -204,7 +204,7 @@ pub const Chunk = struct {
         return density - world_pos[1] * ground_gradient;
     }
 
-    pub fn genVerts(chunk: *Chunk, world: World, offset: zm.Vec) !void {
+    pub fn genSurface(chunk: *Chunk, world: World, offset: zm.Vec) !void {
         // Noise generator used for colour
         const gen = znoise.FnlGenerator{
             .frequency = 0.4 / @as(f32, SIZE),
@@ -212,7 +212,7 @@ pub const Chunk = struct {
         for (0..chunk.density.len) |i| {
             try SURFACE.from(chunk, world, gen, chunk.posFromIndex(i), offset);
         }
-        chunk.verts.shrinkAndFree(chunk.verts.items.len);
+        chunk.surface.shrinkAndFree(chunk.surface.items.len);
     }
 
     pub fn full(chunk: *Chunk, world: World, pos: zm.Vec, offset: zm.Vec, occ: bool, splits: ?zm.Vec) ?bool {
