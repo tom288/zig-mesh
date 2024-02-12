@@ -173,7 +173,8 @@ pub const Window = struct {
         // Update deltaTime
         const new_time: f32 = @floatCast(glfw.getTime());
         if (win.time) |time| {
-            win.delta = new_time - time;
+            // Limit delta to 100 ms to avoid massive jumps
+            win.delta = @min(new_time - time, 0.1);
         } else {
             // Set the user pointer if we are about to poll the first events
             win.window.setUserPointer(win);

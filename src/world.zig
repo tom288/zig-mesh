@@ -79,7 +79,7 @@ pub const World = struct {
         try world.gen(null);
 
         // Create an array and buffer of equal size
-        var data_array: [4]zm.Vec = undefined;
+        var data_array: [Chunk.SIZE * Chunk.SIZE * Chunk.SIZE]zm.Vec = undefined;
         var data_buffer: gl.GLuint = undefined;
         gl.genBuffers(1, &data_buffer);
         defer gl.deleteBuffers(1, &data_buffer);
@@ -90,7 +90,7 @@ pub const World = struct {
 
         // Dispatch the compute shader to populate the buffer
         density_shader.use();
-        gl.dispatchCompute(data_array.len, 1, 1);
+        gl.dispatchCompute(Chunk.SIZE, Chunk.SIZE, Chunk.SIZE);
         gl.memoryBarrier(gl.BUFFER_UPDATE_BARRIER_BIT);
 
         // Read the results into the array
