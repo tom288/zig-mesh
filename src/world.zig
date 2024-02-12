@@ -213,6 +213,7 @@ pub const World = struct {
             // if (bench) std.debug.print("Splits took {d:.3} ms\n", .{ns / 1_000_000});
         }
 
+        var start_index = world.index_done;
         var all_done = true;
 
         outer: for (world.dist_done..max_dist) |dist| {
@@ -220,10 +221,31 @@ pub const World = struct {
             const edge = big == max_dist;
             const max_index = 8 * (3 * big * dist + 1);
             if (all_done) world.dist_done = dist;
-            for (world.index_done..max_index) |index| {
+            for (start_index..max_index) |index| {
                 if (all_done) world.index_done = index;
-                var i = index / 2;
+                var i = index;
                 var pos = zm.f32x4s(0);
+
+                // Determine the axis in which the plane is fixed
+                var plane: usize = 2;
+                var thresh = 8 * big * big;
+                if (i >= thresh) {
+                    i -= thresh;
+                    plane -= 1;
+                    thresh = 8 * big * dist;
+                    if (i >= thresh) {
+                        i -= thresh;
+                        plane -= 1;
+                        thresh = 8 * dist * dist;
+                    }
+                }
+
+                pos[plane] = @floatFromInt(dist);
+                if (i < thresh / 2) {
+                    pos[plane] = -pos[plane] - 1;
+                } else {
+                    i -= thresh / 2;
+                }
 
                 // Create a nested function without language support
                 const signedDist = struct {
@@ -234,23 +256,10 @@ pub const World = struct {
                     }
                 }.f;
 
-                // Determine the axis in which the plane is fixed
-                var plane: usize = 2;
-                var thresh = 4 * big * big;
-                if (i >= thresh) {
-                    i -= thresh;
-                    plane -= 1;
-                    thresh = 4 * big * dist;
-                    if (i >= thresh) {
-                        i -= thresh;
-                        plane -= 1;
-                    }
-                }
-                pos[plane] = @floatFromInt(dist);
-                if (index % 2 > 0) pos[plane] *= -1;
                 const base = if (plane < 1) dist else big;
+                const base2 = if (plane <= 1) dist else big;
                 pos[if (plane < 1) 1 else 0] = signedDist(i % (base * 2), base);
-                pos[if (plane > 1) 1 else 2] = signedDist(i / (base * 2), base);
+                pos[if (plane > 1) 1 else 2] = signedDist(i / (base * 2), base2);
 
                 if (try world.genChunk(
                     world.cam_pos + pos * zm.f32x4s(Chunk.SIZE),
@@ -260,6 +269,7 @@ pub const World = struct {
                     all_done = all_done and done;
                 } else break :outer;
             }
+            start_index = 0;
             if (all_done and big < max_dist) world.index_done = 0;
         }
         ns = @floatFromInt(timer.read());
