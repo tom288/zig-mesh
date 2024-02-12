@@ -5,14 +5,14 @@
 
 //
 // Generation parameters:
-// API:        GL_VERSION_4_3
+// API:        GL_VERSION_4_6
 // Profile:    core
 // Extensions: 
 //
 
 //
 // This file was generated with the following command line:
-// generator C:\Git\Zig\zig-opengl\bin\Debug\net7.0\generator.dll OpenGL-Registry/xml/gl.xml gl43.zig GL_VERSION_4_3
+// generator C:\Git\Zig\zig-opengl\bin\Debug\net7.0\generator.dll OpenGL-Registry/xml/gl.xml gl46.zig GL_VERSION_4_6
 //
 
 const std = @import("std");
@@ -1375,6 +1375,69 @@ pub const UNIFORM_BLOCK_REFERENCED_BY_FRAGMENT_SHADER = 0x8A46;
 pub const INVALID_INDEX = 0xFFFFFFFF;
 pub const STACK_UNDERFLOW = 0x0504;
 pub const STACK_OVERFLOW = 0x0503;
+pub const MAX_VERTEX_ATTRIB_STRIDE = 0x82E5;
+pub const PRIMITIVE_RESTART_FOR_PATCHES_SUPPORTED = 0x8221;
+pub const TEXTURE_BUFFER_BINDING = 0x8C2A;
+pub const MAP_PERSISTENT_BIT = 0x0040;
+pub const MAP_COHERENT_BIT = 0x0080;
+pub const DYNAMIC_STORAGE_BIT = 0x0100;
+pub const CLIENT_STORAGE_BIT = 0x0200;
+pub const CLIENT_MAPPED_BUFFER_BARRIER_BIT = 0x00004000;
+pub const BUFFER_IMMUTABLE_STORAGE = 0x821F;
+pub const BUFFER_STORAGE_FLAGS = 0x8220;
+pub const CLEAR_TEXTURE = 0x9365;
+pub const LOCATION_COMPONENT = 0x934A;
+pub const TRANSFORM_FEEDBACK_BUFFER_INDEX = 0x934B;
+pub const TRANSFORM_FEEDBACK_BUFFER_STRIDE = 0x934C;
+pub const QUERY_BUFFER = 0x9192;
+pub const QUERY_BUFFER_BARRIER_BIT = 0x00008000;
+pub const QUERY_BUFFER_BINDING = 0x9193;
+pub const QUERY_RESULT_NO_WAIT = 0x9194;
+pub const MIRROR_CLAMP_TO_EDGE = 0x8743;
+pub const CONTEXT_LOST = 0x0507;
+pub const NEGATIVE_ONE_TO_ONE = 0x935E;
+pub const ZERO_TO_ONE = 0x935F;
+pub const CLIP_ORIGIN = 0x935C;
+pub const CLIP_DEPTH_MODE = 0x935D;
+pub const QUERY_WAIT_INVERTED = 0x8E17;
+pub const QUERY_NO_WAIT_INVERTED = 0x8E18;
+pub const QUERY_BY_REGION_WAIT_INVERTED = 0x8E19;
+pub const QUERY_BY_REGION_NO_WAIT_INVERTED = 0x8E1A;
+pub const MAX_CULL_DISTANCES = 0x82F9;
+pub const MAX_COMBINED_CLIP_AND_CULL_DISTANCES = 0x82FA;
+pub const TEXTURE_TARGET = 0x1006;
+pub const QUERY_TARGET = 0x82EA;
+pub const GUILTY_CONTEXT_RESET = 0x8253;
+pub const INNOCENT_CONTEXT_RESET = 0x8254;
+pub const UNKNOWN_CONTEXT_RESET = 0x8255;
+pub const RESET_NOTIFICATION_STRATEGY = 0x8256;
+pub const LOSE_CONTEXT_ON_RESET = 0x8252;
+pub const NO_RESET_NOTIFICATION = 0x8261;
+pub const CONTEXT_FLAG_ROBUST_ACCESS_BIT = 0x00000004;
+pub const CONTEXT_RELEASE_BEHAVIOR = 0x82FB;
+pub const CONTEXT_RELEASE_BEHAVIOR_FLUSH = 0x82FC;
+pub const SHADER_BINARY_FORMAT_SPIR_V = 0x9551;
+pub const SPIR_V_BINARY = 0x9552;
+pub const PARAMETER_BUFFER = 0x80EE;
+pub const PARAMETER_BUFFER_BINDING = 0x80EF;
+pub const CONTEXT_FLAG_NO_ERROR_BIT = 0x00000008;
+pub const VERTICES_SUBMITTED = 0x82EE;
+pub const PRIMITIVES_SUBMITTED = 0x82EF;
+pub const VERTEX_SHADER_INVOCATIONS = 0x82F0;
+pub const TESS_CONTROL_SHADER_PATCHES = 0x82F1;
+pub const TESS_EVALUATION_SHADER_INVOCATIONS = 0x82F2;
+pub const GEOMETRY_SHADER_PRIMITIVES_EMITTED = 0x82F3;
+pub const FRAGMENT_SHADER_INVOCATIONS = 0x82F4;
+pub const COMPUTE_SHADER_INVOCATIONS = 0x82F5;
+pub const CLIPPING_INPUT_PRIMITIVES = 0x82F6;
+pub const CLIPPING_OUTPUT_PRIMITIVES = 0x82F7;
+pub const POLYGON_OFFSET_CLAMP = 0x8E1B;
+pub const SPIR_V_EXTENSIONS = 0x9553;
+pub const NUM_SPIR_V_EXTENSIONS = 0x9554;
+pub const TEXTURE_MAX_ANISOTROPY = 0x84FE;
+pub const MAX_TEXTURE_MAX_ANISOTROPY = 0x84FF;
+pub const TRANSFORM_FEEDBACK_OVERFLOW = 0x82EC;
+pub const TRANSFORM_FEEDBACK_STREAM_OVERFLOW = 0x82ED;
 
 
 pub fn texStorage2D(_target: GLenum, _levels: GLsizei, _internalformat: GLenum, _width: GLsizei, _height: GLsizei) callconv(.C) void {
@@ -3511,6 +3574,498 @@ pub fn getObjectPtrLabel(_ptr: ?*const anyopaque, _bufSize: GLsizei, _length: [*
 
 pub fn getPointerv(_pname: GLenum, _params: ?*?*anyopaque) callconv(.C) void {
     return @call(.always_tail, function_pointers.glGetPointerv, .{_pname, _params});
+}
+
+pub fn bufferStorage(_target: GLenum, _size: GLsizeiptr, _data: ?*const anyopaque, _flags: GLbitfield) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glBufferStorage, .{_target, _size, _data, _flags});
+}
+
+pub fn clearTexImage(_texture: GLuint, _level: GLint, _format: GLenum, _type: GLenum, _data: ?*const anyopaque) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glClearTexImage, .{_texture, _level, _format, _type, _data});
+}
+
+pub fn clearTexSubImage(_texture: GLuint, _level: GLint, _xoffset: GLint, _yoffset: GLint, _zoffset: GLint, _width: GLsizei, _height: GLsizei, _depth: GLsizei, _format: GLenum, _type: GLenum, _data: ?*const anyopaque) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glClearTexSubImage, .{_texture, _level, _xoffset, _yoffset, _zoffset, _width, _height, _depth, _format, _type, _data});
+}
+
+pub fn bindBuffersBase(_target: GLenum, _first: GLuint, _count: GLsizei, _buffers: [*c]const GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glBindBuffersBase, .{_target, _first, _count, _buffers});
+}
+
+pub fn bindBuffersRange(_target: GLenum, _first: GLuint, _count: GLsizei, _buffers: [*c]const GLuint, _offsets: [*c]const GLintptr, _sizes: [*c]const GLsizeiptr) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glBindBuffersRange, .{_target, _first, _count, _buffers, _offsets, _sizes});
+}
+
+pub fn bindTextures(_first: GLuint, _count: GLsizei, _textures: [*c]const GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glBindTextures, .{_first, _count, _textures});
+}
+
+pub fn bindSamplers(_first: GLuint, _count: GLsizei, _samplers: [*c]const GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glBindSamplers, .{_first, _count, _samplers});
+}
+
+pub fn bindImageTextures(_first: GLuint, _count: GLsizei, _textures: [*c]const GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glBindImageTextures, .{_first, _count, _textures});
+}
+
+pub fn bindVertexBuffers(_first: GLuint, _count: GLsizei, _buffers: [*c]const GLuint, _offsets: [*c]const GLintptr, _strides: [*c]const GLsizei) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glBindVertexBuffers, .{_first, _count, _buffers, _offsets, _strides});
+}
+
+pub fn clipControl(_origin: GLenum, _depth: GLenum) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glClipControl, .{_origin, _depth});
+}
+
+pub fn createTransformFeedbacks(_n: GLsizei, _ids: [*c]GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glCreateTransformFeedbacks, .{_n, _ids});
+}
+
+pub fn transformFeedbackBufferBase(_xfb: GLuint, _index: GLuint, _buffer: GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glTransformFeedbackBufferBase, .{_xfb, _index, _buffer});
+}
+
+pub fn transformFeedbackBufferRange(_xfb: GLuint, _index: GLuint, _buffer: GLuint, _offset: GLintptr, _size: GLsizeiptr) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glTransformFeedbackBufferRange, .{_xfb, _index, _buffer, _offset, _size});
+}
+
+pub fn getTransformFeedbackiv(_xfb: GLuint, _pname: GLenum, _param: [*c]GLint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetTransformFeedbackiv, .{_xfb, _pname, _param});
+}
+
+pub fn getTransformFeedbacki_v(_xfb: GLuint, _pname: GLenum, _index: GLuint, _param: [*c]GLint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetTransformFeedbacki_v, .{_xfb, _pname, _index, _param});
+}
+
+pub fn getTransformFeedbacki64_v(_xfb: GLuint, _pname: GLenum, _index: GLuint, _param: [*c]GLint64) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetTransformFeedbacki64_v, .{_xfb, _pname, _index, _param});
+}
+
+pub fn createBuffers(_n: GLsizei, _buffers: [*c]GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glCreateBuffers, .{_n, _buffers});
+}
+
+pub fn namedBufferStorage(_buffer: GLuint, _size: GLsizeiptr, _data: ?*const anyopaque, _flags: GLbitfield) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glNamedBufferStorage, .{_buffer, _size, _data, _flags});
+}
+
+pub fn namedBufferData(_buffer: GLuint, _size: GLsizeiptr, _data: ?*const anyopaque, _usage: GLenum) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glNamedBufferData, .{_buffer, _size, _data, _usage});
+}
+
+pub fn namedBufferSubData(_buffer: GLuint, _offset: GLintptr, _size: GLsizeiptr, _data: ?*const anyopaque) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glNamedBufferSubData, .{_buffer, _offset, _size, _data});
+}
+
+pub fn copyNamedBufferSubData(_readBuffer: GLuint, _writeBuffer: GLuint, _readOffset: GLintptr, _writeOffset: GLintptr, _size: GLsizeiptr) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glCopyNamedBufferSubData, .{_readBuffer, _writeBuffer, _readOffset, _writeOffset, _size});
+}
+
+pub fn clearNamedBufferData(_buffer: GLuint, _internalformat: GLenum, _format: GLenum, _type: GLenum, _data: ?*const anyopaque) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glClearNamedBufferData, .{_buffer, _internalformat, _format, _type, _data});
+}
+
+pub fn clearNamedBufferSubData(_buffer: GLuint, _internalformat: GLenum, _offset: GLintptr, _size: GLsizeiptr, _format: GLenum, _type: GLenum, _data: ?*const anyopaque) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glClearNamedBufferSubData, .{_buffer, _internalformat, _offset, _size, _format, _type, _data});
+}
+
+pub fn mapNamedBuffer(_buffer: GLuint, _access: GLenum) callconv(.C) ?*anyopaque {
+    return @call(.always_tail, function_pointers.glMapNamedBuffer, .{_buffer, _access});
+}
+
+pub fn mapNamedBufferRange(_buffer: GLuint, _offset: GLintptr, _length: GLsizeiptr, _access: GLbitfield) callconv(.C) ?*anyopaque {
+    return @call(.always_tail, function_pointers.glMapNamedBufferRange, .{_buffer, _offset, _length, _access});
+}
+
+pub fn unmapNamedBuffer(_buffer: GLuint) callconv(.C) GLboolean {
+    return @call(.always_tail, function_pointers.glUnmapNamedBuffer, .{_buffer});
+}
+
+pub fn flushMappedNamedBufferRange(_buffer: GLuint, _offset: GLintptr, _length: GLsizeiptr) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glFlushMappedNamedBufferRange, .{_buffer, _offset, _length});
+}
+
+pub fn getNamedBufferParameteriv(_buffer: GLuint, _pname: GLenum, _params: [*c]GLint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetNamedBufferParameteriv, .{_buffer, _pname, _params});
+}
+
+pub fn getNamedBufferParameteri64v(_buffer: GLuint, _pname: GLenum, _params: [*c]GLint64) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetNamedBufferParameteri64v, .{_buffer, _pname, _params});
+}
+
+pub fn getNamedBufferPointerv(_buffer: GLuint, _pname: GLenum, _params: ?*?*anyopaque) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetNamedBufferPointerv, .{_buffer, _pname, _params});
+}
+
+pub fn getNamedBufferSubData(_buffer: GLuint, _offset: GLintptr, _size: GLsizeiptr, _data: ?*anyopaque) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetNamedBufferSubData, .{_buffer, _offset, _size, _data});
+}
+
+pub fn createFramebuffers(_n: GLsizei, _framebuffers: [*c]GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glCreateFramebuffers, .{_n, _framebuffers});
+}
+
+pub fn namedFramebufferRenderbuffer(_framebuffer: GLuint, _attachment: GLenum, _renderbuffertarget: GLenum, _renderbuffer: GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glNamedFramebufferRenderbuffer, .{_framebuffer, _attachment, _renderbuffertarget, _renderbuffer});
+}
+
+pub fn namedFramebufferParameteri(_framebuffer: GLuint, _pname: GLenum, _param: GLint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glNamedFramebufferParameteri, .{_framebuffer, _pname, _param});
+}
+
+pub fn namedFramebufferTexture(_framebuffer: GLuint, _attachment: GLenum, _texture: GLuint, _level: GLint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glNamedFramebufferTexture, .{_framebuffer, _attachment, _texture, _level});
+}
+
+pub fn namedFramebufferTextureLayer(_framebuffer: GLuint, _attachment: GLenum, _texture: GLuint, _level: GLint, _layer: GLint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glNamedFramebufferTextureLayer, .{_framebuffer, _attachment, _texture, _level, _layer});
+}
+
+pub fn namedFramebufferDrawBuffer(_framebuffer: GLuint, _buf: GLenum) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glNamedFramebufferDrawBuffer, .{_framebuffer, _buf});
+}
+
+pub fn namedFramebufferDrawBuffers(_framebuffer: GLuint, _n: GLsizei, _bufs: [*c]const GLenum) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glNamedFramebufferDrawBuffers, .{_framebuffer, _n, _bufs});
+}
+
+pub fn namedFramebufferReadBuffer(_framebuffer: GLuint, _src: GLenum) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glNamedFramebufferReadBuffer, .{_framebuffer, _src});
+}
+
+pub fn invalidateNamedFramebufferData(_framebuffer: GLuint, _numAttachments: GLsizei, _attachments: [*c]const GLenum) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glInvalidateNamedFramebufferData, .{_framebuffer, _numAttachments, _attachments});
+}
+
+pub fn invalidateNamedFramebufferSubData(_framebuffer: GLuint, _numAttachments: GLsizei, _attachments: [*c]const GLenum, _x: GLint, _y: GLint, _width: GLsizei, _height: GLsizei) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glInvalidateNamedFramebufferSubData, .{_framebuffer, _numAttachments, _attachments, _x, _y, _width, _height});
+}
+
+pub fn clearNamedFramebufferiv(_framebuffer: GLuint, _buffer: GLenum, _drawbuffer: GLint, _value: [*c]const GLint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glClearNamedFramebufferiv, .{_framebuffer, _buffer, _drawbuffer, _value});
+}
+
+pub fn clearNamedFramebufferuiv(_framebuffer: GLuint, _buffer: GLenum, _drawbuffer: GLint, _value: [*c]const GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glClearNamedFramebufferuiv, .{_framebuffer, _buffer, _drawbuffer, _value});
+}
+
+pub fn clearNamedFramebufferfv(_framebuffer: GLuint, _buffer: GLenum, _drawbuffer: GLint, _value: [*c]const GLfloat) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glClearNamedFramebufferfv, .{_framebuffer, _buffer, _drawbuffer, _value});
+}
+
+pub fn clearNamedFramebufferfi(_framebuffer: GLuint, _buffer: GLenum, _drawbuffer: GLint, _depth: GLfloat, _stencil: GLint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glClearNamedFramebufferfi, .{_framebuffer, _buffer, _drawbuffer, _depth, _stencil});
+}
+
+pub fn blitNamedFramebuffer(_readFramebuffer: GLuint, _drawFramebuffer: GLuint, _srcX0: GLint, _srcY0: GLint, _srcX1: GLint, _srcY1: GLint, _dstX0: GLint, _dstY0: GLint, _dstX1: GLint, _dstY1: GLint, _mask: GLbitfield, _filter: GLenum) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glBlitNamedFramebuffer, .{_readFramebuffer, _drawFramebuffer, _srcX0, _srcY0, _srcX1, _srcY1, _dstX0, _dstY0, _dstX1, _dstY1, _mask, _filter});
+}
+
+pub fn checkNamedFramebufferStatus(_framebuffer: GLuint, _target: GLenum) callconv(.C) GLenum {
+    return @call(.always_tail, function_pointers.glCheckNamedFramebufferStatus, .{_framebuffer, _target});
+}
+
+pub fn getNamedFramebufferParameteriv(_framebuffer: GLuint, _pname: GLenum, _param: [*c]GLint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetNamedFramebufferParameteriv, .{_framebuffer, _pname, _param});
+}
+
+pub fn getNamedFramebufferAttachmentParameteriv(_framebuffer: GLuint, _attachment: GLenum, _pname: GLenum, _params: [*c]GLint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetNamedFramebufferAttachmentParameteriv, .{_framebuffer, _attachment, _pname, _params});
+}
+
+pub fn createRenderbuffers(_n: GLsizei, _renderbuffers: [*c]GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glCreateRenderbuffers, .{_n, _renderbuffers});
+}
+
+pub fn namedRenderbufferStorage(_renderbuffer: GLuint, _internalformat: GLenum, _width: GLsizei, _height: GLsizei) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glNamedRenderbufferStorage, .{_renderbuffer, _internalformat, _width, _height});
+}
+
+pub fn namedRenderbufferStorageMultisample(_renderbuffer: GLuint, _samples: GLsizei, _internalformat: GLenum, _width: GLsizei, _height: GLsizei) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glNamedRenderbufferStorageMultisample, .{_renderbuffer, _samples, _internalformat, _width, _height});
+}
+
+pub fn getNamedRenderbufferParameteriv(_renderbuffer: GLuint, _pname: GLenum, _params: [*c]GLint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetNamedRenderbufferParameteriv, .{_renderbuffer, _pname, _params});
+}
+
+pub fn createTextures(_target: GLenum, _n: GLsizei, _textures: [*c]GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glCreateTextures, .{_target, _n, _textures});
+}
+
+pub fn textureBuffer(_texture: GLuint, _internalformat: GLenum, _buffer: GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glTextureBuffer, .{_texture, _internalformat, _buffer});
+}
+
+pub fn textureBufferRange(_texture: GLuint, _internalformat: GLenum, _buffer: GLuint, _offset: GLintptr, _size: GLsizeiptr) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glTextureBufferRange, .{_texture, _internalformat, _buffer, _offset, _size});
+}
+
+pub fn textureStorage1D(_texture: GLuint, _levels: GLsizei, _internalformat: GLenum, _width: GLsizei) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glTextureStorage1D, .{_texture, _levels, _internalformat, _width});
+}
+
+pub fn textureStorage2D(_texture: GLuint, _levels: GLsizei, _internalformat: GLenum, _width: GLsizei, _height: GLsizei) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glTextureStorage2D, .{_texture, _levels, _internalformat, _width, _height});
+}
+
+pub fn textureStorage3D(_texture: GLuint, _levels: GLsizei, _internalformat: GLenum, _width: GLsizei, _height: GLsizei, _depth: GLsizei) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glTextureStorage3D, .{_texture, _levels, _internalformat, _width, _height, _depth});
+}
+
+pub fn textureStorage2DMultisample(_texture: GLuint, _samples: GLsizei, _internalformat: GLenum, _width: GLsizei, _height: GLsizei, _fixedsamplelocations: GLboolean) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glTextureStorage2DMultisample, .{_texture, _samples, _internalformat, _width, _height, _fixedsamplelocations});
+}
+
+pub fn textureStorage3DMultisample(_texture: GLuint, _samples: GLsizei, _internalformat: GLenum, _width: GLsizei, _height: GLsizei, _depth: GLsizei, _fixedsamplelocations: GLboolean) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glTextureStorage3DMultisample, .{_texture, _samples, _internalformat, _width, _height, _depth, _fixedsamplelocations});
+}
+
+pub fn textureSubImage1D(_texture: GLuint, _level: GLint, _xoffset: GLint, _width: GLsizei, _format: GLenum, _type: GLenum, _pixels: ?*const anyopaque) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glTextureSubImage1D, .{_texture, _level, _xoffset, _width, _format, _type, _pixels});
+}
+
+pub fn textureSubImage2D(_texture: GLuint, _level: GLint, _xoffset: GLint, _yoffset: GLint, _width: GLsizei, _height: GLsizei, _format: GLenum, _type: GLenum, _pixels: ?*const anyopaque) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glTextureSubImage2D, .{_texture, _level, _xoffset, _yoffset, _width, _height, _format, _type, _pixels});
+}
+
+pub fn textureSubImage3D(_texture: GLuint, _level: GLint, _xoffset: GLint, _yoffset: GLint, _zoffset: GLint, _width: GLsizei, _height: GLsizei, _depth: GLsizei, _format: GLenum, _type: GLenum, _pixels: ?*const anyopaque) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glTextureSubImage3D, .{_texture, _level, _xoffset, _yoffset, _zoffset, _width, _height, _depth, _format, _type, _pixels});
+}
+
+pub fn compressedTextureSubImage1D(_texture: GLuint, _level: GLint, _xoffset: GLint, _width: GLsizei, _format: GLenum, _imageSize: GLsizei, _data: ?*const anyopaque) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glCompressedTextureSubImage1D, .{_texture, _level, _xoffset, _width, _format, _imageSize, _data});
+}
+
+pub fn compressedTextureSubImage2D(_texture: GLuint, _level: GLint, _xoffset: GLint, _yoffset: GLint, _width: GLsizei, _height: GLsizei, _format: GLenum, _imageSize: GLsizei, _data: ?*const anyopaque) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glCompressedTextureSubImage2D, .{_texture, _level, _xoffset, _yoffset, _width, _height, _format, _imageSize, _data});
+}
+
+pub fn compressedTextureSubImage3D(_texture: GLuint, _level: GLint, _xoffset: GLint, _yoffset: GLint, _zoffset: GLint, _width: GLsizei, _height: GLsizei, _depth: GLsizei, _format: GLenum, _imageSize: GLsizei, _data: ?*const anyopaque) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glCompressedTextureSubImage3D, .{_texture, _level, _xoffset, _yoffset, _zoffset, _width, _height, _depth, _format, _imageSize, _data});
+}
+
+pub fn copyTextureSubImage1D(_texture: GLuint, _level: GLint, _xoffset: GLint, _x: GLint, _y: GLint, _width: GLsizei) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glCopyTextureSubImage1D, .{_texture, _level, _xoffset, _x, _y, _width});
+}
+
+pub fn copyTextureSubImage2D(_texture: GLuint, _level: GLint, _xoffset: GLint, _yoffset: GLint, _x: GLint, _y: GLint, _width: GLsizei, _height: GLsizei) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glCopyTextureSubImage2D, .{_texture, _level, _xoffset, _yoffset, _x, _y, _width, _height});
+}
+
+pub fn copyTextureSubImage3D(_texture: GLuint, _level: GLint, _xoffset: GLint, _yoffset: GLint, _zoffset: GLint, _x: GLint, _y: GLint, _width: GLsizei, _height: GLsizei) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glCopyTextureSubImage3D, .{_texture, _level, _xoffset, _yoffset, _zoffset, _x, _y, _width, _height});
+}
+
+pub fn textureParameterf(_texture: GLuint, _pname: GLenum, _param: GLfloat) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glTextureParameterf, .{_texture, _pname, _param});
+}
+
+pub fn textureParameterfv(_texture: GLuint, _pname: GLenum, _param: [*c]const GLfloat) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glTextureParameterfv, .{_texture, _pname, _param});
+}
+
+pub fn textureParameteri(_texture: GLuint, _pname: GLenum, _param: GLint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glTextureParameteri, .{_texture, _pname, _param});
+}
+
+pub fn textureParameterIiv(_texture: GLuint, _pname: GLenum, _params: [*c]const GLint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glTextureParameterIiv, .{_texture, _pname, _params});
+}
+
+pub fn textureParameterIuiv(_texture: GLuint, _pname: GLenum, _params: [*c]const GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glTextureParameterIuiv, .{_texture, _pname, _params});
+}
+
+pub fn textureParameteriv(_texture: GLuint, _pname: GLenum, _param: [*c]const GLint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glTextureParameteriv, .{_texture, _pname, _param});
+}
+
+pub fn generateTextureMipmap(_texture: GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGenerateTextureMipmap, .{_texture});
+}
+
+pub fn bindTextureUnit(_unit: GLuint, _texture: GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glBindTextureUnit, .{_unit, _texture});
+}
+
+pub fn getTextureImage(_texture: GLuint, _level: GLint, _format: GLenum, _type: GLenum, _bufSize: GLsizei, _pixels: ?*anyopaque) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetTextureImage, .{_texture, _level, _format, _type, _bufSize, _pixels});
+}
+
+pub fn getCompressedTextureImage(_texture: GLuint, _level: GLint, _bufSize: GLsizei, _pixels: ?*anyopaque) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetCompressedTextureImage, .{_texture, _level, _bufSize, _pixels});
+}
+
+pub fn getTextureLevelParameterfv(_texture: GLuint, _level: GLint, _pname: GLenum, _params: [*c]GLfloat) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetTextureLevelParameterfv, .{_texture, _level, _pname, _params});
+}
+
+pub fn getTextureLevelParameteriv(_texture: GLuint, _level: GLint, _pname: GLenum, _params: [*c]GLint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetTextureLevelParameteriv, .{_texture, _level, _pname, _params});
+}
+
+pub fn getTextureParameterfv(_texture: GLuint, _pname: GLenum, _params: [*c]GLfloat) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetTextureParameterfv, .{_texture, _pname, _params});
+}
+
+pub fn getTextureParameterIiv(_texture: GLuint, _pname: GLenum, _params: [*c]GLint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetTextureParameterIiv, .{_texture, _pname, _params});
+}
+
+pub fn getTextureParameterIuiv(_texture: GLuint, _pname: GLenum, _params: [*c]GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetTextureParameterIuiv, .{_texture, _pname, _params});
+}
+
+pub fn getTextureParameteriv(_texture: GLuint, _pname: GLenum, _params: [*c]GLint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetTextureParameteriv, .{_texture, _pname, _params});
+}
+
+pub fn createVertexArrays(_n: GLsizei, _arrays: [*c]GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glCreateVertexArrays, .{_n, _arrays});
+}
+
+pub fn disableVertexArrayAttrib(_vaobj: GLuint, _index: GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glDisableVertexArrayAttrib, .{_vaobj, _index});
+}
+
+pub fn enableVertexArrayAttrib(_vaobj: GLuint, _index: GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glEnableVertexArrayAttrib, .{_vaobj, _index});
+}
+
+pub fn vertexArrayElementBuffer(_vaobj: GLuint, _buffer: GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glVertexArrayElementBuffer, .{_vaobj, _buffer});
+}
+
+pub fn vertexArrayVertexBuffer(_vaobj: GLuint, _bindingindex: GLuint, _buffer: GLuint, _offset: GLintptr, _stride: GLsizei) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glVertexArrayVertexBuffer, .{_vaobj, _bindingindex, _buffer, _offset, _stride});
+}
+
+pub fn vertexArrayVertexBuffers(_vaobj: GLuint, _first: GLuint, _count: GLsizei, _buffers: [*c]const GLuint, _offsets: [*c]const GLintptr, _strides: [*c]const GLsizei) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glVertexArrayVertexBuffers, .{_vaobj, _first, _count, _buffers, _offsets, _strides});
+}
+
+pub fn vertexArrayAttribBinding(_vaobj: GLuint, _attribindex: GLuint, _bindingindex: GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glVertexArrayAttribBinding, .{_vaobj, _attribindex, _bindingindex});
+}
+
+pub fn vertexArrayAttribFormat(_vaobj: GLuint, _attribindex: GLuint, _size: GLint, _type: GLenum, _normalized: GLboolean, _relativeoffset: GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glVertexArrayAttribFormat, .{_vaobj, _attribindex, _size, _type, _normalized, _relativeoffset});
+}
+
+pub fn vertexArrayAttribIFormat(_vaobj: GLuint, _attribindex: GLuint, _size: GLint, _type: GLenum, _relativeoffset: GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glVertexArrayAttribIFormat, .{_vaobj, _attribindex, _size, _type, _relativeoffset});
+}
+
+pub fn vertexArrayAttribLFormat(_vaobj: GLuint, _attribindex: GLuint, _size: GLint, _type: GLenum, _relativeoffset: GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glVertexArrayAttribLFormat, .{_vaobj, _attribindex, _size, _type, _relativeoffset});
+}
+
+pub fn vertexArrayBindingDivisor(_vaobj: GLuint, _bindingindex: GLuint, _divisor: GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glVertexArrayBindingDivisor, .{_vaobj, _bindingindex, _divisor});
+}
+
+pub fn getVertexArrayiv(_vaobj: GLuint, _pname: GLenum, _param: [*c]GLint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetVertexArrayiv, .{_vaobj, _pname, _param});
+}
+
+pub fn getVertexArrayIndexediv(_vaobj: GLuint, _index: GLuint, _pname: GLenum, _param: [*c]GLint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetVertexArrayIndexediv, .{_vaobj, _index, _pname, _param});
+}
+
+pub fn getVertexArrayIndexed64iv(_vaobj: GLuint, _index: GLuint, _pname: GLenum, _param: [*c]GLint64) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetVertexArrayIndexed64iv, .{_vaobj, _index, _pname, _param});
+}
+
+pub fn createSamplers(_n: GLsizei, _samplers: [*c]GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glCreateSamplers, .{_n, _samplers});
+}
+
+pub fn createProgramPipelines(_n: GLsizei, _pipelines: [*c]GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glCreateProgramPipelines, .{_n, _pipelines});
+}
+
+pub fn createQueries(_target: GLenum, _n: GLsizei, _ids: [*c]GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glCreateQueries, .{_target, _n, _ids});
+}
+
+pub fn getQueryBufferObjecti64v(_id: GLuint, _buffer: GLuint, _pname: GLenum, _offset: GLintptr) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetQueryBufferObjecti64v, .{_id, _buffer, _pname, _offset});
+}
+
+pub fn getQueryBufferObjectiv(_id: GLuint, _buffer: GLuint, _pname: GLenum, _offset: GLintptr) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetQueryBufferObjectiv, .{_id, _buffer, _pname, _offset});
+}
+
+pub fn getQueryBufferObjectui64v(_id: GLuint, _buffer: GLuint, _pname: GLenum, _offset: GLintptr) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetQueryBufferObjectui64v, .{_id, _buffer, _pname, _offset});
+}
+
+pub fn getQueryBufferObjectuiv(_id: GLuint, _buffer: GLuint, _pname: GLenum, _offset: GLintptr) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetQueryBufferObjectuiv, .{_id, _buffer, _pname, _offset});
+}
+
+pub fn memoryBarrierByRegion(_barriers: GLbitfield) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glMemoryBarrierByRegion, .{_barriers});
+}
+
+pub fn getTextureSubImage(_texture: GLuint, _level: GLint, _xoffset: GLint, _yoffset: GLint, _zoffset: GLint, _width: GLsizei, _height: GLsizei, _depth: GLsizei, _format: GLenum, _type: GLenum, _bufSize: GLsizei, _pixels: ?*anyopaque) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetTextureSubImage, .{_texture, _level, _xoffset, _yoffset, _zoffset, _width, _height, _depth, _format, _type, _bufSize, _pixels});
+}
+
+pub fn getCompressedTextureSubImage(_texture: GLuint, _level: GLint, _xoffset: GLint, _yoffset: GLint, _zoffset: GLint, _width: GLsizei, _height: GLsizei, _depth: GLsizei, _bufSize: GLsizei, _pixels: ?*anyopaque) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetCompressedTextureSubImage, .{_texture, _level, _xoffset, _yoffset, _zoffset, _width, _height, _depth, _bufSize, _pixels});
+}
+
+pub fn getGraphicsResetStatus() callconv(.C) GLenum {
+    return @call(.always_tail, function_pointers.glGetGraphicsResetStatus, .{});
+}
+
+pub fn getnCompressedTexImage(_target: GLenum, _lod: GLint, _bufSize: GLsizei, _pixels: ?*anyopaque) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetnCompressedTexImage, .{_target, _lod, _bufSize, _pixels});
+}
+
+pub fn getnTexImage(_target: GLenum, _level: GLint, _format: GLenum, _type: GLenum, _bufSize: GLsizei, _pixels: ?*anyopaque) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetnTexImage, .{_target, _level, _format, _type, _bufSize, _pixels});
+}
+
+pub fn getnUniformdv(_program: GLuint, _location: GLint, _bufSize: GLsizei, _params: [*c]GLdouble) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetnUniformdv, .{_program, _location, _bufSize, _params});
+}
+
+pub fn getnUniformfv(_program: GLuint, _location: GLint, _bufSize: GLsizei, _params: [*c]GLfloat) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetnUniformfv, .{_program, _location, _bufSize, _params});
+}
+
+pub fn getnUniformiv(_program: GLuint, _location: GLint, _bufSize: GLsizei, _params: [*c]GLint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetnUniformiv, .{_program, _location, _bufSize, _params});
+}
+
+pub fn getnUniformuiv(_program: GLuint, _location: GLint, _bufSize: GLsizei, _params: [*c]GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glGetnUniformuiv, .{_program, _location, _bufSize, _params});
+}
+
+pub fn readnPixels(_x: GLint, _y: GLint, _width: GLsizei, _height: GLsizei, _format: GLenum, _type: GLenum, _bufSize: GLsizei, _data: ?*anyopaque) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glReadnPixels, .{_x, _y, _width, _height, _format, _type, _bufSize, _data});
+}
+
+pub fn textureBarrier() callconv(.C) void {
+    return @call(.always_tail, function_pointers.glTextureBarrier, .{});
+}
+
+pub fn specializeShader(_shader: GLuint, _pEntryPoint: [*c]const GLchar, _numSpecializationConstants: GLuint, _pConstantIndex: [*c]const GLuint, _pConstantValue: [*c]const GLuint) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glSpecializeShader, .{_shader, _pEntryPoint, _numSpecializationConstants, _pConstantIndex, _pConstantValue});
+}
+
+pub fn multiDrawArraysIndirectCount(_mode: GLenum, _indirect: ?*const anyopaque, _drawcount: GLintptr, _maxdrawcount: GLsizei, _stride: GLsizei) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glMultiDrawArraysIndirectCount, .{_mode, _indirect, _drawcount, _maxdrawcount, _stride});
+}
+
+pub fn multiDrawElementsIndirectCount(_mode: GLenum, _type: GLenum, _indirect: ?*const anyopaque, _drawcount: GLintptr, _maxdrawcount: GLsizei, _stride: GLsizei) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glMultiDrawElementsIndirectCount, .{_mode, _type, _indirect, _drawcount, _maxdrawcount, _stride});
+}
+
+pub fn polygonOffsetClamp(_factor: GLfloat, _units: GLfloat, _clamp: GLfloat) callconv(.C) void {
+    return @call(.always_tail, function_pointers.glPolygonOffsetClamp, .{_factor, _units, _clamp});
 }
 // Extensions:
 
@@ -6721,6 +7276,744 @@ pub fn load(load_ctx: anytype, get_proc_address: fn(@TypeOf(load_ctx), [:0]const
         log.err("entry point glGetPointerv not found!", .{});
         success = false;
     }
+    if(get_proc_address(load_ctx, "glBufferStorage")) |proc| {
+        function_pointers.glBufferStorage = @ptrCast(proc);
+    } else {
+        log.err("entry point glBufferStorage not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glClearTexImage")) |proc| {
+        function_pointers.glClearTexImage = @ptrCast(proc);
+    } else {
+        log.err("entry point glClearTexImage not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glClearTexSubImage")) |proc| {
+        function_pointers.glClearTexSubImage = @ptrCast(proc);
+    } else {
+        log.err("entry point glClearTexSubImage not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glBindBuffersBase")) |proc| {
+        function_pointers.glBindBuffersBase = @ptrCast(proc);
+    } else {
+        log.err("entry point glBindBuffersBase not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glBindBuffersRange")) |proc| {
+        function_pointers.glBindBuffersRange = @ptrCast(proc);
+    } else {
+        log.err("entry point glBindBuffersRange not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glBindTextures")) |proc| {
+        function_pointers.glBindTextures = @ptrCast(proc);
+    } else {
+        log.err("entry point glBindTextures not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glBindSamplers")) |proc| {
+        function_pointers.glBindSamplers = @ptrCast(proc);
+    } else {
+        log.err("entry point glBindSamplers not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glBindImageTextures")) |proc| {
+        function_pointers.glBindImageTextures = @ptrCast(proc);
+    } else {
+        log.err("entry point glBindImageTextures not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glBindVertexBuffers")) |proc| {
+        function_pointers.glBindVertexBuffers = @ptrCast(proc);
+    } else {
+        log.err("entry point glBindVertexBuffers not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glClipControl")) |proc| {
+        function_pointers.glClipControl = @ptrCast(proc);
+    } else {
+        log.err("entry point glClipControl not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glCreateTransformFeedbacks")) |proc| {
+        function_pointers.glCreateTransformFeedbacks = @ptrCast(proc);
+    } else {
+        log.err("entry point glCreateTransformFeedbacks not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glTransformFeedbackBufferBase")) |proc| {
+        function_pointers.glTransformFeedbackBufferBase = @ptrCast(proc);
+    } else {
+        log.err("entry point glTransformFeedbackBufferBase not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glTransformFeedbackBufferRange")) |proc| {
+        function_pointers.glTransformFeedbackBufferRange = @ptrCast(proc);
+    } else {
+        log.err("entry point glTransformFeedbackBufferRange not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetTransformFeedbackiv")) |proc| {
+        function_pointers.glGetTransformFeedbackiv = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetTransformFeedbackiv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetTransformFeedbacki_v")) |proc| {
+        function_pointers.glGetTransformFeedbacki_v = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetTransformFeedbacki_v not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetTransformFeedbacki64_v")) |proc| {
+        function_pointers.glGetTransformFeedbacki64_v = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetTransformFeedbacki64_v not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glCreateBuffers")) |proc| {
+        function_pointers.glCreateBuffers = @ptrCast(proc);
+    } else {
+        log.err("entry point glCreateBuffers not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glNamedBufferStorage")) |proc| {
+        function_pointers.glNamedBufferStorage = @ptrCast(proc);
+    } else {
+        log.err("entry point glNamedBufferStorage not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glNamedBufferData")) |proc| {
+        function_pointers.glNamedBufferData = @ptrCast(proc);
+    } else {
+        log.err("entry point glNamedBufferData not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glNamedBufferSubData")) |proc| {
+        function_pointers.glNamedBufferSubData = @ptrCast(proc);
+    } else {
+        log.err("entry point glNamedBufferSubData not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glCopyNamedBufferSubData")) |proc| {
+        function_pointers.glCopyNamedBufferSubData = @ptrCast(proc);
+    } else {
+        log.err("entry point glCopyNamedBufferSubData not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glClearNamedBufferData")) |proc| {
+        function_pointers.glClearNamedBufferData = @ptrCast(proc);
+    } else {
+        log.err("entry point glClearNamedBufferData not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glClearNamedBufferSubData")) |proc| {
+        function_pointers.glClearNamedBufferSubData = @ptrCast(proc);
+    } else {
+        log.err("entry point glClearNamedBufferSubData not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glMapNamedBuffer")) |proc| {
+        function_pointers.glMapNamedBuffer = @ptrCast(proc);
+    } else {
+        log.err("entry point glMapNamedBuffer not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glMapNamedBufferRange")) |proc| {
+        function_pointers.glMapNamedBufferRange = @ptrCast(proc);
+    } else {
+        log.err("entry point glMapNamedBufferRange not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glUnmapNamedBuffer")) |proc| {
+        function_pointers.glUnmapNamedBuffer = @ptrCast(proc);
+    } else {
+        log.err("entry point glUnmapNamedBuffer not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glFlushMappedNamedBufferRange")) |proc| {
+        function_pointers.glFlushMappedNamedBufferRange = @ptrCast(proc);
+    } else {
+        log.err("entry point glFlushMappedNamedBufferRange not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetNamedBufferParameteriv")) |proc| {
+        function_pointers.glGetNamedBufferParameteriv = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetNamedBufferParameteriv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetNamedBufferParameteri64v")) |proc| {
+        function_pointers.glGetNamedBufferParameteri64v = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetNamedBufferParameteri64v not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetNamedBufferPointerv")) |proc| {
+        function_pointers.glGetNamedBufferPointerv = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetNamedBufferPointerv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetNamedBufferSubData")) |proc| {
+        function_pointers.glGetNamedBufferSubData = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetNamedBufferSubData not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glCreateFramebuffers")) |proc| {
+        function_pointers.glCreateFramebuffers = @ptrCast(proc);
+    } else {
+        log.err("entry point glCreateFramebuffers not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glNamedFramebufferRenderbuffer")) |proc| {
+        function_pointers.glNamedFramebufferRenderbuffer = @ptrCast(proc);
+    } else {
+        log.err("entry point glNamedFramebufferRenderbuffer not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glNamedFramebufferParameteri")) |proc| {
+        function_pointers.glNamedFramebufferParameteri = @ptrCast(proc);
+    } else {
+        log.err("entry point glNamedFramebufferParameteri not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glNamedFramebufferTexture")) |proc| {
+        function_pointers.glNamedFramebufferTexture = @ptrCast(proc);
+    } else {
+        log.err("entry point glNamedFramebufferTexture not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glNamedFramebufferTextureLayer")) |proc| {
+        function_pointers.glNamedFramebufferTextureLayer = @ptrCast(proc);
+    } else {
+        log.err("entry point glNamedFramebufferTextureLayer not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glNamedFramebufferDrawBuffer")) |proc| {
+        function_pointers.glNamedFramebufferDrawBuffer = @ptrCast(proc);
+    } else {
+        log.err("entry point glNamedFramebufferDrawBuffer not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glNamedFramebufferDrawBuffers")) |proc| {
+        function_pointers.glNamedFramebufferDrawBuffers = @ptrCast(proc);
+    } else {
+        log.err("entry point glNamedFramebufferDrawBuffers not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glNamedFramebufferReadBuffer")) |proc| {
+        function_pointers.glNamedFramebufferReadBuffer = @ptrCast(proc);
+    } else {
+        log.err("entry point glNamedFramebufferReadBuffer not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glInvalidateNamedFramebufferData")) |proc| {
+        function_pointers.glInvalidateNamedFramebufferData = @ptrCast(proc);
+    } else {
+        log.err("entry point glInvalidateNamedFramebufferData not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glInvalidateNamedFramebufferSubData")) |proc| {
+        function_pointers.glInvalidateNamedFramebufferSubData = @ptrCast(proc);
+    } else {
+        log.err("entry point glInvalidateNamedFramebufferSubData not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glClearNamedFramebufferiv")) |proc| {
+        function_pointers.glClearNamedFramebufferiv = @ptrCast(proc);
+    } else {
+        log.err("entry point glClearNamedFramebufferiv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glClearNamedFramebufferuiv")) |proc| {
+        function_pointers.glClearNamedFramebufferuiv = @ptrCast(proc);
+    } else {
+        log.err("entry point glClearNamedFramebufferuiv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glClearNamedFramebufferfv")) |proc| {
+        function_pointers.glClearNamedFramebufferfv = @ptrCast(proc);
+    } else {
+        log.err("entry point glClearNamedFramebufferfv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glClearNamedFramebufferfi")) |proc| {
+        function_pointers.glClearNamedFramebufferfi = @ptrCast(proc);
+    } else {
+        log.err("entry point glClearNamedFramebufferfi not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glBlitNamedFramebuffer")) |proc| {
+        function_pointers.glBlitNamedFramebuffer = @ptrCast(proc);
+    } else {
+        log.err("entry point glBlitNamedFramebuffer not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glCheckNamedFramebufferStatus")) |proc| {
+        function_pointers.glCheckNamedFramebufferStatus = @ptrCast(proc);
+    } else {
+        log.err("entry point glCheckNamedFramebufferStatus not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetNamedFramebufferParameteriv")) |proc| {
+        function_pointers.glGetNamedFramebufferParameteriv = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetNamedFramebufferParameteriv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetNamedFramebufferAttachmentParameteriv")) |proc| {
+        function_pointers.glGetNamedFramebufferAttachmentParameteriv = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetNamedFramebufferAttachmentParameteriv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glCreateRenderbuffers")) |proc| {
+        function_pointers.glCreateRenderbuffers = @ptrCast(proc);
+    } else {
+        log.err("entry point glCreateRenderbuffers not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glNamedRenderbufferStorage")) |proc| {
+        function_pointers.glNamedRenderbufferStorage = @ptrCast(proc);
+    } else {
+        log.err("entry point glNamedRenderbufferStorage not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glNamedRenderbufferStorageMultisample")) |proc| {
+        function_pointers.glNamedRenderbufferStorageMultisample = @ptrCast(proc);
+    } else {
+        log.err("entry point glNamedRenderbufferStorageMultisample not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetNamedRenderbufferParameteriv")) |proc| {
+        function_pointers.glGetNamedRenderbufferParameteriv = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetNamedRenderbufferParameteriv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glCreateTextures")) |proc| {
+        function_pointers.glCreateTextures = @ptrCast(proc);
+    } else {
+        log.err("entry point glCreateTextures not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glTextureBuffer")) |proc| {
+        function_pointers.glTextureBuffer = @ptrCast(proc);
+    } else {
+        log.err("entry point glTextureBuffer not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glTextureBufferRange")) |proc| {
+        function_pointers.glTextureBufferRange = @ptrCast(proc);
+    } else {
+        log.err("entry point glTextureBufferRange not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glTextureStorage1D")) |proc| {
+        function_pointers.glTextureStorage1D = @ptrCast(proc);
+    } else {
+        log.err("entry point glTextureStorage1D not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glTextureStorage2D")) |proc| {
+        function_pointers.glTextureStorage2D = @ptrCast(proc);
+    } else {
+        log.err("entry point glTextureStorage2D not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glTextureStorage3D")) |proc| {
+        function_pointers.glTextureStorage3D = @ptrCast(proc);
+    } else {
+        log.err("entry point glTextureStorage3D not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glTextureStorage2DMultisample")) |proc| {
+        function_pointers.glTextureStorage2DMultisample = @ptrCast(proc);
+    } else {
+        log.err("entry point glTextureStorage2DMultisample not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glTextureStorage3DMultisample")) |proc| {
+        function_pointers.glTextureStorage3DMultisample = @ptrCast(proc);
+    } else {
+        log.err("entry point glTextureStorage3DMultisample not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glTextureSubImage1D")) |proc| {
+        function_pointers.glTextureSubImage1D = @ptrCast(proc);
+    } else {
+        log.err("entry point glTextureSubImage1D not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glTextureSubImage2D")) |proc| {
+        function_pointers.glTextureSubImage2D = @ptrCast(proc);
+    } else {
+        log.err("entry point glTextureSubImage2D not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glTextureSubImage3D")) |proc| {
+        function_pointers.glTextureSubImage3D = @ptrCast(proc);
+    } else {
+        log.err("entry point glTextureSubImage3D not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glCompressedTextureSubImage1D")) |proc| {
+        function_pointers.glCompressedTextureSubImage1D = @ptrCast(proc);
+    } else {
+        log.err("entry point glCompressedTextureSubImage1D not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glCompressedTextureSubImage2D")) |proc| {
+        function_pointers.glCompressedTextureSubImage2D = @ptrCast(proc);
+    } else {
+        log.err("entry point glCompressedTextureSubImage2D not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glCompressedTextureSubImage3D")) |proc| {
+        function_pointers.glCompressedTextureSubImage3D = @ptrCast(proc);
+    } else {
+        log.err("entry point glCompressedTextureSubImage3D not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glCopyTextureSubImage1D")) |proc| {
+        function_pointers.glCopyTextureSubImage1D = @ptrCast(proc);
+    } else {
+        log.err("entry point glCopyTextureSubImage1D not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glCopyTextureSubImage2D")) |proc| {
+        function_pointers.glCopyTextureSubImage2D = @ptrCast(proc);
+    } else {
+        log.err("entry point glCopyTextureSubImage2D not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glCopyTextureSubImage3D")) |proc| {
+        function_pointers.glCopyTextureSubImage3D = @ptrCast(proc);
+    } else {
+        log.err("entry point glCopyTextureSubImage3D not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glTextureParameterf")) |proc| {
+        function_pointers.glTextureParameterf = @ptrCast(proc);
+    } else {
+        log.err("entry point glTextureParameterf not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glTextureParameterfv")) |proc| {
+        function_pointers.glTextureParameterfv = @ptrCast(proc);
+    } else {
+        log.err("entry point glTextureParameterfv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glTextureParameteri")) |proc| {
+        function_pointers.glTextureParameteri = @ptrCast(proc);
+    } else {
+        log.err("entry point glTextureParameteri not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glTextureParameterIiv")) |proc| {
+        function_pointers.glTextureParameterIiv = @ptrCast(proc);
+    } else {
+        log.err("entry point glTextureParameterIiv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glTextureParameterIuiv")) |proc| {
+        function_pointers.glTextureParameterIuiv = @ptrCast(proc);
+    } else {
+        log.err("entry point glTextureParameterIuiv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glTextureParameteriv")) |proc| {
+        function_pointers.glTextureParameteriv = @ptrCast(proc);
+    } else {
+        log.err("entry point glTextureParameteriv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGenerateTextureMipmap")) |proc| {
+        function_pointers.glGenerateTextureMipmap = @ptrCast(proc);
+    } else {
+        log.err("entry point glGenerateTextureMipmap not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glBindTextureUnit")) |proc| {
+        function_pointers.glBindTextureUnit = @ptrCast(proc);
+    } else {
+        log.err("entry point glBindTextureUnit not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetTextureImage")) |proc| {
+        function_pointers.glGetTextureImage = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetTextureImage not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetCompressedTextureImage")) |proc| {
+        function_pointers.glGetCompressedTextureImage = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetCompressedTextureImage not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetTextureLevelParameterfv")) |proc| {
+        function_pointers.glGetTextureLevelParameterfv = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetTextureLevelParameterfv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetTextureLevelParameteriv")) |proc| {
+        function_pointers.glGetTextureLevelParameteriv = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetTextureLevelParameteriv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetTextureParameterfv")) |proc| {
+        function_pointers.glGetTextureParameterfv = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetTextureParameterfv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetTextureParameterIiv")) |proc| {
+        function_pointers.glGetTextureParameterIiv = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetTextureParameterIiv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetTextureParameterIuiv")) |proc| {
+        function_pointers.glGetTextureParameterIuiv = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetTextureParameterIuiv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetTextureParameteriv")) |proc| {
+        function_pointers.glGetTextureParameteriv = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetTextureParameteriv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glCreateVertexArrays")) |proc| {
+        function_pointers.glCreateVertexArrays = @ptrCast(proc);
+    } else {
+        log.err("entry point glCreateVertexArrays not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glDisableVertexArrayAttrib")) |proc| {
+        function_pointers.glDisableVertexArrayAttrib = @ptrCast(proc);
+    } else {
+        log.err("entry point glDisableVertexArrayAttrib not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glEnableVertexArrayAttrib")) |proc| {
+        function_pointers.glEnableVertexArrayAttrib = @ptrCast(proc);
+    } else {
+        log.err("entry point glEnableVertexArrayAttrib not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glVertexArrayElementBuffer")) |proc| {
+        function_pointers.glVertexArrayElementBuffer = @ptrCast(proc);
+    } else {
+        log.err("entry point glVertexArrayElementBuffer not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glVertexArrayVertexBuffer")) |proc| {
+        function_pointers.glVertexArrayVertexBuffer = @ptrCast(proc);
+    } else {
+        log.err("entry point glVertexArrayVertexBuffer not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glVertexArrayVertexBuffers")) |proc| {
+        function_pointers.glVertexArrayVertexBuffers = @ptrCast(proc);
+    } else {
+        log.err("entry point glVertexArrayVertexBuffers not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glVertexArrayAttribBinding")) |proc| {
+        function_pointers.glVertexArrayAttribBinding = @ptrCast(proc);
+    } else {
+        log.err("entry point glVertexArrayAttribBinding not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glVertexArrayAttribFormat")) |proc| {
+        function_pointers.glVertexArrayAttribFormat = @ptrCast(proc);
+    } else {
+        log.err("entry point glVertexArrayAttribFormat not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glVertexArrayAttribIFormat")) |proc| {
+        function_pointers.glVertexArrayAttribIFormat = @ptrCast(proc);
+    } else {
+        log.err("entry point glVertexArrayAttribIFormat not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glVertexArrayAttribLFormat")) |proc| {
+        function_pointers.glVertexArrayAttribLFormat = @ptrCast(proc);
+    } else {
+        log.err("entry point glVertexArrayAttribLFormat not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glVertexArrayBindingDivisor")) |proc| {
+        function_pointers.glVertexArrayBindingDivisor = @ptrCast(proc);
+    } else {
+        log.err("entry point glVertexArrayBindingDivisor not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetVertexArrayiv")) |proc| {
+        function_pointers.glGetVertexArrayiv = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetVertexArrayiv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetVertexArrayIndexediv")) |proc| {
+        function_pointers.glGetVertexArrayIndexediv = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetVertexArrayIndexediv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetVertexArrayIndexed64iv")) |proc| {
+        function_pointers.glGetVertexArrayIndexed64iv = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetVertexArrayIndexed64iv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glCreateSamplers")) |proc| {
+        function_pointers.glCreateSamplers = @ptrCast(proc);
+    } else {
+        log.err("entry point glCreateSamplers not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glCreateProgramPipelines")) |proc| {
+        function_pointers.glCreateProgramPipelines = @ptrCast(proc);
+    } else {
+        log.err("entry point glCreateProgramPipelines not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glCreateQueries")) |proc| {
+        function_pointers.glCreateQueries = @ptrCast(proc);
+    } else {
+        log.err("entry point glCreateQueries not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetQueryBufferObjecti64v")) |proc| {
+        function_pointers.glGetQueryBufferObjecti64v = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetQueryBufferObjecti64v not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetQueryBufferObjectiv")) |proc| {
+        function_pointers.glGetQueryBufferObjectiv = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetQueryBufferObjectiv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetQueryBufferObjectui64v")) |proc| {
+        function_pointers.glGetQueryBufferObjectui64v = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetQueryBufferObjectui64v not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetQueryBufferObjectuiv")) |proc| {
+        function_pointers.glGetQueryBufferObjectuiv = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetQueryBufferObjectuiv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glMemoryBarrierByRegion")) |proc| {
+        function_pointers.glMemoryBarrierByRegion = @ptrCast(proc);
+    } else {
+        log.err("entry point glMemoryBarrierByRegion not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetTextureSubImage")) |proc| {
+        function_pointers.glGetTextureSubImage = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetTextureSubImage not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetCompressedTextureSubImage")) |proc| {
+        function_pointers.glGetCompressedTextureSubImage = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetCompressedTextureSubImage not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetGraphicsResetStatus")) |proc| {
+        function_pointers.glGetGraphicsResetStatus = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetGraphicsResetStatus not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetnCompressedTexImage")) |proc| {
+        function_pointers.glGetnCompressedTexImage = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetnCompressedTexImage not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetnTexImage")) |proc| {
+        function_pointers.glGetnTexImage = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetnTexImage not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetnUniformdv")) |proc| {
+        function_pointers.glGetnUniformdv = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetnUniformdv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetnUniformfv")) |proc| {
+        function_pointers.glGetnUniformfv = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetnUniformfv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetnUniformiv")) |proc| {
+        function_pointers.glGetnUniformiv = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetnUniformiv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glGetnUniformuiv")) |proc| {
+        function_pointers.glGetnUniformuiv = @ptrCast(proc);
+    } else {
+        log.err("entry point glGetnUniformuiv not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glReadnPixels")) |proc| {
+        function_pointers.glReadnPixels = @ptrCast(proc);
+    } else {
+        log.err("entry point glReadnPixels not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glTextureBarrier")) |proc| {
+        function_pointers.glTextureBarrier = @ptrCast(proc);
+    } else {
+        log.err("entry point glTextureBarrier not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glSpecializeShader")) |proc| {
+        function_pointers.glSpecializeShader = @ptrCast(proc);
+    } else {
+        log.err("entry point glSpecializeShader not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glMultiDrawArraysIndirectCount")) |proc| {
+        function_pointers.glMultiDrawArraysIndirectCount = @ptrCast(proc);
+    } else {
+        log.err("entry point glMultiDrawArraysIndirectCount not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glMultiDrawElementsIndirectCount")) |proc| {
+        function_pointers.glMultiDrawElementsIndirectCount = @ptrCast(proc);
+    } else {
+        log.err("entry point glMultiDrawElementsIndirectCount not found!", .{});
+        success = false;
+    }
+    if(get_proc_address(load_ctx, "glPolygonOffsetClamp")) |proc| {
+        function_pointers.glPolygonOffsetClamp = @ptrCast(proc);
+    } else {
+        log.err("entry point glPolygonOffsetClamp not found!", .{});
+        success = false;
+    }
     if(!success)
         return error.EntryPointNotFound;
 }
@@ -7260,6 +8553,129 @@ const function_signatures = struct {
     const glObjectPtrLabel = fn(_ptr: ?*const anyopaque, _length: GLsizei, _label: [*c]const GLchar) callconv(.C) void;
     const glGetObjectPtrLabel = fn(_ptr: ?*const anyopaque, _bufSize: GLsizei, _length: [*c]GLsizei, _label: [*c]GLchar) callconv(.C) void;
     const glGetPointerv = fn(_pname: GLenum, _params: ?*?*anyopaque) callconv(.C) void;
+    const glBufferStorage = fn(_target: GLenum, _size: GLsizeiptr, _data: ?*const anyopaque, _flags: GLbitfield) callconv(.C) void;
+    const glClearTexImage = fn(_texture: GLuint, _level: GLint, _format: GLenum, _type: GLenum, _data: ?*const anyopaque) callconv(.C) void;
+    const glClearTexSubImage = fn(_texture: GLuint, _level: GLint, _xoffset: GLint, _yoffset: GLint, _zoffset: GLint, _width: GLsizei, _height: GLsizei, _depth: GLsizei, _format: GLenum, _type: GLenum, _data: ?*const anyopaque) callconv(.C) void;
+    const glBindBuffersBase = fn(_target: GLenum, _first: GLuint, _count: GLsizei, _buffers: [*c]const GLuint) callconv(.C) void;
+    const glBindBuffersRange = fn(_target: GLenum, _first: GLuint, _count: GLsizei, _buffers: [*c]const GLuint, _offsets: [*c]const GLintptr, _sizes: [*c]const GLsizeiptr) callconv(.C) void;
+    const glBindTextures = fn(_first: GLuint, _count: GLsizei, _textures: [*c]const GLuint) callconv(.C) void;
+    const glBindSamplers = fn(_first: GLuint, _count: GLsizei, _samplers: [*c]const GLuint) callconv(.C) void;
+    const glBindImageTextures = fn(_first: GLuint, _count: GLsizei, _textures: [*c]const GLuint) callconv(.C) void;
+    const glBindVertexBuffers = fn(_first: GLuint, _count: GLsizei, _buffers: [*c]const GLuint, _offsets: [*c]const GLintptr, _strides: [*c]const GLsizei) callconv(.C) void;
+    const glClipControl = fn(_origin: GLenum, _depth: GLenum) callconv(.C) void;
+    const glCreateTransformFeedbacks = fn(_n: GLsizei, _ids: [*c]GLuint) callconv(.C) void;
+    const glTransformFeedbackBufferBase = fn(_xfb: GLuint, _index: GLuint, _buffer: GLuint) callconv(.C) void;
+    const glTransformFeedbackBufferRange = fn(_xfb: GLuint, _index: GLuint, _buffer: GLuint, _offset: GLintptr, _size: GLsizeiptr) callconv(.C) void;
+    const glGetTransformFeedbackiv = fn(_xfb: GLuint, _pname: GLenum, _param: [*c]GLint) callconv(.C) void;
+    const glGetTransformFeedbacki_v = fn(_xfb: GLuint, _pname: GLenum, _index: GLuint, _param: [*c]GLint) callconv(.C) void;
+    const glGetTransformFeedbacki64_v = fn(_xfb: GLuint, _pname: GLenum, _index: GLuint, _param: [*c]GLint64) callconv(.C) void;
+    const glCreateBuffers = fn(_n: GLsizei, _buffers: [*c]GLuint) callconv(.C) void;
+    const glNamedBufferStorage = fn(_buffer: GLuint, _size: GLsizeiptr, _data: ?*const anyopaque, _flags: GLbitfield) callconv(.C) void;
+    const glNamedBufferData = fn(_buffer: GLuint, _size: GLsizeiptr, _data: ?*const anyopaque, _usage: GLenum) callconv(.C) void;
+    const glNamedBufferSubData = fn(_buffer: GLuint, _offset: GLintptr, _size: GLsizeiptr, _data: ?*const anyopaque) callconv(.C) void;
+    const glCopyNamedBufferSubData = fn(_readBuffer: GLuint, _writeBuffer: GLuint, _readOffset: GLintptr, _writeOffset: GLintptr, _size: GLsizeiptr) callconv(.C) void;
+    const glClearNamedBufferData = fn(_buffer: GLuint, _internalformat: GLenum, _format: GLenum, _type: GLenum, _data: ?*const anyopaque) callconv(.C) void;
+    const glClearNamedBufferSubData = fn(_buffer: GLuint, _internalformat: GLenum, _offset: GLintptr, _size: GLsizeiptr, _format: GLenum, _type: GLenum, _data: ?*const anyopaque) callconv(.C) void;
+    const glMapNamedBuffer = fn(_buffer: GLuint, _access: GLenum) callconv(.C) ?*anyopaque;
+    const glMapNamedBufferRange = fn(_buffer: GLuint, _offset: GLintptr, _length: GLsizeiptr, _access: GLbitfield) callconv(.C) ?*anyopaque;
+    const glUnmapNamedBuffer = fn(_buffer: GLuint) callconv(.C) GLboolean;
+    const glFlushMappedNamedBufferRange = fn(_buffer: GLuint, _offset: GLintptr, _length: GLsizeiptr) callconv(.C) void;
+    const glGetNamedBufferParameteriv = fn(_buffer: GLuint, _pname: GLenum, _params: [*c]GLint) callconv(.C) void;
+    const glGetNamedBufferParameteri64v = fn(_buffer: GLuint, _pname: GLenum, _params: [*c]GLint64) callconv(.C) void;
+    const glGetNamedBufferPointerv = fn(_buffer: GLuint, _pname: GLenum, _params: ?*?*anyopaque) callconv(.C) void;
+    const glGetNamedBufferSubData = fn(_buffer: GLuint, _offset: GLintptr, _size: GLsizeiptr, _data: ?*anyopaque) callconv(.C) void;
+    const glCreateFramebuffers = fn(_n: GLsizei, _framebuffers: [*c]GLuint) callconv(.C) void;
+    const glNamedFramebufferRenderbuffer = fn(_framebuffer: GLuint, _attachment: GLenum, _renderbuffertarget: GLenum, _renderbuffer: GLuint) callconv(.C) void;
+    const glNamedFramebufferParameteri = fn(_framebuffer: GLuint, _pname: GLenum, _param: GLint) callconv(.C) void;
+    const glNamedFramebufferTexture = fn(_framebuffer: GLuint, _attachment: GLenum, _texture: GLuint, _level: GLint) callconv(.C) void;
+    const glNamedFramebufferTextureLayer = fn(_framebuffer: GLuint, _attachment: GLenum, _texture: GLuint, _level: GLint, _layer: GLint) callconv(.C) void;
+    const glNamedFramebufferDrawBuffer = fn(_framebuffer: GLuint, _buf: GLenum) callconv(.C) void;
+    const glNamedFramebufferDrawBuffers = fn(_framebuffer: GLuint, _n: GLsizei, _bufs: [*c]const GLenum) callconv(.C) void;
+    const glNamedFramebufferReadBuffer = fn(_framebuffer: GLuint, _src: GLenum) callconv(.C) void;
+    const glInvalidateNamedFramebufferData = fn(_framebuffer: GLuint, _numAttachments: GLsizei, _attachments: [*c]const GLenum) callconv(.C) void;
+    const glInvalidateNamedFramebufferSubData = fn(_framebuffer: GLuint, _numAttachments: GLsizei, _attachments: [*c]const GLenum, _x: GLint, _y: GLint, _width: GLsizei, _height: GLsizei) callconv(.C) void;
+    const glClearNamedFramebufferiv = fn(_framebuffer: GLuint, _buffer: GLenum, _drawbuffer: GLint, _value: [*c]const GLint) callconv(.C) void;
+    const glClearNamedFramebufferuiv = fn(_framebuffer: GLuint, _buffer: GLenum, _drawbuffer: GLint, _value: [*c]const GLuint) callconv(.C) void;
+    const glClearNamedFramebufferfv = fn(_framebuffer: GLuint, _buffer: GLenum, _drawbuffer: GLint, _value: [*c]const GLfloat) callconv(.C) void;
+    const glClearNamedFramebufferfi = fn(_framebuffer: GLuint, _buffer: GLenum, _drawbuffer: GLint, _depth: GLfloat, _stencil: GLint) callconv(.C) void;
+    const glBlitNamedFramebuffer = fn(_readFramebuffer: GLuint, _drawFramebuffer: GLuint, _srcX0: GLint, _srcY0: GLint, _srcX1: GLint, _srcY1: GLint, _dstX0: GLint, _dstY0: GLint, _dstX1: GLint, _dstY1: GLint, _mask: GLbitfield, _filter: GLenum) callconv(.C) void;
+    const glCheckNamedFramebufferStatus = fn(_framebuffer: GLuint, _target: GLenum) callconv(.C) GLenum;
+    const glGetNamedFramebufferParameteriv = fn(_framebuffer: GLuint, _pname: GLenum, _param: [*c]GLint) callconv(.C) void;
+    const glGetNamedFramebufferAttachmentParameteriv = fn(_framebuffer: GLuint, _attachment: GLenum, _pname: GLenum, _params: [*c]GLint) callconv(.C) void;
+    const glCreateRenderbuffers = fn(_n: GLsizei, _renderbuffers: [*c]GLuint) callconv(.C) void;
+    const glNamedRenderbufferStorage = fn(_renderbuffer: GLuint, _internalformat: GLenum, _width: GLsizei, _height: GLsizei) callconv(.C) void;
+    const glNamedRenderbufferStorageMultisample = fn(_renderbuffer: GLuint, _samples: GLsizei, _internalformat: GLenum, _width: GLsizei, _height: GLsizei) callconv(.C) void;
+    const glGetNamedRenderbufferParameteriv = fn(_renderbuffer: GLuint, _pname: GLenum, _params: [*c]GLint) callconv(.C) void;
+    const glCreateTextures = fn(_target: GLenum, _n: GLsizei, _textures: [*c]GLuint) callconv(.C) void;
+    const glTextureBuffer = fn(_texture: GLuint, _internalformat: GLenum, _buffer: GLuint) callconv(.C) void;
+    const glTextureBufferRange = fn(_texture: GLuint, _internalformat: GLenum, _buffer: GLuint, _offset: GLintptr, _size: GLsizeiptr) callconv(.C) void;
+    const glTextureStorage1D = fn(_texture: GLuint, _levels: GLsizei, _internalformat: GLenum, _width: GLsizei) callconv(.C) void;
+    const glTextureStorage2D = fn(_texture: GLuint, _levels: GLsizei, _internalformat: GLenum, _width: GLsizei, _height: GLsizei) callconv(.C) void;
+    const glTextureStorage3D = fn(_texture: GLuint, _levels: GLsizei, _internalformat: GLenum, _width: GLsizei, _height: GLsizei, _depth: GLsizei) callconv(.C) void;
+    const glTextureStorage2DMultisample = fn(_texture: GLuint, _samples: GLsizei, _internalformat: GLenum, _width: GLsizei, _height: GLsizei, _fixedsamplelocations: GLboolean) callconv(.C) void;
+    const glTextureStorage3DMultisample = fn(_texture: GLuint, _samples: GLsizei, _internalformat: GLenum, _width: GLsizei, _height: GLsizei, _depth: GLsizei, _fixedsamplelocations: GLboolean) callconv(.C) void;
+    const glTextureSubImage1D = fn(_texture: GLuint, _level: GLint, _xoffset: GLint, _width: GLsizei, _format: GLenum, _type: GLenum, _pixels: ?*const anyopaque) callconv(.C) void;
+    const glTextureSubImage2D = fn(_texture: GLuint, _level: GLint, _xoffset: GLint, _yoffset: GLint, _width: GLsizei, _height: GLsizei, _format: GLenum, _type: GLenum, _pixels: ?*const anyopaque) callconv(.C) void;
+    const glTextureSubImage3D = fn(_texture: GLuint, _level: GLint, _xoffset: GLint, _yoffset: GLint, _zoffset: GLint, _width: GLsizei, _height: GLsizei, _depth: GLsizei, _format: GLenum, _type: GLenum, _pixels: ?*const anyopaque) callconv(.C) void;
+    const glCompressedTextureSubImage1D = fn(_texture: GLuint, _level: GLint, _xoffset: GLint, _width: GLsizei, _format: GLenum, _imageSize: GLsizei, _data: ?*const anyopaque) callconv(.C) void;
+    const glCompressedTextureSubImage2D = fn(_texture: GLuint, _level: GLint, _xoffset: GLint, _yoffset: GLint, _width: GLsizei, _height: GLsizei, _format: GLenum, _imageSize: GLsizei, _data: ?*const anyopaque) callconv(.C) void;
+    const glCompressedTextureSubImage3D = fn(_texture: GLuint, _level: GLint, _xoffset: GLint, _yoffset: GLint, _zoffset: GLint, _width: GLsizei, _height: GLsizei, _depth: GLsizei, _format: GLenum, _imageSize: GLsizei, _data: ?*const anyopaque) callconv(.C) void;
+    const glCopyTextureSubImage1D = fn(_texture: GLuint, _level: GLint, _xoffset: GLint, _x: GLint, _y: GLint, _width: GLsizei) callconv(.C) void;
+    const glCopyTextureSubImage2D = fn(_texture: GLuint, _level: GLint, _xoffset: GLint, _yoffset: GLint, _x: GLint, _y: GLint, _width: GLsizei, _height: GLsizei) callconv(.C) void;
+    const glCopyTextureSubImage3D = fn(_texture: GLuint, _level: GLint, _xoffset: GLint, _yoffset: GLint, _zoffset: GLint, _x: GLint, _y: GLint, _width: GLsizei, _height: GLsizei) callconv(.C) void;
+    const glTextureParameterf = fn(_texture: GLuint, _pname: GLenum, _param: GLfloat) callconv(.C) void;
+    const glTextureParameterfv = fn(_texture: GLuint, _pname: GLenum, _param: [*c]const GLfloat) callconv(.C) void;
+    const glTextureParameteri = fn(_texture: GLuint, _pname: GLenum, _param: GLint) callconv(.C) void;
+    const glTextureParameterIiv = fn(_texture: GLuint, _pname: GLenum, _params: [*c]const GLint) callconv(.C) void;
+    const glTextureParameterIuiv = fn(_texture: GLuint, _pname: GLenum, _params: [*c]const GLuint) callconv(.C) void;
+    const glTextureParameteriv = fn(_texture: GLuint, _pname: GLenum, _param: [*c]const GLint) callconv(.C) void;
+    const glGenerateTextureMipmap = fn(_texture: GLuint) callconv(.C) void;
+    const glBindTextureUnit = fn(_unit: GLuint, _texture: GLuint) callconv(.C) void;
+    const glGetTextureImage = fn(_texture: GLuint, _level: GLint, _format: GLenum, _type: GLenum, _bufSize: GLsizei, _pixels: ?*anyopaque) callconv(.C) void;
+    const glGetCompressedTextureImage = fn(_texture: GLuint, _level: GLint, _bufSize: GLsizei, _pixels: ?*anyopaque) callconv(.C) void;
+    const glGetTextureLevelParameterfv = fn(_texture: GLuint, _level: GLint, _pname: GLenum, _params: [*c]GLfloat) callconv(.C) void;
+    const glGetTextureLevelParameteriv = fn(_texture: GLuint, _level: GLint, _pname: GLenum, _params: [*c]GLint) callconv(.C) void;
+    const glGetTextureParameterfv = fn(_texture: GLuint, _pname: GLenum, _params: [*c]GLfloat) callconv(.C) void;
+    const glGetTextureParameterIiv = fn(_texture: GLuint, _pname: GLenum, _params: [*c]GLint) callconv(.C) void;
+    const glGetTextureParameterIuiv = fn(_texture: GLuint, _pname: GLenum, _params: [*c]GLuint) callconv(.C) void;
+    const glGetTextureParameteriv = fn(_texture: GLuint, _pname: GLenum, _params: [*c]GLint) callconv(.C) void;
+    const glCreateVertexArrays = fn(_n: GLsizei, _arrays: [*c]GLuint) callconv(.C) void;
+    const glDisableVertexArrayAttrib = fn(_vaobj: GLuint, _index: GLuint) callconv(.C) void;
+    const glEnableVertexArrayAttrib = fn(_vaobj: GLuint, _index: GLuint) callconv(.C) void;
+    const glVertexArrayElementBuffer = fn(_vaobj: GLuint, _buffer: GLuint) callconv(.C) void;
+    const glVertexArrayVertexBuffer = fn(_vaobj: GLuint, _bindingindex: GLuint, _buffer: GLuint, _offset: GLintptr, _stride: GLsizei) callconv(.C) void;
+    const glVertexArrayVertexBuffers = fn(_vaobj: GLuint, _first: GLuint, _count: GLsizei, _buffers: [*c]const GLuint, _offsets: [*c]const GLintptr, _strides: [*c]const GLsizei) callconv(.C) void;
+    const glVertexArrayAttribBinding = fn(_vaobj: GLuint, _attribindex: GLuint, _bindingindex: GLuint) callconv(.C) void;
+    const glVertexArrayAttribFormat = fn(_vaobj: GLuint, _attribindex: GLuint, _size: GLint, _type: GLenum, _normalized: GLboolean, _relativeoffset: GLuint) callconv(.C) void;
+    const glVertexArrayAttribIFormat = fn(_vaobj: GLuint, _attribindex: GLuint, _size: GLint, _type: GLenum, _relativeoffset: GLuint) callconv(.C) void;
+    const glVertexArrayAttribLFormat = fn(_vaobj: GLuint, _attribindex: GLuint, _size: GLint, _type: GLenum, _relativeoffset: GLuint) callconv(.C) void;
+    const glVertexArrayBindingDivisor = fn(_vaobj: GLuint, _bindingindex: GLuint, _divisor: GLuint) callconv(.C) void;
+    const glGetVertexArrayiv = fn(_vaobj: GLuint, _pname: GLenum, _param: [*c]GLint) callconv(.C) void;
+    const glGetVertexArrayIndexediv = fn(_vaobj: GLuint, _index: GLuint, _pname: GLenum, _param: [*c]GLint) callconv(.C) void;
+    const glGetVertexArrayIndexed64iv = fn(_vaobj: GLuint, _index: GLuint, _pname: GLenum, _param: [*c]GLint64) callconv(.C) void;
+    const glCreateSamplers = fn(_n: GLsizei, _samplers: [*c]GLuint) callconv(.C) void;
+    const glCreateProgramPipelines = fn(_n: GLsizei, _pipelines: [*c]GLuint) callconv(.C) void;
+    const glCreateQueries = fn(_target: GLenum, _n: GLsizei, _ids: [*c]GLuint) callconv(.C) void;
+    const glGetQueryBufferObjecti64v = fn(_id: GLuint, _buffer: GLuint, _pname: GLenum, _offset: GLintptr) callconv(.C) void;
+    const glGetQueryBufferObjectiv = fn(_id: GLuint, _buffer: GLuint, _pname: GLenum, _offset: GLintptr) callconv(.C) void;
+    const glGetQueryBufferObjectui64v = fn(_id: GLuint, _buffer: GLuint, _pname: GLenum, _offset: GLintptr) callconv(.C) void;
+    const glGetQueryBufferObjectuiv = fn(_id: GLuint, _buffer: GLuint, _pname: GLenum, _offset: GLintptr) callconv(.C) void;
+    const glMemoryBarrierByRegion = fn(_barriers: GLbitfield) callconv(.C) void;
+    const glGetTextureSubImage = fn(_texture: GLuint, _level: GLint, _xoffset: GLint, _yoffset: GLint, _zoffset: GLint, _width: GLsizei, _height: GLsizei, _depth: GLsizei, _format: GLenum, _type: GLenum, _bufSize: GLsizei, _pixels: ?*anyopaque) callconv(.C) void;
+    const glGetCompressedTextureSubImage = fn(_texture: GLuint, _level: GLint, _xoffset: GLint, _yoffset: GLint, _zoffset: GLint, _width: GLsizei, _height: GLsizei, _depth: GLsizei, _bufSize: GLsizei, _pixels: ?*anyopaque) callconv(.C) void;
+    const glGetGraphicsResetStatus = fn() callconv(.C) GLenum;
+    const glGetnCompressedTexImage = fn(_target: GLenum, _lod: GLint, _bufSize: GLsizei, _pixels: ?*anyopaque) callconv(.C) void;
+    const glGetnTexImage = fn(_target: GLenum, _level: GLint, _format: GLenum, _type: GLenum, _bufSize: GLsizei, _pixels: ?*anyopaque) callconv(.C) void;
+    const glGetnUniformdv = fn(_program: GLuint, _location: GLint, _bufSize: GLsizei, _params: [*c]GLdouble) callconv(.C) void;
+    const glGetnUniformfv = fn(_program: GLuint, _location: GLint, _bufSize: GLsizei, _params: [*c]GLfloat) callconv(.C) void;
+    const glGetnUniformiv = fn(_program: GLuint, _location: GLint, _bufSize: GLsizei, _params: [*c]GLint) callconv(.C) void;
+    const glGetnUniformuiv = fn(_program: GLuint, _location: GLint, _bufSize: GLsizei, _params: [*c]GLuint) callconv(.C) void;
+    const glReadnPixels = fn(_x: GLint, _y: GLint, _width: GLsizei, _height: GLsizei, _format: GLenum, _type: GLenum, _bufSize: GLsizei, _data: ?*anyopaque) callconv(.C) void;
+    const glTextureBarrier = fn() callconv(.C) void;
+    const glSpecializeShader = fn(_shader: GLuint, _pEntryPoint: [*c]const GLchar, _numSpecializationConstants: GLuint, _pConstantIndex: [*c]const GLuint, _pConstantValue: [*c]const GLuint) callconv(.C) void;
+    const glMultiDrawArraysIndirectCount = fn(_mode: GLenum, _indirect: ?*const anyopaque, _drawcount: GLintptr, _maxdrawcount: GLsizei, _stride: GLsizei) callconv(.C) void;
+    const glMultiDrawElementsIndirectCount = fn(_mode: GLenum, _type: GLenum, _indirect: ?*const anyopaque, _drawcount: GLintptr, _maxdrawcount: GLsizei, _stride: GLsizei) callconv(.C) void;
+    const glPolygonOffsetClamp = fn(_factor: GLfloat, _units: GLfloat, _clamp: GLfloat) callconv(.C) void;
 };
 
 const function_pointers = struct {
@@ -7797,6 +9213,129 @@ const function_pointers = struct {
     var glObjectPtrLabel: *const function_signatures.glObjectPtrLabel = undefined;
     var glGetObjectPtrLabel: *const function_signatures.glGetObjectPtrLabel = undefined;
     var glGetPointerv: *const function_signatures.glGetPointerv = undefined;
+    var glBufferStorage: *const function_signatures.glBufferStorage = undefined;
+    var glClearTexImage: *const function_signatures.glClearTexImage = undefined;
+    var glClearTexSubImage: *const function_signatures.glClearTexSubImage = undefined;
+    var glBindBuffersBase: *const function_signatures.glBindBuffersBase = undefined;
+    var glBindBuffersRange: *const function_signatures.glBindBuffersRange = undefined;
+    var glBindTextures: *const function_signatures.glBindTextures = undefined;
+    var glBindSamplers: *const function_signatures.glBindSamplers = undefined;
+    var glBindImageTextures: *const function_signatures.glBindImageTextures = undefined;
+    var glBindVertexBuffers: *const function_signatures.glBindVertexBuffers = undefined;
+    var glClipControl: *const function_signatures.glClipControl = undefined;
+    var glCreateTransformFeedbacks: *const function_signatures.glCreateTransformFeedbacks = undefined;
+    var glTransformFeedbackBufferBase: *const function_signatures.glTransformFeedbackBufferBase = undefined;
+    var glTransformFeedbackBufferRange: *const function_signatures.glTransformFeedbackBufferRange = undefined;
+    var glGetTransformFeedbackiv: *const function_signatures.glGetTransformFeedbackiv = undefined;
+    var glGetTransformFeedbacki_v: *const function_signatures.glGetTransformFeedbacki_v = undefined;
+    var glGetTransformFeedbacki64_v: *const function_signatures.glGetTransformFeedbacki64_v = undefined;
+    var glCreateBuffers: *const function_signatures.glCreateBuffers = undefined;
+    var glNamedBufferStorage: *const function_signatures.glNamedBufferStorage = undefined;
+    var glNamedBufferData: *const function_signatures.glNamedBufferData = undefined;
+    var glNamedBufferSubData: *const function_signatures.glNamedBufferSubData = undefined;
+    var glCopyNamedBufferSubData: *const function_signatures.glCopyNamedBufferSubData = undefined;
+    var glClearNamedBufferData: *const function_signatures.glClearNamedBufferData = undefined;
+    var glClearNamedBufferSubData: *const function_signatures.glClearNamedBufferSubData = undefined;
+    var glMapNamedBuffer: *const function_signatures.glMapNamedBuffer = undefined;
+    var glMapNamedBufferRange: *const function_signatures.glMapNamedBufferRange = undefined;
+    var glUnmapNamedBuffer: *const function_signatures.glUnmapNamedBuffer = undefined;
+    var glFlushMappedNamedBufferRange: *const function_signatures.glFlushMappedNamedBufferRange = undefined;
+    var glGetNamedBufferParameteriv: *const function_signatures.glGetNamedBufferParameteriv = undefined;
+    var glGetNamedBufferParameteri64v: *const function_signatures.glGetNamedBufferParameteri64v = undefined;
+    var glGetNamedBufferPointerv: *const function_signatures.glGetNamedBufferPointerv = undefined;
+    var glGetNamedBufferSubData: *const function_signatures.glGetNamedBufferSubData = undefined;
+    var glCreateFramebuffers: *const function_signatures.glCreateFramebuffers = undefined;
+    var glNamedFramebufferRenderbuffer: *const function_signatures.glNamedFramebufferRenderbuffer = undefined;
+    var glNamedFramebufferParameteri: *const function_signatures.glNamedFramebufferParameteri = undefined;
+    var glNamedFramebufferTexture: *const function_signatures.glNamedFramebufferTexture = undefined;
+    var glNamedFramebufferTextureLayer: *const function_signatures.glNamedFramebufferTextureLayer = undefined;
+    var glNamedFramebufferDrawBuffer: *const function_signatures.glNamedFramebufferDrawBuffer = undefined;
+    var glNamedFramebufferDrawBuffers: *const function_signatures.glNamedFramebufferDrawBuffers = undefined;
+    var glNamedFramebufferReadBuffer: *const function_signatures.glNamedFramebufferReadBuffer = undefined;
+    var glInvalidateNamedFramebufferData: *const function_signatures.glInvalidateNamedFramebufferData = undefined;
+    var glInvalidateNamedFramebufferSubData: *const function_signatures.glInvalidateNamedFramebufferSubData = undefined;
+    var glClearNamedFramebufferiv: *const function_signatures.glClearNamedFramebufferiv = undefined;
+    var glClearNamedFramebufferuiv: *const function_signatures.glClearNamedFramebufferuiv = undefined;
+    var glClearNamedFramebufferfv: *const function_signatures.glClearNamedFramebufferfv = undefined;
+    var glClearNamedFramebufferfi: *const function_signatures.glClearNamedFramebufferfi = undefined;
+    var glBlitNamedFramebuffer: *const function_signatures.glBlitNamedFramebuffer = undefined;
+    var glCheckNamedFramebufferStatus: *const function_signatures.glCheckNamedFramebufferStatus = undefined;
+    var glGetNamedFramebufferParameteriv: *const function_signatures.glGetNamedFramebufferParameteriv = undefined;
+    var glGetNamedFramebufferAttachmentParameteriv: *const function_signatures.glGetNamedFramebufferAttachmentParameteriv = undefined;
+    var glCreateRenderbuffers: *const function_signatures.glCreateRenderbuffers = undefined;
+    var glNamedRenderbufferStorage: *const function_signatures.glNamedRenderbufferStorage = undefined;
+    var glNamedRenderbufferStorageMultisample: *const function_signatures.glNamedRenderbufferStorageMultisample = undefined;
+    var glGetNamedRenderbufferParameteriv: *const function_signatures.glGetNamedRenderbufferParameteriv = undefined;
+    var glCreateTextures: *const function_signatures.glCreateTextures = undefined;
+    var glTextureBuffer: *const function_signatures.glTextureBuffer = undefined;
+    var glTextureBufferRange: *const function_signatures.glTextureBufferRange = undefined;
+    var glTextureStorage1D: *const function_signatures.glTextureStorage1D = undefined;
+    var glTextureStorage2D: *const function_signatures.glTextureStorage2D = undefined;
+    var glTextureStorage3D: *const function_signatures.glTextureStorage3D = undefined;
+    var glTextureStorage2DMultisample: *const function_signatures.glTextureStorage2DMultisample = undefined;
+    var glTextureStorage3DMultisample: *const function_signatures.glTextureStorage3DMultisample = undefined;
+    var glTextureSubImage1D: *const function_signatures.glTextureSubImage1D = undefined;
+    var glTextureSubImage2D: *const function_signatures.glTextureSubImage2D = undefined;
+    var glTextureSubImage3D: *const function_signatures.glTextureSubImage3D = undefined;
+    var glCompressedTextureSubImage1D: *const function_signatures.glCompressedTextureSubImage1D = undefined;
+    var glCompressedTextureSubImage2D: *const function_signatures.glCompressedTextureSubImage2D = undefined;
+    var glCompressedTextureSubImage3D: *const function_signatures.glCompressedTextureSubImage3D = undefined;
+    var glCopyTextureSubImage1D: *const function_signatures.glCopyTextureSubImage1D = undefined;
+    var glCopyTextureSubImage2D: *const function_signatures.glCopyTextureSubImage2D = undefined;
+    var glCopyTextureSubImage3D: *const function_signatures.glCopyTextureSubImage3D = undefined;
+    var glTextureParameterf: *const function_signatures.glTextureParameterf = undefined;
+    var glTextureParameterfv: *const function_signatures.glTextureParameterfv = undefined;
+    var glTextureParameteri: *const function_signatures.glTextureParameteri = undefined;
+    var glTextureParameterIiv: *const function_signatures.glTextureParameterIiv = undefined;
+    var glTextureParameterIuiv: *const function_signatures.glTextureParameterIuiv = undefined;
+    var glTextureParameteriv: *const function_signatures.glTextureParameteriv = undefined;
+    var glGenerateTextureMipmap: *const function_signatures.glGenerateTextureMipmap = undefined;
+    var glBindTextureUnit: *const function_signatures.glBindTextureUnit = undefined;
+    var glGetTextureImage: *const function_signatures.glGetTextureImage = undefined;
+    var glGetCompressedTextureImage: *const function_signatures.glGetCompressedTextureImage = undefined;
+    var glGetTextureLevelParameterfv: *const function_signatures.glGetTextureLevelParameterfv = undefined;
+    var glGetTextureLevelParameteriv: *const function_signatures.glGetTextureLevelParameteriv = undefined;
+    var glGetTextureParameterfv: *const function_signatures.glGetTextureParameterfv = undefined;
+    var glGetTextureParameterIiv: *const function_signatures.glGetTextureParameterIiv = undefined;
+    var glGetTextureParameterIuiv: *const function_signatures.glGetTextureParameterIuiv = undefined;
+    var glGetTextureParameteriv: *const function_signatures.glGetTextureParameteriv = undefined;
+    var glCreateVertexArrays: *const function_signatures.glCreateVertexArrays = undefined;
+    var glDisableVertexArrayAttrib: *const function_signatures.glDisableVertexArrayAttrib = undefined;
+    var glEnableVertexArrayAttrib: *const function_signatures.glEnableVertexArrayAttrib = undefined;
+    var glVertexArrayElementBuffer: *const function_signatures.glVertexArrayElementBuffer = undefined;
+    var glVertexArrayVertexBuffer: *const function_signatures.glVertexArrayVertexBuffer = undefined;
+    var glVertexArrayVertexBuffers: *const function_signatures.glVertexArrayVertexBuffers = undefined;
+    var glVertexArrayAttribBinding: *const function_signatures.glVertexArrayAttribBinding = undefined;
+    var glVertexArrayAttribFormat: *const function_signatures.glVertexArrayAttribFormat = undefined;
+    var glVertexArrayAttribIFormat: *const function_signatures.glVertexArrayAttribIFormat = undefined;
+    var glVertexArrayAttribLFormat: *const function_signatures.glVertexArrayAttribLFormat = undefined;
+    var glVertexArrayBindingDivisor: *const function_signatures.glVertexArrayBindingDivisor = undefined;
+    var glGetVertexArrayiv: *const function_signatures.glGetVertexArrayiv = undefined;
+    var glGetVertexArrayIndexediv: *const function_signatures.glGetVertexArrayIndexediv = undefined;
+    var glGetVertexArrayIndexed64iv: *const function_signatures.glGetVertexArrayIndexed64iv = undefined;
+    var glCreateSamplers: *const function_signatures.glCreateSamplers = undefined;
+    var glCreateProgramPipelines: *const function_signatures.glCreateProgramPipelines = undefined;
+    var glCreateQueries: *const function_signatures.glCreateQueries = undefined;
+    var glGetQueryBufferObjecti64v: *const function_signatures.glGetQueryBufferObjecti64v = undefined;
+    var glGetQueryBufferObjectiv: *const function_signatures.glGetQueryBufferObjectiv = undefined;
+    var glGetQueryBufferObjectui64v: *const function_signatures.glGetQueryBufferObjectui64v = undefined;
+    var glGetQueryBufferObjectuiv: *const function_signatures.glGetQueryBufferObjectuiv = undefined;
+    var glMemoryBarrierByRegion: *const function_signatures.glMemoryBarrierByRegion = undefined;
+    var glGetTextureSubImage: *const function_signatures.glGetTextureSubImage = undefined;
+    var glGetCompressedTextureSubImage: *const function_signatures.glGetCompressedTextureSubImage = undefined;
+    var glGetGraphicsResetStatus: *const function_signatures.glGetGraphicsResetStatus = undefined;
+    var glGetnCompressedTexImage: *const function_signatures.glGetnCompressedTexImage = undefined;
+    var glGetnTexImage: *const function_signatures.glGetnTexImage = undefined;
+    var glGetnUniformdv: *const function_signatures.glGetnUniformdv = undefined;
+    var glGetnUniformfv: *const function_signatures.glGetnUniformfv = undefined;
+    var glGetnUniformiv: *const function_signatures.glGetnUniformiv = undefined;
+    var glGetnUniformuiv: *const function_signatures.glGetnUniformuiv = undefined;
+    var glReadnPixels: *const function_signatures.glReadnPixels = undefined;
+    var glTextureBarrier: *const function_signatures.glTextureBarrier = undefined;
+    var glSpecializeShader: *const function_signatures.glSpecializeShader = undefined;
+    var glMultiDrawArraysIndirectCount: *const function_signatures.glMultiDrawArraysIndirectCount = undefined;
+    var glMultiDrawElementsIndirectCount: *const function_signatures.glMultiDrawElementsIndirectCount = undefined;
+    var glPolygonOffsetClamp: *const function_signatures.glPolygonOffsetClamp = undefined;
 };
 
 test {

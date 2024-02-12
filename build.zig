@@ -25,7 +25,7 @@ pub fn build(b: *std.Build) !void {
 
     // Add OpenGL
     exe.root_module.addImport("gl", b.createModule(.{
-        .root_source_file = .{ .path = "libs/gl43.zig" },
+        .root_source_file = .{ .path = "libs/gl46.zig" },
     }));
 
     // Add zmath

@@ -78,27 +78,6 @@ pub const World = struct {
 
         try world.gen(null);
 
-        // Create an array and buffer of equal size
-        var data_array: [Chunk.SIZE * Chunk.SIZE * Chunk.SIZE]zm.Vec = undefined;
-        var data_buffer: gl.GLuint = undefined;
-        gl.genBuffers(1, &data_buffer);
-        defer gl.deleteBuffers(1, &data_buffer);
-        gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, data_buffer);
-        gl.bufferData(gl.SHADER_STORAGE_BUFFER, @sizeOf(@TypeOf(data_array)), null, gl.STATIC_DRAW);
-        gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, 0);
-        gl.bindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, data_buffer); // 0 is the index chosen in main
-
-        // Dispatch the compute shader to populate the buffer
-        density_shader.use();
-        gl.dispatchCompute(Chunk.SIZE, Chunk.SIZE, Chunk.SIZE);
-        gl.memoryBarrier(gl.BUFFER_UPDATE_BARRIER_BIT);
-
-        // Read the results into the array
-        gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, data_buffer);
-        gl.getBufferSubData(gl.SHADER_STORAGE_BUFFER, 0, @sizeOf(@TypeOf(data_array)), &data_array);
-        std.debug.print("{d}\n", .{data_array});
-        gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, 0);
-
         return world;
     }
 
@@ -303,6 +282,7 @@ pub const World = struct {
         chunk.density_mip = null;
         chunk.wip_mip = mip_level;
         chunk.splits_copy = world.splits;
+        const offset = world.offsetFromIndex(chunk_index, null);
         if (thread) {
             if (!try world.pool.work(
                 workerThread,
@@ -310,10 +290,7 @@ pub const World = struct {
                     .task = .density,
                     .world = world,
                     .chunk = chunk,
-                    .offset = world.offsetFromIndex(
-                        chunk_index,
-                        chunk.splits_copy.?,
-                    ),
+                    .offset = offset,
                 },
             )) {
                 world.chunk_alloc.free(chunk.density);
@@ -324,7 +301,32 @@ pub const World = struct {
                 return false;
             }
         } else {
-            try chunk.genDensity(world.offsetFromIndex(chunk_index, null));
+            if (true) {
+                const bytes: isize = @intCast(@sizeOf(@TypeOf(chunk.density[0])) * chunk.density.len);
+                // Create an array and buffer of equal size
+                var data_buffer: gl.GLuint = undefined;
+                gl.genBuffers(1, &data_buffer);
+                defer gl.deleteBuffers(1, &data_buffer);
+                gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, data_buffer);
+                gl.bufferData(gl.SHADER_STORAGE_BUFFER, bytes, null, gl.STATIC_DRAW);
+                gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, 0);
+                gl.bindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, data_buffer); // 0 is the index chosen in main
+
+                // Dispatch the compute shader to populate the buffer
+                world.density_shader.use();
+
+                world.density_shader.set("offset", f32, zm.vecToArr3(offset));
+                gl.dispatchCompute(Chunk.SIZE / 16, Chunk.SIZE / 4, Chunk.SIZE);
+                gl.memoryBarrier(gl.BUFFER_UPDATE_BARRIER_BIT);
+
+                // Read the results into the array
+                gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, data_buffer);
+                gl.getBufferSubData(gl.SHADER_STORAGE_BUFFER, 0, bytes, &chunk.density[0]);
+                // std.debug.print("{d}\n", .{data_array});
+                gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, 0);
+            } else {
+                try chunk.genDensity(offset);
+            }
             chunk.density_mip = chunk.wip_mip;
             chunk.wip_mip = null;
             chunk.splits_copy = null;

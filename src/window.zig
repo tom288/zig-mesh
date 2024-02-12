@@ -74,7 +74,7 @@ pub const Window = struct {
             .{
                 .opengl_profile = .opengl_core_profile,
                 .context_version_major = 4,
-                .context_version_minor = 3,
+                .context_version_minor = 6,
                 .resizable = resizable,
                 .samples = msaa_samples,
                 .position_x = @intFromFloat(resolution[2]),
