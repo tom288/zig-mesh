@@ -42,7 +42,6 @@ pub fn Mesh(comptime attrs: anytype) type {
             inline for (0..attrs.len) |i| {
                 gl.bindBuffer(gl.ARRAY_BUFFER, vbos[i]);
                 try initAttrs(attrs[i], &mesh.strides[i], shader);
-                mesh.strides[i] /= try glSizeOf(attrs[i][0].type);
                 gl.bindBuffer(gl.ARRAY_BUFFER, 0);
             }
 
@@ -89,20 +88,43 @@ pub fn Mesh(comptime attrs: anytype) type {
             }
         }
 
+        // Grow the VBOs to hold a given capacity of vertices
+        pub fn growVBOs(mesh: *@This(), vert_num: usize) !void {
+            try _upload(mesh, .{}, vert_num);
+        }
+
         // Expects an empty 1D array or a 2D array
         pub fn upload(mesh: *@This(), verts: anytype) !void {
-            const vbos = mesh.vbos.?;
+            try _upload(mesh, verts, null);
+        }
+
+        // Expects an empty 1D array or a 2D array
+        fn _upload(mesh: *@This(), verts: anytype, num_verts: ?usize) !void {
             if (verts.len != attrs.len and verts.len != 0) {
                 std.log.err("Mismatch between verts.len({}) and vbos.len ({})\n", .{ verts.len, attrs.len });
                 return error.BadVertArrCount;
             }
+            const vbos = mesh.vbos.?;
+
+            // Create a nested function without language support
+            const bufferSize = struct {
+                fn f(m: @TypeOf(mesh), arr: anytype, comptime i: usize, n: ?usize) !usize {
+                    if (n) |num| {
+                        return num * m.strides[i];
+                    } else if (arr.len > 0 and arr[i].len > 0) {
+                        return arr[i].len * @sizeOf(@TypeOf(arr[i][0]));
+                    }
+                    return 0;
+                }
+            }.f;
 
             // Get the current buffer size
             var signed_size: gl.GLint64 = undefined;
             gl.bindBuffer(gl.ARRAY_BUFFER, vbos[0]);
+            defer gl.bindBuffer(gl.ARRAY_BUFFER, 0);
             gl.getBufferParameteri64v(gl.ARRAY_BUFFER, gl.BUFFER_SIZE, &signed_size);
             const size: usize = @intCast(signed_size);
-            const size_needed: usize = if (verts.len > 0 and verts[0].len > 0) verts[0].len * @sizeOf(@TypeOf(verts[0][0])) else 0;
+            const size_needed: usize = try bufferSize(mesh, verts, 0, num_verts);
 
             // If we already have enough size then avoid reallocation
             // Reallocate if we have much more than we need
@@ -110,18 +132,18 @@ pub fn Mesh(comptime attrs: anytype) type {
                 (size < size_needed * 2 or size - size_needed < 64);
 
             inline for (0.., vbos) |i, vbo| {
-                const vert_size: gl.GLsizeiptr = if (verts.len > 0 and verts[i].len > 0) @intCast(verts[i].len * @sizeOf(@TypeOf(verts[i][0]))) else 0;
                 gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+                const vert_size: gl.GLsizeiptr = @intCast(try bufferSize(mesh, verts, i, num_verts));
+                const data = if (vert_size > 0 and verts.len > 0 and verts[0].len > 0) &verts[i][0] else null;
                 if (reuse) {
-                    gl.bufferSubData(gl.ARRAY_BUFFER, 0, vert_size, if (vert_size > 0) &verts[i][0] else null);
+                    gl.bufferSubData(gl.ARRAY_BUFFER, 0, vert_size, data);
                 } else {
                     // TODO allocate a little extra to reduce resize frequency?
-                    gl.bufferData(gl.ARRAY_BUFFER, vert_size, if (vert_size > 0) &verts[i][0] else null, gl.STATIC_DRAW);
+                    gl.bufferData(gl.ARRAY_BUFFER, vert_size, data, gl.STATIC_DRAW);
                 }
             }
 
-            gl.bindBuffer(gl.ARRAY_BUFFER, 0);
-            mesh.vert_count = if (verts.len > 0) verts[0].len / mesh.strides[0] else 0;
+            mesh.vert_count = size_needed / mesh.strides[0];
             try glOk();
         }
 
