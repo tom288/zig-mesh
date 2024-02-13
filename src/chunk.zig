@@ -24,7 +24,7 @@ pub const Chunk = struct {
 
     mesh: Mesh(.{.{
         .{ .name = "position", .size = 3, .type = gl.FLOAT },
-        .{ .name = "colour", .size = 3, .type = gl.FLOAT },
+        .{ .name = "colour", .size = 4, .type = gl.UNSIGNED_BYTE },
     }}),
 
     // Whether this chunk is no longer part of the visible world

@@ -59,7 +59,7 @@ pub const Voxel = struct {
                     ]) occ += 1;
                     // Darken occluded vertices
                     colour /= @splat(std.math.pow(f32, 1.1, occ));
-                    try chunk.surface.appendSlice(&zm.vecToArr3(colour));
+                    try appendColour(chunk, colour);
                 }
             }
         }
@@ -222,13 +222,13 @@ pub const MarchingCubes = struct {
                     const colour = sampleColour(avg + offset, gen);
                     for (tri_verts) |t| {
                         try chunk.surface.appendSlice(&zm.vecToArr3(t));
-                        try chunk.surface.appendSlice(&zm.vecToArr3(colour));
+                        try appendColour(chunk, colour);
                     }
                 }
             } else {
                 try chunk.surface.appendSlice(&zm.vecToArr3(vert));
                 const colour = sampleColour(vert + offset, gen);
-                try chunk.surface.appendSlice(&zm.vecToArr3(colour));
+                try appendColour(chunk, colour);
             }
         }
     }
@@ -242,4 +242,9 @@ fn sampleColour(pos: zm.Vec, gen: znoise.FnlGenerator) zm.Vec {
         colour[c] += (gen.noise3(c_pos[0], c_pos[1], c_pos[2]) + 1) / 2;
     }
     return colour;
+}
+
+fn appendColour(chunk: *Chunk, colour: zm.Vec) !void {
+    const c: @Vector(4, u8) = @intFromFloat(zm.f32x4s(255.999) * colour);
+    try chunk.surface.append(@bitCast(c));
 }
