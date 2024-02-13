@@ -7,11 +7,17 @@ const zm = @import("zmath");
 const Chunk = @import("chunk.zig").Chunk;
 const Shader = @import("shader.zig").Shader;
 const Pool = @import("pool.zig").Pool;
+const Surface = @import("surface.zig");
 
 pub const World = struct {
     const SIZE = Chunk.SIZE * CHUNKS;
     const CHUNKS = 16;
     const MIP0_DIST = CHUNKS / 2; // CHUNKS / 2 = Whole world
+    const THREADING = enum {
+        single,
+        multi,
+        compute,
+    }.multi;
 
     alloc: std.mem.Allocator,
     chunk_alloc: std.mem.Allocator,
@@ -64,8 +70,6 @@ pub const World = struct {
         for (world.chunks) |*chunk| {
             var density_buffer: gl.GLuint = undefined;
             gl.genBuffers(1, &density_buffer);
-            var surface_buffer: gl.GLuint = undefined;
-            gl.genBuffers(1, &surface_buffer);
             chunk.* = .{
                 .density = &.{},
                 .surface = undefined,
@@ -77,7 +81,18 @@ pub const World = struct {
                 .density_refs = 0,
                 .splits_copy = null,
                 .density_buffer = density_buffer,
-                .surface_buffer = surface_buffer,
+            };
+            if (THREADING == .compute) switch (Chunk.SURFACE) {
+                Surface.Voxel => {
+                    const max_cubes = std.math.pow(usize, Chunk.SIZE, 3);
+                    const max_verts = (max_cubes - max_cubes / 2) * 6 * 2 * 3;
+                    try chunk.mesh.resizeVBOs(max_verts);
+                },
+                Surface.MarchingCubes => {
+                    // TODO determine max possible verts per chunk
+                    unreachable;
+                },
+                else => unreachable,
             };
             count += 1;
         }
@@ -286,7 +301,6 @@ pub const World = struct {
         world: *World,
         chunk: *Chunk,
         chunk_index: usize,
-        threads: Threads,
         mip_level: usize,
     ) !bool {
         chunk.free(world.chunk_alloc, false);
@@ -301,7 +315,7 @@ pub const World = struct {
         chunk.wip_mip = mip_level;
         chunk.splits_copy = world.splits;
 
-        switch (threads) {
+        switch (THREADING) {
             .single => {
                 try chunk.genDensity(offset);
             },
@@ -356,7 +370,6 @@ pub const World = struct {
         world: *World,
         chunk: *Chunk,
         chunk_index: usize,
-        threads: Threads,
         comptime min: comptime_int,
     ) !bool {
         chunk.surface = std.ArrayList(f32).init(world.chunk_alloc);
@@ -364,7 +377,7 @@ pub const World = struct {
         chunk.surface_mip = null;
         chunk.wip_mip = chunk.density_mip;
         chunk.splits_copy = world.splits;
-        switch (threads) {
+        switch (THREADING) {
             .single => {
                 try chunk.genSurface(world.*, world.offsetFromIndex(chunk_index, null));
                 try chunk.mesh.upload(.{chunk.surface.items});
@@ -411,7 +424,7 @@ pub const World = struct {
                 chunk.surface_mip = old_mip;
                 chunk.wip_mip = null;
                 chunk.splits_copy = null;
-                return genChunkSurface(world, chunk, chunk_index, .single, min);
+                unreachable;
             },
         }
         chunk.surface_mip = chunk.wip_mip;
@@ -424,7 +437,6 @@ pub const World = struct {
     // Return true if the chunk is already generated at a sufficient mip level
     // Otherwise return false
     pub fn genChunk(world: *World, pos: zm.Vec, dist: usize, edge: bool) !?bool {
-        const threads = .multi;
         const mip_level: usize = if (dist < MIP0_DIST) 0 else 2;
         const chunk_index = try world.indexFromOffset(pos, null);
         const chunk = &world.chunks[chunk_index];
@@ -442,10 +454,9 @@ pub const World = struct {
             return switch (try world.genChunkDensity(
                 chunk,
                 chunk_index,
-                threads,
                 mip_level,
             )) {
-                true => threads == .single,
+                true => THREADING == .single,
                 false => null,
             };
         }
@@ -480,7 +491,7 @@ pub const World = struct {
                     if (neighbour.density_mip) |mip| if (mip <= mip_level) continue;
 
                     // If we are about to schedule work then we are not all ready
-                    if (threads != .single) all_ready = false;
+                    if (THREADING != .single) all_ready = false;
 
                     // Skip chunks currently being used for their densities
                     if (neighbour.density_refs > 0) continue;
@@ -488,7 +499,6 @@ pub const World = struct {
                     if (!try world.genChunkDensity(
                         neighbour,
                         neighbour_index,
-                        threads,
                         mip_level,
                     )) return null;
                 }
@@ -499,10 +509,9 @@ pub const World = struct {
         return switch (try world.genChunkSurface(
             chunk,
             chunk_index,
-            threads,
             min,
         )) {
-            true => threads == .single,
+            true => THREADING == .single,
             false => null,
         };
     }
@@ -590,12 +599,6 @@ pub const World = struct {
         splits[3] = 0;
         return splits;
     }
-
-    const Threads = enum {
-        single,
-        multi,
-        compute,
-    };
 
     const WorkerData = struct {
         pub const Task = enum {

@@ -88,8 +88,8 @@ pub fn Mesh(comptime attrs: anytype) type {
             }
         }
 
-        // Grow the VBOs to hold a given capacity of vertices
-        pub fn growVBOs(mesh: *@This(), vert_num: usize) !void {
+        // Resize the VBOs to hold a given capacity of vertices
+        pub fn resizeVBOs(mesh: *@This(), vert_num: usize) !void {
             try _upload(mesh, .{}, vert_num);
         }
 
