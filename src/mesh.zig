@@ -113,10 +113,10 @@ pub fn Mesh(comptime attrs: anytype) type {
                 const vert_size: gl.GLsizeiptr = if (verts.len > 0 and verts[i].len > 0) @intCast(verts[i].len * @sizeOf(@TypeOf(verts[i][0]))) else 0;
                 gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
                 if (reuse) {
-                    gl.bufferSubData(gl.ARRAY_BUFFER, 0, vert_size, if (verts.len > 0 and verts[i].len > 0) &verts[i][0] else null);
+                    gl.bufferSubData(gl.ARRAY_BUFFER, 0, vert_size, if (vert_size > 0) &verts[i][0] else null);
                 } else {
                     // TODO allocate a little extra to reduce resize frequency?
-                    gl.bufferData(gl.ARRAY_BUFFER, vert_size, if (verts.len > 0 and verts[i].len > 0) &verts[i][0] else null, gl.STATIC_DRAW);
+                    gl.bufferData(gl.ARRAY_BUFFER, vert_size, if (vert_size > 0) &verts[i][0] else null, gl.STATIC_DRAW);
                 }
             }
 

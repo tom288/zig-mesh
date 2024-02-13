@@ -62,6 +62,10 @@ pub const World = struct {
 
         // Assign uninitialised chunks
         for (world.chunks) |*chunk| {
+            var density_buffer: gl.GLuint = undefined;
+            gl.genBuffers(1, &density_buffer);
+            var surface_buffer: gl.GLuint = undefined;
+            gl.genBuffers(1, &surface_buffer);
             chunk.* = .{
                 .density = &.{},
                 .surface = undefined,
@@ -72,6 +76,8 @@ pub const World = struct {
                 .wip_mip = null,
                 .density_refs = 0,
                 .splits_copy = null,
+                .density_buffer = density_buffer,
+                .surface_buffer = surface_buffer,
             };
             count += 1;
         }
@@ -256,10 +262,10 @@ pub const World = struct {
                     }
                 }.f;
 
-                const base = if (plane < 1) dist else big;
-                const base2 = if (plane <= 1) dist else big;
-                pos[if (plane < 1) 1 else 0] = signedDist(i % (base * 2), base);
-                pos[if (plane > 1) 1 else 2] = signedDist(i / (base * 2), base2);
+                const base1 = if (plane < 1) dist else big;
+                const base2 = if (plane < 2) dist else big;
+                pos[if (plane < 1) 1 else 0] = signedDist(i % (base1 * 2), base1);
+                pos[if (plane > 1) 1 else 2] = signedDist(i / (base1 * 2), base2);
 
                 if (try world.genChunk(
                     world.cam_pos + pos * zm.f32x4s(Chunk.SIZE),
@@ -280,7 +286,7 @@ pub const World = struct {
         world: *World,
         chunk: *Chunk,
         chunk_index: usize,
-        thread: bool,
+        threads: Threads,
         mip_level: usize,
     ) !bool {
         chunk.free(world.chunk_alloc, false);
@@ -288,39 +294,43 @@ pub const World = struct {
         const size = Chunk.SIZE / @as(usize, @intFromFloat(mip_scale));
         chunk.density = try world.chunk_alloc.alloc(f32, size * size * size);
 
+        const offset = world.offsetFromIndex(chunk_index, null);
         const old_mip = chunk.density_mip;
+
         chunk.density_mip = null;
         chunk.wip_mip = mip_level;
         chunk.splits_copy = world.splits;
-        const offset = world.offsetFromIndex(chunk_index, null);
-        if (thread) {
-            if (!try world.pool.work(
-                workerThread,
-                .{
-                    .task = .density,
-                    .world = world,
-                    .chunk = chunk,
-                    .offset = offset,
-                },
-            )) {
-                world.chunk_alloc.free(chunk.density);
-                chunk.density = &.{};
-                chunk.density_mip = old_mip;
-                chunk.wip_mip = null;
-                chunk.splits_copy = null;
-                return false;
-            }
-        } else {
-            if (true) {
+
+        switch (threads) {
+            .single => {
+                try chunk.genDensity(offset);
+            },
+            .multi => {
+                if (!try world.pool.work(
+                    workerThread,
+                    .{
+                        .task = .density,
+                        .world = world,
+                        .chunk = chunk,
+                        .offset = offset,
+                    },
+                )) {
+                    world.chunk_alloc.free(chunk.density);
+                    chunk.density = &.{};
+                    chunk.density_mip = old_mip;
+                    chunk.wip_mip = null;
+                    chunk.splits_copy = null;
+                    return false;
+                }
+                return true;
+            },
+            .compute => {
                 const bytes: isize = @intCast(@sizeOf(@TypeOf(chunk.density[0])) * chunk.density.len);
                 // Create an array and buffer of equal size
-                var data_buffer: gl.GLuint = undefined;
-                gl.genBuffers(1, &data_buffer);
-                defer gl.deleteBuffers(1, &data_buffer);
-                gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, data_buffer);
+                gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, chunk.density_buffer.?);
                 gl.bufferData(gl.SHADER_STORAGE_BUFFER, bytes, null, gl.STATIC_DRAW);
                 gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, 0);
-                gl.bindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, data_buffer); // 0 is the index chosen in main
+                gl.bindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, chunk.density_buffer.?); // 0 is the index chosen in main
 
                 // Dispatch the compute shader to populate the buffer
                 world.density_shader.use();
@@ -330,17 +340,15 @@ pub const World = struct {
                 gl.memoryBarrier(gl.BUFFER_UPDATE_BARRIER_BIT);
 
                 // Read the results into the array
-                gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, data_buffer);
+                gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, chunk.density_buffer.?);
                 gl.getBufferSubData(gl.SHADER_STORAGE_BUFFER, 0, bytes, &chunk.density[0]);
                 // std.debug.print("{d}\n", .{data_array});
                 gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, 0);
-            } else {
-                try chunk.genDensity(offset);
-            }
-            chunk.density_mip = chunk.wip_mip;
-            chunk.wip_mip = null;
-            chunk.splits_copy = null;
+            },
         }
+        chunk.density_mip = chunk.wip_mip;
+        chunk.wip_mip = null;
+        chunk.splits_copy = null;
         return true;
     }
 
@@ -348,7 +356,7 @@ pub const World = struct {
         world: *World,
         chunk: *Chunk,
         chunk_index: usize,
-        thread: bool,
+        threads: Threads,
         comptime min: comptime_int,
     ) !bool {
         chunk.surface = std.ArrayList(f32).init(world.chunk_alloc);
@@ -356,47 +364,59 @@ pub const World = struct {
         chunk.surface_mip = null;
         chunk.wip_mip = chunk.density_mip;
         chunk.splits_copy = world.splits;
-        if (thread) {
-            if (!try world.pool.work(
-                workerThread,
-                .{
-                    .task = .surface,
-                    .world = world,
-                    .chunk = chunk,
-                    .offset = world.offsetFromIndex(
-                        chunk_index,
-                        chunk.splits_copy.?,
-                    ),
-                },
-            )) {
-                if (chunk.surface_mip) |_| chunk.surface.deinit();
+        switch (threads) {
+            .single => {
+                try chunk.genSurface(world.*, world.offsetFromIndex(chunk_index, null));
+                try chunk.mesh.upload(.{chunk.surface.items});
+            },
+            .multi => {
+                if (!try world.pool.work(
+                    workerThread,
+                    .{
+                        .task = .surface,
+                        .world = world,
+                        .chunk = chunk,
+                        .offset = world.offsetFromIndex(
+                            chunk_index,
+                            chunk.splits_copy.?,
+                        ),
+                    },
+                )) {
+                    chunk.surface.deinit();
+                    chunk.surface_mip = old_mip;
+                    chunk.wip_mip = null;
+                    chunk.splits_copy = null;
+                    return false;
+                }
+                for (min..3) |k| {
+                    for (min..3) |j| {
+                        for (min..3) |i| {
+                            const neighbour_pos = (zm.f32x4(
+                                @floatFromInt(i),
+                                @floatFromInt(j),
+                                @floatFromInt(k),
+                                1,
+                            ) - zm.f32x4s(1)) * zm.f32x4s(Chunk.SIZE) +
+                                world.offsetFromIndex(chunk_index, chunk.splits_copy);
+                            const neighbour = &world.chunks[try world.indexFromOffset(neighbour_pos, chunk.splits_copy)];
+                            neighbour.density_refs += 1;
+                        }
+                    }
+                }
+                return true;
+            },
+            .compute => {
+                // TODO not implemented
+                chunk.surface.deinit();
                 chunk.surface_mip = old_mip;
                 chunk.wip_mip = null;
                 chunk.splits_copy = null;
-                return false;
-            }
-            for (min..3) |k| {
-                for (min..3) |j| {
-                    for (min..3) |i| {
-                        const neighbour_pos = (zm.f32x4(
-                            @floatFromInt(i),
-                            @floatFromInt(j),
-                            @floatFromInt(k),
-                            1,
-                        ) - zm.f32x4s(1)) * zm.f32x4s(Chunk.SIZE) +
-                            world.offsetFromIndex(chunk_index, chunk.splits_copy);
-                        const neighbour = &world.chunks[try world.indexFromOffset(neighbour_pos, chunk.splits_copy)];
-                        neighbour.density_refs += 1;
-                    }
-                }
-            }
-        } else {
-            try chunk.genSurface(world.*, world.offsetFromIndex(chunk_index, null));
-            try chunk.mesh.upload(.{chunk.surface.items});
-            chunk.surface_mip = chunk.wip_mip;
-            chunk.wip_mip = null;
-            chunk.splits_copy = null;
+                return genChunkSurface(world, chunk, chunk_index, .single, min);
+            },
         }
+        chunk.surface_mip = chunk.wip_mip;
+        chunk.wip_mip = null;
+        chunk.splits_copy = null;
         return true;
     }
 
@@ -404,7 +424,7 @@ pub const World = struct {
     // Return true if the chunk is already generated at a sufficient mip level
     // Otherwise return false
     pub fn genChunk(world: *World, pos: zm.Vec, dist: usize, edge: bool) !?bool {
-        const THREAD = true;
+        const threads = .multi;
         const mip_level: usize = if (dist < MIP0_DIST) 0 else 2;
         const chunk_index = try world.indexFromOffset(pos, null);
         const chunk = &world.chunks[chunk_index];
@@ -422,10 +442,10 @@ pub const World = struct {
             return switch (try world.genChunkDensity(
                 chunk,
                 chunk_index,
-                THREAD,
+                threads,
                 mip_level,
             )) {
-                true => !THREAD,
+                true => threads == .single,
                 false => null,
             };
         }
@@ -459,7 +479,8 @@ pub const World = struct {
                     // If the neighbour is already finished then move on
                     if (neighbour.density_mip) |mip| if (mip <= mip_level) continue;
 
-                    if (THREAD) all_ready = false;
+                    // If we are about to schedule work then we are not all ready
+                    if (threads != .single) all_ready = false;
 
                     // Skip chunks currently being used for their densities
                     if (neighbour.density_refs > 0) continue;
@@ -467,7 +488,7 @@ pub const World = struct {
                     if (!try world.genChunkDensity(
                         neighbour,
                         neighbour_index,
-                        THREAD,
+                        threads,
                         mip_level,
                     )) return null;
                 }
@@ -478,10 +499,10 @@ pub const World = struct {
         return switch (try world.genChunkSurface(
             chunk,
             chunk_index,
-            THREAD,
+            threads,
             min,
         )) {
-            true => !THREAD,
+            true => threads == .single,
             false => null,
         };
     }
@@ -569,6 +590,12 @@ pub const World = struct {
         splits[3] = 0;
         return splits;
     }
+
+    const Threads = enum {
+        single,
+        multi,
+        compute,
+    };
 
     const WorkerData = struct {
         pub const Task = enum {

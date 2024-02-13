@@ -43,6 +43,9 @@ pub const Chunk = struct {
     // The number of other chunk threads which are using this chunk
     density_refs: usize,
 
+    density_buffer: ?gl.GLuint,
+    surface_buffer: ?gl.GLuint,
+
     pub fn free(chunk: *Chunk, alloc: std.mem.Allocator, gpu: bool) void {
         if (chunk.wip_mip) |_| unreachable;
         if (chunk.density_refs > 0) unreachable;
@@ -57,6 +60,14 @@ pub const Chunk = struct {
     }
 
     pub fn kill(chunk: *Chunk, alloc: std.mem.Allocator) void {
+        if (chunk.surface_buffer) |surface_buffer| {
+            gl.deleteBuffers(1, &surface_buffer);
+            chunk.surface_buffer = null;
+        }
+        if (chunk.density_buffer) |density_buffer| {
+            gl.deleteBuffers(1, &density_buffer);
+            chunk.density_buffer = null;
+        }
         chunk.mesh.kill();
         chunk.free(alloc, false);
     }
