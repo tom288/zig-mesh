@@ -20,7 +20,7 @@ pub const Chunk = struct {
     density: []f32,
 
     // The triangle surface data of this chunk
-    surface: std.ArrayList(f32),
+    surface: ?std.ArrayList(f32),
 
     mesh: Mesh(.{.{
         .{ .name = "position", .size = 3, .type = gl.FLOAT },
@@ -48,8 +48,11 @@ pub const Chunk = struct {
     pub fn free(chunk: *Chunk, alloc: std.mem.Allocator, gpu: bool) void {
         if (chunk.wip_mip) |_| unreachable;
         if (chunk.density_refs > 0) unreachable;
-        if (gpu) chunk.mesh.upload(.{}) catch {};
-        if (chunk.surface_mip) |_| chunk.surface.deinit();
+        if (gpu) chunk.mesh.upload(.{}) catch unreachable;
+        if (chunk.surface) |surface| {
+            surface.deinit();
+            chunk.surface = null;
+        }
         chunk.surface_mip = null;
         alloc.free(chunk.density);
         chunk.density = &.{};
@@ -218,7 +221,7 @@ pub const Chunk = struct {
         for (0..chunk.density.len) |i| {
             try SURFACE.from(chunk, world, gen, chunk.posFromIndex(i), offset);
         }
-        chunk.surface.shrinkAndFree(chunk.surface.items.len);
+        chunk.surface.?.shrinkAndFree(chunk.surface.?.items.len);
     }
 
     pub fn full(chunk: *Chunk, world: World, pos: zm.Vec, offset: zm.Vec, occ: bool, splits: ?zm.Vec) ?bool {

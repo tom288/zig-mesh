@@ -285,7 +285,7 @@ pub const Window = struct {
         if (key == .escape) window.setShouldClose(true);
         const win = window.getUserPointer(Window).?;
         if ((key == .enter or key == .kp_enter) and action == .press and mods.alt) {
-            win.toggleWindowed() catch return;
+            win.toggleWindowed() catch unreachable;
         }
         const target = win.binds.get(key) orelse return;
         win.actionState[@intFromEnum(target)] = action != .release;

@@ -42,7 +42,7 @@ pub fn main() !void {
         surface_shader,
         camera.position,
     );
-    defer world.kill() catch {};
+    defer world.kill() catch unreachable;
 
     // Wait for the user to close the window.
     while (window.ok()) {

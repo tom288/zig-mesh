@@ -69,10 +69,10 @@ pub const World = struct {
         // Assign uninitialised chunks
         for (world.chunks) |*chunk| {
             var density_buffer: gl.GLuint = undefined;
-            gl.genBuffers(1, &density_buffer);
+            if (THREADING == .compute) gl.genBuffers(1, &density_buffer);
             chunk.* = .{
                 .density = &.{},
-                .surface = undefined,
+                .surface = null,
                 .mesh = try @TypeOf(chunk.mesh).init(shader),
                 .must_free = false,
                 .density_mip = null,
@@ -82,18 +82,23 @@ pub const World = struct {
                 .splits_copy = null,
                 .density_buffer = density_buffer,
             };
-            if (THREADING == .compute) switch (Chunk.SURFACE) {
-                Surface.Voxel => {
-                    const max_cubes = std.math.pow(usize, Chunk.SIZE, 3);
-                    const max_verts = (max_cubes - max_cubes / 2) * 6 * 2 * 3;
-                    try chunk.mesh.resizeVBOs(max_verts);
-                },
-                Surface.MarchingCubes => {
-                    // TODO determine max possible verts per chunk
-                    unreachable;
-                },
-                else => unreachable,
-            };
+            if (THREADING == .compute) {
+                const max_cubes = std.math.pow(usize, Chunk.SIZE, 3);
+                gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, chunk.density_buffer.?);
+                gl.bufferData(gl.SHADER_STORAGE_BUFFER, @intCast(max_cubes * @sizeOf(f32)), null, gl.STATIC_DRAW);
+                gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, 0);
+
+                switch (Chunk.SURFACE) {
+                    Surface.Voxel => {
+                        try chunk.mesh.resizeVBOs((max_cubes - max_cubes / 2) * 6 * 2 * 3);
+                    },
+                    Surface.MarchingCubes => {
+                        // TODO determine max possible verts per chunk
+                        unreachable;
+                    },
+                    else => unreachable,
+                }
+            }
             count += 1;
         }
 
@@ -339,24 +344,17 @@ pub const World = struct {
                 return true;
             },
             .compute => {
-                const bytes: isize = @intCast(@sizeOf(@TypeOf(chunk.density[0])) * chunk.density.len);
-                // Create an array and buffer of equal size
-                gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, chunk.density_buffer.?);
-                gl.bufferData(gl.SHADER_STORAGE_BUFFER, bytes, null, gl.STATIC_DRAW);
-                gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, 0);
-                gl.bindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, chunk.density_buffer.?); // 0 is the index chosen in main
-
                 // Dispatch the compute shader to populate the buffer
+                gl.bindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, chunk.density_buffer.?); // 0 is the index chosen in main
                 world.density_shader.use();
-
                 world.density_shader.set("offset", f32, zm.vecToArr3(offset));
                 gl.dispatchCompute(Chunk.SIZE / 16, Chunk.SIZE / 4, Chunk.SIZE);
                 gl.memoryBarrier(gl.BUFFER_UPDATE_BARRIER_BIT);
 
                 // Read the results into the array
                 gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, chunk.density_buffer.?);
-                gl.getBufferSubData(gl.SHADER_STORAGE_BUFFER, 0, bytes, &chunk.density[0]);
-                // std.debug.print("{d}\n", .{data_array});
+                const max_cubes = std.math.pow(usize, Chunk.SIZE, 3);
+                gl.getBufferSubData(gl.SHADER_STORAGE_BUFFER, 0, @intCast(max_cubes * @sizeOf(f32)), &chunk.density[0]);
                 gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, 0);
             },
         }
@@ -372,7 +370,7 @@ pub const World = struct {
         chunk_index: usize,
         comptime min: comptime_int,
     ) !bool {
-        chunk.surface = std.ArrayList(f32).init(world.chunk_alloc);
+        if (THREADING != .compute) chunk.surface = std.ArrayList(f32).init(world.chunk_alloc);
         const old_mip = chunk.surface_mip;
         chunk.surface_mip = null;
         chunk.wip_mip = chunk.density_mip;
@@ -380,7 +378,7 @@ pub const World = struct {
         switch (THREADING) {
             .single => {
                 try chunk.genSurface(world.*, world.offsetFromIndex(chunk_index, null));
-                try chunk.mesh.upload(.{chunk.surface.items});
+                try chunk.mesh.upload(.{chunk.surface.?.items});
             },
             .multi => {
                 if (!try world.pool.work(
@@ -395,7 +393,7 @@ pub const World = struct {
                         ),
                     },
                 )) {
-                    chunk.surface.deinit();
+                    chunk.surface.?.deinit();
                     chunk.surface_mip = old_mip;
                     chunk.wip_mip = null;
                     chunk.splits_copy = null;
@@ -420,10 +418,6 @@ pub const World = struct {
             },
             .compute => {
                 // TODO not implemented
-                chunk.surface.deinit();
-                chunk.surface_mip = old_mip;
-                chunk.wip_mip = null;
-                chunk.splits_copy = null;
                 unreachable;
             },
         }
@@ -552,7 +546,7 @@ pub const World = struct {
             // If the task was to generate the surface
             if (worker.data.task == .surface) {
                 // Upload the surface verts
-                try chunk.mesh.upload(.{chunk.surface.items});
+                try chunk.mesh.upload(.{chunk.surface.?.items});
                 chunk.surface_mip = chunk.wip_mip;
             } else {
                 chunk.density_mip = chunk.wip_mip;

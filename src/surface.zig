@@ -46,7 +46,7 @@ pub const Voxel = struct {
                     vert[(f / 2 + 1) % 3] += if (x) mip_scale * 0.5 else mip_scale * -0.5;
                     vert[(f / 2 + 2) % 3] += if (y) mip_scale * 0.5 else mip_scale * -0.5;
                     // Vertex positions
-                    try chunk.surface.appendSlice(&zm.vecToArr3(vert));
+                    try chunk.surface.?.appendSlice(&zm.vecToArr3(vert));
                     // Vertex colours
                     var colour = sampleColour(vert + offset, gen);
                     // Accumulate occlusion
@@ -221,12 +221,12 @@ pub const MarchingCubes = struct {
                     avg /= @splat(tri_verts.len);
                     const colour = sampleColour(avg + offset, gen);
                     for (tri_verts) |t| {
-                        try chunk.surface.appendSlice(&zm.vecToArr3(t));
+                        try chunk.surface.?.appendSlice(&zm.vecToArr3(t));
                         try appendColour(chunk, colour);
                     }
                 }
             } else {
-                try chunk.surface.appendSlice(&zm.vecToArr3(vert));
+                try chunk.surface.?.appendSlice(&zm.vecToArr3(vert));
                 const colour = sampleColour(vert + offset, gen);
                 try appendColour(chunk, colour);
             }
@@ -246,5 +246,5 @@ fn sampleColour(pos: zm.Vec, gen: znoise.FnlGenerator) zm.Vec {
 
 fn appendColour(chunk: *Chunk, colour: zm.Vec) !void {
     const c: @Vector(4, u8) = @intFromFloat(zm.f32x4s(255.999) * colour);
-    try chunk.surface.append(@bitCast(c));
+    try chunk.surface.?.append(@bitCast(c));
 }
