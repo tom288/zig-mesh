@@ -69,7 +69,12 @@ pub const World = struct {
         // Assign uninitialised chunks
         for (world.chunks) |*chunk| {
             var density_buffer: gl.GLuint = undefined;
-            if (THREADING == .compute) gl.genBuffers(1, &density_buffer);
+            var atomics_buffer: gl.GLuint = undefined;
+            if (THREADING == .compute) {
+                gl.genBuffers(1, &density_buffer);
+                gl.genBuffers(1, &atomics_buffer);
+            }
+
             chunk.* = .{
                 .density = &.{},
                 .surface = null,
@@ -81,12 +86,16 @@ pub const World = struct {
                 .density_refs = 0,
                 .splits_copy = null,
                 .density_buffer = density_buffer,
+                .atomics_buffer = atomics_buffer,
             };
             if (THREADING == .compute) {
                 const max_cubes = std.math.pow(usize, Chunk.SIZE, 3);
                 gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, chunk.density_buffer.?);
                 gl.bufferData(gl.SHADER_STORAGE_BUFFER, @intCast(max_cubes * @sizeOf(f32)), null, gl.STATIC_DRAW);
                 gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, 0);
+                gl.bindBuffer(gl.ATOMIC_COUNTER_BUFFER, chunk.atomics_buffer.?);
+                gl.bufferData(gl.ATOMIC_COUNTER_BUFFER, @sizeOf(gl.GLuint), null, gl.DYNAMIC_DRAW);
+                gl.bindBuffer(gl.ATOMIC_COUNTER_BUFFER, 0);
 
                 switch (Chunk.SURFACE) {
                     Surface.Voxel => {
@@ -252,7 +261,7 @@ pub const World = struct {
                 var i = index;
                 var pos = zm.f32x4s(0);
 
-                // Determine the axis in which the plane is fixed
+                // Determine the axis in that the plane is fixed
                 var plane: usize = 2;
                 var thresh = 8 * big * big;
                 if (i >= thresh) {
@@ -311,7 +320,7 @@ pub const World = struct {
         chunk.free(world.chunk_alloc, false);
         const mip_scale = std.math.pow(f32, 2, @floatFromInt(mip_level));
         const size = Chunk.SIZE / @as(usize, @intFromFloat(mip_scale));
-        chunk.density = try world.chunk_alloc.alloc(f32, size * size * size);
+        if (THREADING != .compute) chunk.density = try world.chunk_alloc.alloc(f32, size * size * size);
 
         const offset = world.offsetFromIndex(chunk_index, null);
         const old_mip = chunk.density_mip;
@@ -347,15 +356,10 @@ pub const World = struct {
                 // Dispatch the compute shader to populate the buffer
                 gl.bindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, chunk.density_buffer.?); // 0 is the index chosen in main
                 world.density_shader.use();
+                world.surface_shader.set("chunk_size", gl.GLuint, @as(gl.GLuint, @intCast(Chunk.SIZE)));
                 world.density_shader.set("offset", f32, zm.vecToArr3(offset));
                 gl.dispatchCompute(Chunk.SIZE / 16, Chunk.SIZE / 4, Chunk.SIZE);
                 gl.memoryBarrier(gl.BUFFER_UPDATE_BARRIER_BIT);
-
-                // Read the results into the array
-                gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, chunk.density_buffer.?);
-                const max_cubes = std.math.pow(usize, Chunk.SIZE, 3);
-                gl.getBufferSubData(gl.SHADER_STORAGE_BUFFER, 0, @intCast(max_cubes * @sizeOf(f32)), &chunk.density[0]);
-                gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, 0);
             },
         }
         chunk.density_mip = chunk.wip_mip;
@@ -371,13 +375,14 @@ pub const World = struct {
         comptime min: comptime_int,
     ) !bool {
         if (THREADING != .compute) chunk.surface = std.ArrayList(f32).init(world.chunk_alloc);
+        const offset = world.offsetFromIndex(chunk_index, null);
         const old_mip = chunk.surface_mip;
         chunk.surface_mip = null;
         chunk.wip_mip = chunk.density_mip;
         chunk.splits_copy = world.splits;
         switch (THREADING) {
             .single => {
-                try chunk.genSurface(world.*, world.offsetFromIndex(chunk_index, null));
+                try chunk.genSurface(world.*, offset);
                 try chunk.mesh.upload(.{chunk.surface.?.items});
             },
             .multi => {
@@ -387,10 +392,7 @@ pub const World = struct {
                         .task = .surface,
                         .world = world,
                         .chunk = chunk,
-                        .offset = world.offsetFromIndex(
-                            chunk_index,
-                            chunk.splits_copy.?,
-                        ),
+                        .offset = offset,
                     },
                 )) {
                     chunk.surface.?.deinit();
@@ -417,8 +419,23 @@ pub const World = struct {
                 return true;
             },
             .compute => {
-                // TODO not implemented
-                unreachable;
+                var values = [_]gl.GLuint{0};
+                gl.bindBuffer(gl.ATOMIC_COUNTER_BUFFER, chunk.atomics_buffer.?);
+                defer gl.bindBuffer(gl.ATOMIC_COUNTER_BUFFER, 0);
+                gl.bufferSubData(gl.ATOMIC_COUNTER_BUFFER, 0, @sizeOf(@TypeOf(values)), &values);
+
+                gl.bindBufferBase(gl.ATOMIC_COUNTER_BUFFER, 0, chunk.atomics_buffer.?); // 0 is the binding in the shader
+                gl.bindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, chunk.density_buffer.?); // 0 is the index chosen in main
+                gl.bindBufferBase(gl.SHADER_STORAGE_BUFFER, 1, chunk.mesh.vbos.?[0]); // 1 is the index chosen in main
+                world.surface_shader.use();
+                world.surface_shader.set("chunk_size", gl.GLuint, @as(gl.GLuint, @intCast(Chunk.SIZE)));
+                world.surface_shader.set("mip_scale", f32, std.math.pow(f32, 2, @floatFromInt(chunk.wip_mip.?)));
+                world.surface_shader.set("offset", f32, zm.vecToArr3(offset));
+                gl.dispatchCompute(Chunk.SIZE / 16, Chunk.SIZE / 4, Chunk.SIZE);
+
+                gl.memoryBarrier(gl.BUFFER_UPDATE_BARRIER_BIT);
+                gl.getBufferSubData(gl.ATOMIC_COUNTER_BUFFER, 0, @sizeOf(@TypeOf(values)), &values);
+                chunk.mesh.vert_count = values[0];
             },
         }
         chunk.surface_mip = chunk.wip_mip;
@@ -556,13 +573,13 @@ pub const World = struct {
         }
     }
 
-    pub fn indexFromOffset(world: World, pos: zm.Vec, splits: ?zm.Vec) !usize {
+    pub fn indexFromOffset(world: World, _pos: zm.Vec, splits: ?zm.Vec) !usize {
         const spl = splits orelse world.splits;
-        const floor = zm.floor(pos / zm.f32x4s(Chunk.SIZE));
+        const pos = zm.floor(_pos / zm.f32x4s(Chunk.SIZE));
         var index: usize = 0;
         for (0..3) |d| {
             const i = 2 - d;
-            var f = floor[i] - @floor(spl[i] / CHUNKS) * CHUNKS;
+            var f = pos[i] - @floor(spl[i] / CHUNKS) * CHUNKS;
             if (@mod(f, CHUNKS) >=
                 @mod(spl[i], CHUNKS)) f += CHUNKS;
             if (f < 0 or f >= CHUNKS) return error.PositionOutsideWorld;

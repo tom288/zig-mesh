@@ -31,10 +31,10 @@ pub const Voxel = struct {
                 occluder[(e / 2 + f / 2 + 1) % 3] += if (e % 2 > 0) mip_scale else -mip_scale;
                 occlusion[e] = chunk.full(world, occluder, offset, true, null) orelse false;
                 // Voxels that share corners
-                var corner = neighbour;
-                corner[(f / 2 + 1) % 3] += if (e % 2 > 0) mip_scale else -mip_scale;
-                corner[(f / 2 + 2) % 3] += if (e / 2 > 0) mip_scale else -mip_scale;
-                occlusion[e + 4] = chunk.full(world, corner, offset, true, null) orelse false;
+                occluder = neighbour;
+                occluder[(f / 2 + 1) % 3] += if (e % 2 > 0) mip_scale else -mip_scale;
+                occluder[(f / 2 + 2) % 3] += if (e / 2 > 0) mip_scale else -mip_scale;
+                occlusion[e + 4] = chunk.full(world, occluder, offset, true, null) orelse false;
             }
             // Triangles
             for (0..2) |t| {

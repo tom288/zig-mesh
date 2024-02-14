@@ -44,11 +44,12 @@ pub const Chunk = struct {
     density_refs: usize,
 
     density_buffer: ?gl.GLuint,
+    atomics_buffer: ?gl.GLuint,
 
     pub fn free(chunk: *Chunk, alloc: std.mem.Allocator, gpu: bool) void {
         if (chunk.wip_mip) |_| unreachable;
         if (chunk.density_refs > 0) unreachable;
-        if (gpu) chunk.mesh.upload(.{}) catch unreachable;
+        if (gpu) chunk.mesh.vert_count = 0;
         if (chunk.surface) |surface| {
             surface.deinit();
             chunk.surface = null;
@@ -65,6 +66,10 @@ pub const Chunk = struct {
         if (chunk.density_buffer) |density_buffer| {
             gl.deleteBuffers(1, &density_buffer);
             chunk.density_buffer = null;
+        }
+        if (chunk.atomics_buffer) |atomics_buffer| {
+            gl.deleteBuffers(1, &atomics_buffer);
+            chunk.atomics_buffer = null;
         }
         chunk.mesh.kill();
         chunk.free(alloc, false);
@@ -249,18 +254,18 @@ pub const Chunk = struct {
         return chunk.density[chunk.indexFromPos(pos) catch return null];
     }
 
-    fn indexFromPos(chunk: Chunk, pos: zm.Vec) !usize {
+    fn indexFromPos(chunk: Chunk, _pos: zm.Vec) !usize {
         const mip_level = chunk.wip_mip orelse chunk.density_mip.?;
         const mip_scale = std.math.pow(f32, 2, @floatFromInt(mip_level));
         const size = SIZE / @as(usize, @intFromFloat(mip_scale));
 
-        const floor = zm.floor((pos + zm.f32x4s(@as(f32, SIZE) / 2)) / zm.f32x4s(mip_scale));
+        const pos = zm.floor((_pos + zm.f32x4s(@as(f32, SIZE) / 2)) / zm.f32x4s(mip_scale));
         var index: usize = 0;
         for (0..3) |d| {
             const i = 2 - d;
-            if (floor[i] < 0 or floor[i] >= @as(f32, @floatFromInt(size))) return error.PositionOutsideChunk;
+            if (pos[i] < 0 or pos[i] >= @as(f32, @floatFromInt(size))) return error.PositionOutsideChunk;
             index *= size;
-            index += @intFromFloat(floor[i]);
+            index += @intFromFloat(pos[i]);
         }
         return index;
     }
