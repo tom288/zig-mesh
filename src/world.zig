@@ -17,7 +17,7 @@ pub const World = struct {
         single,
         multi,
         compute,
-    }.multi;
+    }.compute;
 
     alloc: std.mem.Allocator,
     chunk_alloc: std.mem.Allocator,
@@ -68,13 +68,6 @@ pub const World = struct {
 
         // Assign uninitialised chunks
         for (world.chunks) |*chunk| {
-            var density_buffer: gl.GLuint = undefined;
-            var atomics_buffer: gl.GLuint = undefined;
-            if (THREADING == .compute) {
-                gl.genBuffers(1, &density_buffer);
-                gl.genBuffers(1, &atomics_buffer);
-            }
-
             chunk.* = .{
                 .density = &.{},
                 .surface = null,
@@ -85,16 +78,26 @@ pub const World = struct {
                 .wip_mip = null,
                 .density_refs = 0,
                 .splits_copy = null,
-                .density_buffer = density_buffer,
-                .atomics_buffer = atomics_buffer,
+                .density_buffer = null,
+                .atomics_buffer = null,
             };
             if (THREADING == .compute) {
                 const max_cubes = std.math.pow(usize, Chunk.SIZE, 3);
+
+                var density_buffer: gl.GLuint = undefined;
+                gl.genBuffers(1, &density_buffer);
+                chunk.density_buffer = density_buffer;
+
+                var atomics_buffer: gl.GLuint = undefined;
+                gl.genBuffers(1, &atomics_buffer);
+                chunk.atomics_buffer = atomics_buffer;
+
                 gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, chunk.density_buffer.?);
                 gl.bufferData(gl.SHADER_STORAGE_BUFFER, @intCast(max_cubes * @sizeOf(f32)), null, gl.STATIC_DRAW);
                 gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, 0);
+
                 gl.bindBuffer(gl.ATOMIC_COUNTER_BUFFER, chunk.atomics_buffer.?);
-                gl.bufferData(gl.ATOMIC_COUNTER_BUFFER, @sizeOf(gl.GLuint), null, gl.DYNAMIC_DRAW);
+                gl.bufferData(gl.ATOMIC_COUNTER_BUFFER, @sizeOf(gl.GLuint) * 4, null, gl.DYNAMIC_DRAW);
                 gl.bindBuffer(gl.ATOMIC_COUNTER_BUFFER, 0);
 
                 switch (Chunk.SURFACE) {
@@ -102,7 +105,7 @@ pub const World = struct {
                         try chunk.mesh.resizeVBOs((max_cubes - max_cubes / 2) * 6 * 2 * 3);
                     },
                     Surface.MarchingCubes => {
-                        // TODO determine max possible verts per chunk
+                        // TODO determine max possible vert count per chunk
                         unreachable;
                     },
                     else => unreachable,
@@ -151,7 +154,7 @@ pub const World = struct {
             // Chunk.SIZE is assumed to be sufficient - half of it is not...
             if (zm.all(@abs(pos - offset) < zm.f32x4s(Chunk.SIZE), 3) and !bench) {
                 world.shader.set("model_to_clip", f32, &zm.matToArr(model_to_clip));
-                chunk.mesh.draw(gl.TRIANGLES);
+                chunk.mesh.draw(gl.TRIANGLES, chunk.atomics_buffer);
                 draws += 1;
                 continue;
             }
@@ -175,7 +178,7 @@ pub const World = struct {
                 }
                 if (!bench) {
                     world.shader.set("model_to_clip", f32, zm.matToArr(model_to_clip));
-                    chunk.mesh.draw(gl.TRIANGLES);
+                    chunk.mesh.draw(gl.TRIANGLES, chunk.atomics_buffer);
                 }
                 draws += 1;
                 break :corners;
@@ -353,13 +356,16 @@ pub const World = struct {
                 return true;
             },
             .compute => {
-                // Dispatch the compute shader to populate the buffer
+                var timer = try std.time.Timer.start();
                 gl.bindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, chunk.density_buffer.?); // 0 is the index chosen in main
                 world.density_shader.use();
                 world.surface_shader.set("chunk_size", gl.GLuint, @as(gl.GLuint, @intCast(Chunk.SIZE)));
                 world.density_shader.set("offset", f32, zm.vecToArr3(offset));
+
                 gl.dispatchCompute(Chunk.SIZE / 16, Chunk.SIZE / 4, Chunk.SIZE);
                 gl.memoryBarrier(gl.BUFFER_UPDATE_BARRIER_BIT);
+                const ns: f32 = @floatFromInt(timer.read());
+                if (false) std.debug.print("genChunkDensity took {d:.3} ms\n", .{ns / 1_000_000});
             },
         }
         chunk.density_mip = chunk.wip_mip;
@@ -419,7 +425,8 @@ pub const World = struct {
                 return true;
             },
             .compute => {
-                var values = [_]gl.GLuint{0};
+                var timer = try std.time.Timer.start();
+                var values = [_]gl.GLuint{ 0, 1, 0, 0 };
                 gl.bindBuffer(gl.ATOMIC_COUNTER_BUFFER, chunk.atomics_buffer.?);
                 defer gl.bindBuffer(gl.ATOMIC_COUNTER_BUFFER, 0);
                 gl.bufferSubData(gl.ATOMIC_COUNTER_BUFFER, 0, @sizeOf(@TypeOf(values)), &values);
@@ -431,11 +438,11 @@ pub const World = struct {
                 world.surface_shader.set("chunk_size", gl.GLuint, @as(gl.GLuint, @intCast(Chunk.SIZE)));
                 world.surface_shader.set("mip_scale", f32, std.math.pow(f32, 2, @floatFromInt(chunk.wip_mip.?)));
                 world.surface_shader.set("offset", f32, zm.vecToArr3(offset));
-                gl.dispatchCompute(Chunk.SIZE / 16, Chunk.SIZE / 4, Chunk.SIZE);
 
-                gl.memoryBarrier(gl.BUFFER_UPDATE_BARRIER_BIT);
-                gl.getBufferSubData(gl.ATOMIC_COUNTER_BUFFER, 0, @sizeOf(@TypeOf(values)), &values);
-                chunk.mesh.vert_count = values[0];
+                gl.dispatchCompute(Chunk.SIZE / 16, Chunk.SIZE / 4, Chunk.SIZE);
+                gl.memoryBarrier(gl.BUFFER_UPDATE_BARRIER_BIT | gl.ATOMIC_COUNTER_BARRIER_BIT);
+                const ns: f32 = @floatFromInt(timer.read());
+                if (false) std.debug.print("genChunkSurface took {d:.3} ms\n", .{ns / 1_000_000});
             },
         }
         chunk.surface_mip = chunk.wip_mip;

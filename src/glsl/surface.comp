@@ -17,7 +17,7 @@ writeonly buffer surface_block // TODO layout(std430) ?
     Vert surface[];
 };
 
-layout(binding = 0) uniform atomic_uint index;
+layout(binding = 0) uniform atomic_uint count;
 
 uniform uint chunk_size;
 uniform float mip_scale;
@@ -177,7 +177,7 @@ void main()
             occluder[(f / 2 + 2) % 3] += (e / 2 > 0) ? mip_scale : -mip_scale;
             occlusion[e + 4] = fullPos(occluder);
         }
-        uint i = atomicCounterAdd(index, 2 * 3);
+        uint i = atomicCounterAdd(count, 2 * 3);
         // Triangles
         for (uint t = 0; t < 2; ++t)
         {

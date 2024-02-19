@@ -7,7 +7,7 @@ pub fn Pool(comptime Data: type) type {
         workers: []Worker,
 
         const Worker = struct {
-            // Whether the worker is busy or is able to recieve new work
+            // Whether the worker is busy or is able to receive new work
             // This is managed by the main thread in work() and finish()
             busy: bool,
             // Whether the worker has finished work and is waiting for a sync

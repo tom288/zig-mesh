@@ -67,24 +67,25 @@ pub fn Mesh(comptime attrs: anytype) type {
             }
         }
 
-        pub fn draw(mesh: @This(), mode: gl.GLenum) void {
+        pub fn draw(mesh: @This(), mode: gl.GLenum, indirect: ?gl.GLuint) void {
             gl.bindVertexArray(mesh.vao.?);
             defer gl.bindVertexArray(0);
-            if (mesh.ebo == null) {
-                if (mesh.vert_count orelse 0 == 0) return;
-                gl.drawArrays(
-                    mode,
-                    0,
-                    @intCast(mesh.vert_count.?),
-                );
+            if (indirect) |i| gl.bindBuffer(gl.DRAW_INDIRECT_BUFFER, i);
+            defer if (indirect) |_| gl.bindBuffer(gl.DRAW_INDIRECT_BUFFER, 0);
+            if (indirect) |_| {
+                if (mesh.ebo) |_| {
+                    gl.drawElementsIndirect(mode, mesh.index_type.?, null);
+                } else {
+                    gl.drawArraysIndirect(mode, null);
+                }
             } else {
-                if (mesh.index_count orelse 0 == 0) return;
-                gl.drawElements(
-                    mode,
-                    @intCast(mesh.index_count.?),
-                    mesh.index_type.?,
-                    null,
-                );
+                if (mesh.ebo) |_| {
+                    if (mesh.index_count orelse 0 == 0) return;
+                    gl.drawElements(mode, @intCast(mesh.index_count.?), mesh.index_type.?, null);
+                } else {
+                    if (mesh.vert_count orelse 0 == 0) return;
+                    gl.drawArrays(mode, 0, @intCast(mesh.vert_count.?));
+                }
             }
         }
 
