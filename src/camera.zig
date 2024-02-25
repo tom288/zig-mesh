@@ -1,7 +1,9 @@
+//! The Camera uses user input to smoothly influence it's position and rotation.
+//! This state is used to derive view and projection matrices for rendering.
+
 const std = @import("std");
 const zm = @import("zmath");
-const World = @import("world.zig").World;
-const Chunk = @import("world.zig").World;
+const Chunk = @import("chunk.zig").Chunk;
 
 pub const Camera = struct {
     // Kinematics
@@ -19,15 +21,16 @@ pub const Camera = struct {
     // Matrices
     view: zm.Mat,
     proj: zm.Mat,
+    world_to_clip: zm.Mat,
 
-    pub fn init(resolution: zm.Vec) Camera {
+    pub fn init() Camera {
         var cam = Camera{
             .position = zm.f32x4(2, 0, -2, 0),
             .velocity = @splat(0),
 
             .yaw = 135,
             .pitch = 0,
-            .aspect = resolution[0] / resolution[1],
+            .aspect = 1,
             .fov = undefined,
 
             .look = undefined,
@@ -36,6 +39,7 @@ pub const Camera = struct {
 
             .view = undefined,
             .proj = undefined,
+            .world_to_clip = undefined,
         };
 
         cam.calcVecs();
@@ -83,6 +87,11 @@ pub const Camera = struct {
         cam.calcView();
     }
 
+    pub fn calcAspect(cam: *Camera, resolution: zm.Vec) void {
+        cam.aspect = resolution[0] / resolution[1];
+        cam.calcProj();
+    }
+
     fn setAngle(cam: *Camera, yaw: f32, pitch: f32) void {
         cam.yaw = @mod(yaw, 360);
         cam.pitch = zm.clamp(pitch, -PITCH_MAX, PITCH_MAX);
@@ -106,10 +115,12 @@ pub const Camera = struct {
 
     fn calcView(cam: *Camera) void {
         cam.view = zm.lookToRh(cam.position, cam.look, UP);
+        cam.world_to_clip = zm.mul(cam.view, cam.proj);
     }
 
     fn calcProj(cam: *Camera) void {
         cam.proj = zm.perspectiveFovRhGl(cam.fov, cam.aspect, NEAR, FAR);
+        cam.world_to_clip = zm.mul(cam.view, cam.proj);
     }
 };
 

@@ -1,4 +1,4 @@
-#version 410 core
+#version 460 core
 
 uniform float uv_zoom;
 uniform float time;
@@ -10,7 +10,7 @@ out vec4 colour;
 
 // Adapted https://www.shadertoy.com/view/7sdXzM
 
-float interp_iter(float t, float a, float b)
+float interpIter(float t, float a, float b)
 {
     float t_inv = 1.0 - t;
     return (
@@ -22,8 +22,8 @@ float interp_iter(float t, float a, float b)
 
 float interp(float t, float a, float b)
 {
-    return interp_iter(
-        interp_iter(
+    return interpIter(
+        interpIter(
             clamp(t, 0.0, 1.0),
             a, b
         ),

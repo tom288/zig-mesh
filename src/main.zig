@@ -11,7 +11,8 @@ pub fn main() !void {
     defer arena.deinit();
     const alloc = arena.allocator();
 
-    var window = try Window.init(alloc);
+    var camera = Camera.init();
+    var window = try Window.init(alloc, &camera);
     defer window.kill();
 
     var shader = try Shader.init(
@@ -35,8 +36,6 @@ pub fn main() !void {
     };
     try mesh.upload(.{&verts});
     defer mesh.kill();
-
-    var camera = Camera.init(window.resolution);
 
     // Wait for the user to close the window.
     while (window.ok()) {
@@ -69,7 +68,7 @@ pub fn main() !void {
         shader.set("WIDTH", f32, window.resolution[0]);
         shader.set("HEIGHT", f32, window.resolution[1]);
         shader.set("POWER", f32, (@sin(window.time orelse 0) + 2) * 4);
-        mesh.draw(gl.TRIANGLES);
+        mesh.draw(gl.TRIANGLES, null);
 
         window.swap();
     }
