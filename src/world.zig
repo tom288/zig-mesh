@@ -154,7 +154,7 @@ pub const World = struct {
             // Chunk.SIZE is assumed to be sufficient - half of it is not...
             if (zm.all(@abs(pos - offset) < zm.f32x4s(Chunk.SIZE), 3) and !bench) {
                 world.shader.set("model_to_clip", f32, &zm.matToArr(model_to_clip));
-                chunk.mesh.draw(gl.TRIANGLES, chunk.atomics_buffer);
+                chunk.mesh.draw(gl.TRIANGLES, null, chunk.atomics_buffer);
                 draws += 1;
                 continue;
             }
@@ -178,7 +178,7 @@ pub const World = struct {
                 }
                 if (!bench) {
                     world.shader.set("model_to_clip", f32, zm.matToArr(model_to_clip));
-                    chunk.mesh.draw(gl.TRIANGLES, chunk.atomics_buffer);
+                    chunk.mesh.draw(gl.TRIANGLES, null, chunk.atomics_buffer);
                 }
                 draws += 1;
                 break :corners;

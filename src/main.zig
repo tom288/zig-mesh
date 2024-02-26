@@ -45,7 +45,7 @@ pub fn main() !void {
     defer world.kill() catch unreachable;
 
     // Wait for the user to close the window.
-    while (window.ok()) {
+    while (try window.ok()) {
         camera.turn(window.mouse_delta);
         camera.step(window.input, window.delta);
         camera.scroll(window.scroll_delta);
