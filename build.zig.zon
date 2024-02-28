@@ -7,7 +7,5 @@
             .hash = "12204bfbc23adcbd3dafdd93dd2dafc71c08ad03073a509799deb5d2dfe45c2946fe",
         },
     },
-    .paths = .{
-        "",
-    },
+    .paths = .{""},
 }

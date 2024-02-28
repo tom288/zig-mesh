@@ -104,7 +104,10 @@ pub fn Mesh(comptime attrs: anytype) type {
         // Expects an empty 1D array or a 2D array
         fn _upload(mesh: *@This(), verts: anytype, num_verts: ?usize) !void {
             if (verts.len != attrs.len and verts.len != 0) {
-                std.log.err("Mismatch between verts.len({}) and vbos.len ({})\n", .{ verts.len, attrs.len });
+                std.log.err(
+                    "Mismatch between verts.len({}) and vbos.len ({})\n",
+                    .{ verts.len, attrs.len },
+                );
                 return error.BadVertArrCount;
             }
             const vbos = mesh.vbos.?;
@@ -189,11 +192,12 @@ pub fn Mesh(comptime attrs: anytype) type {
                 (size < size_needed * 2 or size - size_needed < 64);
 
             const ids_size: gl.GLsizeiptr = if (indices.len > 0) @intCast(indices.len * @sizeOf(@TypeOf(indices[0]))) else 0;
+            const ids = if (indices.len > 0) indices else null;
             if (reuse) {
-                gl.bufferSubData(gl.ELEMENT_ARRAY_BUFFER, 0, ids_size, if (indices.len > 0) indices else null);
+                gl.bufferSubData(gl.ELEMENT_ARRAY_BUFFER, 0, ids_size, ids);
             } else {
                 // TODO allocate a little extra to reduce resize frequency?
-                gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, ids_size, if (indices.len > 0) indices else null, gl.STATIC_DRAW);
+                gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, ids_size, ids, gl.STATIC_DRAW);
             }
 
             mesh.index_count = indices.len;
@@ -245,7 +249,13 @@ pub fn Mesh(comptime attrs: anytype) type {
             const f: ?*const anyopaque = if (first == 0) null else @ptrFromInt(first);
 
             if (!force_cast_to_float) switch (attr.type) {
-                gl.BYTE, gl.UNSIGNED_BYTE, gl.SHORT, gl.UNSIGNED_SHORT, gl.INT, gl.UNSIGNED_INT => {
+                gl.BYTE,
+                gl.UNSIGNED_BYTE,
+                gl.SHORT,
+                gl.UNSIGNED_SHORT,
+                gl.INT,
+                gl.UNSIGNED_INT,
+                => {
                     gl.vertexAttribIPointer(index, size, attr.type, stride, f);
                     return;
                 },
@@ -279,7 +289,10 @@ pub fn glOk() !void {
             gl.OUT_OF_MEMORY => "OUT_OF_MEMORY",
             gl.INVALID_FRAMEBUFFER_OPERATION => "INVALID_FRAMEBUFFER_OPERATION",
             else => {
-                std.log.err("OpenGL error code {} missing from glOk\n", .{error_code});
+                std.log.err(
+                    "OpenGL error code {} missing from glOk\n",
+                    .{error_code},
+                );
                 return error.OpenglOk;
             },
         };
@@ -292,7 +305,11 @@ fn glSizeOf(T: gl.GLenum) !usize {
     return switch (T) {
         gl.BYTE, gl.UNSIGNED_BYTE => @sizeOf(gl.GLbyte),
         gl.SHORT, gl.UNSIGNED_SHORT => @sizeOf(gl.GLshort),
-        gl.INT_2_10_10_10_REV, gl.INT, gl.UNSIGNED_INT_2_10_10_10_REV, gl.UNSIGNED_INT => @sizeOf(gl.GLint),
+        gl.INT_2_10_10_10_REV,
+        gl.INT,
+        gl.UNSIGNED_INT_2_10_10_10_REV,
+        gl.UNSIGNED_INT,
+        => @sizeOf(gl.GLint),
         gl.FLOAT => @sizeOf(gl.GLfloat),
         gl.DOUBLE => @sizeOf(gl.GLdouble),
         gl.FIXED => @sizeOf(gl.GLfixed),

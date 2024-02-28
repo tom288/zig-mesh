@@ -63,7 +63,11 @@ pub fn Pool(comptime Data: type) type {
             return false;
         }
 
-        fn thread(wait: *std.atomic.Value(bool), comptime func: fn (data: Data) void, data: Data) !void {
+        fn thread(
+            wait: *std.atomic.Value(bool),
+            comptime func: fn (data: Data) void,
+            data: Data,
+        ) !void {
             func(data);
             wait.store(true, .Unordered);
         }

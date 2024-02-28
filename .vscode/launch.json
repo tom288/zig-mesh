@@ -4,24 +4,34 @@
         {
             "name": "debug",
             "type": "cppdbg",
-            "windows": {
-                "type": "cppvsdbg",
-                "console": "integratedTerminal",
-            },
             "request": "launch",
             "program": "${workspaceFolder}/zig-out/bin/${workspaceFolderBasename}",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
-            "MIMode": "gdb",
-            "setupCommands": [
-                {
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true,
-                }
-            ],
             "preLaunchTask": "build",
+            "osx": { "MIMode": "lldb" },
+            "windows": {
+                "type": "cppvsdbg",
+                "console": "integratedTerminal",
+            },
+        },
+        {
+            "name": "test",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/zig-out/bin/test",
+            "args": ["std.testing.zig_exe_path is unavailable"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "preLaunchTask": "build test",
+            "osx": { "MIMode": "lldb" },
+            "windows": {
+                "type": "cppvsdbg",
+                "console": "integratedTerminal",
+            },
         },
     ],
 }

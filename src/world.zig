@@ -119,7 +119,7 @@ pub const World = struct {
         return world;
     }
 
-    pub fn kill(world: *World) !void {
+    pub fn kill(world: *World, alloc: std.mem.Allocator) !void {
         // Wait for the other threads
         for (world.pool.workers) |*worker| {
             while (worker.busy) {
@@ -132,6 +132,7 @@ pub const World = struct {
             chunk.kill(world.chunk_alloc);
         }
         world.pool.kill(world.alloc);
+        alloc.free(world.chunks);
         world.chunks = &.{};
     }
 

@@ -7,19 +7,17 @@
             "label": "build",
             "type": "shell",
             "command": "zig",
-            "args": [
-                "build"
-            ],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "presentation": {
-                "reveal": "silent",
-                "showReuseMessage": false,
-                "clear": true,
-            },
-            "problemMatcher": "$gcc",
+            "args": ["build"],
+            "problemMatcher": [],
+            "group": "build",
+        },
+        {
+            "label": "build test",
+            "type": "shell",
+            "command": "zig",
+            "args": ["build", "test"],
+            "problemMatcher": [],
+            "group": "build",
         },
     ],
 }

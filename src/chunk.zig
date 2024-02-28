@@ -121,7 +121,8 @@ pub const Chunk = struct {
             6 => { // Smooth sphere
                 const rad = @as(f32, SIZE) * 2.5;
                 for (0..chunk.density.len) |i| {
-                    const pos = chunk.posFromIndex(i) + offset + zm.f32x4(0, 0, rad + SIZE, 0);
+                    const pos = chunk.posFromIndex(i) + offset +
+                        zm.f32x4(0, 0, rad + SIZE, 0);
                     chunk.density[i] = rad - zm.length3(pos)[0];
                 }
             },
@@ -129,16 +130,19 @@ pub const Chunk = struct {
                 const rad = @as(f32, SIZE) * 2.5;
                 const gen = znoise.FnlGenerator{ .frequency = 4 / rad };
                 for (0..chunk.density.len) |i| {
-                    const pos = chunk.posFromIndex(i) + offset + zm.f32x4(0, 0, rad + SIZE, 0);
+                    const pos = chunk.posFromIndex(i) + offset +
+                        zm.f32x4(0, 0, rad + SIZE, 0);
                     chunk.density[i] = rad * 0.92 - zm.length3(pos)[0];
-                    chunk.density[i] += gen.noise3(pos[0], pos[1], pos[2]) * rad * 0.1;
+                    const noise = gen.noise3(pos[0], pos[1], pos[2]);
+                    chunk.density[i] += noise * rad * 0.1;
                 }
             },
             8 => { // Chunk corner visualisation
                 for (0..chunk.density.len) |i| {
                     const pos = @abs(chunk.posFromIndex(i));
-                    const bools = @abs(pos - zm.f32x4s(@as(f32, SIZE - 1) / 2)) > zm.f32x4s(0.5);
-                    chunk.density[i] = if (zm.any(bools, 3)) 0 else 1;
+                    const diff = @abs(pos - zm.f32x4s(@as(f32, SIZE - 1) / 2));
+                    const corner = zm.all(diff <= zm.f32x4s(0.5), 3);
+                    chunk.density[i] = if (corner) 1 else 0;
                 }
             },
             9 => { // Alan
@@ -229,7 +233,14 @@ pub const Chunk = struct {
         chunk.surface.?.shrinkAndFree(chunk.surface.?.items.len);
     }
 
-    pub fn full(chunk: *Chunk, world: World, pos: zm.Vec, offset: zm.Vec, occ: bool, splits: ?zm.Vec) ?bool {
+    pub fn full(
+        chunk: *Chunk,
+        world: World,
+        pos: zm.Vec,
+        offset: zm.Vec,
+        occ: bool,
+        splits: ?zm.Vec,
+    ) ?bool {
         if (chunk.densityFromPos(world, pos, offset, occ, splits)) |d| {
             return d > 0;
         } else {
@@ -237,11 +248,25 @@ pub const Chunk = struct {
         }
     }
 
-    pub fn empty(chunk: *Chunk, world: World, pos: zm.Vec, offset: zm.Vec, occ: bool, splits: ?zm.Vec) ?bool {
+    pub fn empty(
+        chunk: *Chunk,
+        world: World,
+        pos: zm.Vec,
+        offset: zm.Vec,
+        occ: bool,
+        splits: ?zm.Vec,
+    ) ?bool {
         return if (chunk.full(world, pos, offset, occ, splits)) |e| !e else null;
     }
 
-    pub fn densityFromPos(chunk: *Chunk, world: World, pos: zm.Vec, offset: zm.Vec, occ: ?bool, splits: ?zm.Vec) ?f32 {
+    pub fn densityFromPos(
+        chunk: *Chunk,
+        world: World,
+        pos: zm.Vec,
+        offset: zm.Vec,
+        occ: ?bool,
+        splits: ?zm.Vec,
+    ) ?f32 {
         const spl = splits orelse chunk.splits_copy.?;
         if (chunk.densityLocal(pos)) |d| return d;
         if (chunk.wip_mip != 0 and occ == false) return 0;

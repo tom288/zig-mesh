@@ -42,10 +42,10 @@ pub fn main() !void {
         surface_shader,
         camera.position,
     );
-    defer world.kill() catch unreachable;
+    defer world.kill(alloc) catch unreachable;
 
     // Wait for the user to close the window.
-    while (try window.ok()) {
+    while (window.ok()) {
         camera.turn(window.mouse_delta);
         camera.step(window.input, window.delta);
         camera.scroll(window.scroll_delta);
