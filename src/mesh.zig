@@ -93,16 +93,16 @@ pub fn Mesh(comptime attrs: anytype) type {
 
         // Resize the VBOs to hold a given capacity of vertices
         pub fn resizeVBOs(mesh: *@This(), vert_num: usize) !void {
-            try _upload(mesh, .{}, vert_num);
+            try updateVBOs(mesh, .{}, vert_num);
         }
 
         // Expects an empty 1D array or a 2D array
         pub fn upload(mesh: *@This(), verts: anytype) !void {
-            try _upload(mesh, verts, null);
+            try updateVBOs(mesh, verts, null);
         }
 
         // Expects an empty 1D array or a 2D array
-        fn _upload(mesh: *@This(), verts: anytype, num_verts: ?usize) !void {
+        fn updateVBOs(mesh: *@This(), verts: anytype, num_verts: ?usize) !void {
             if (verts.len != attrs.len and verts.len != 0) {
                 std.log.err(
                     "Mismatch between verts.len({}) and vbos.len ({})\n",

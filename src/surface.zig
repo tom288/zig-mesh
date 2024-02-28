@@ -141,7 +141,7 @@ pub const MarchingCubes = struct {
         0x138918fffffffff, 0x091ffffffffffff, 0x038ffffffffffff, 0xfffffffffffffff,
     };
 
-    fn lerp_vert(chunk: *Chunk, world: World, l: zm.Vec, r: zm.Vec, offset: zm.Vec) zm.Vec {
+    fn lerpVert(chunk: *Chunk, world: World, l: zm.Vec, r: zm.Vec, offset: zm.Vec) zm.Vec {
         const EPS = 1e-5;
         const BUMPY = false;
         const MODE = enum {
@@ -212,7 +212,7 @@ pub const MarchingCubes = struct {
             if (v == 0xf) break;
             const other = @as(u64, 0o123056744567) >> // Octal
                 (11 - @as(u6, @intCast(v))) * 3 & 7;
-            const vert = lerp_vert(chunk, world, corners[v % 8], corners[other], offset);
+            const vert = lerpVert(chunk, world, corners[v % 8], corners[other], offset);
             if (TRI_COLOUR) {
                 tri_verts[i % tri_verts.len] = vert;
                 if (1 + i % tri_verts.len == tri_verts.len) {

@@ -25,14 +25,14 @@ pub fn main() !void {
     );
     defer shader.kill();
 
-    var density_shader = try Shader.init_comp("density");
+    var density_shader = try Shader.initComp("density");
     defer density_shader.kill();
-    density_shader.bind_block("density_block", 0);
+    density_shader.bindBlock("density_block", 0);
 
-    var surface_shader = try Shader.init_comp("surface");
+    var surface_shader = try Shader.initComp("surface");
     defer surface_shader.kill();
-    surface_shader.bind_block("density_block", 0);
-    surface_shader.bind_block("surface_block", 1);
+    surface_shader.bindBlock("density_block", 0);
+    surface_shader.bindBlock("surface_block", 1);
 
     var world = try World.init(
         alloc,
