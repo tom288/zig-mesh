@@ -15,7 +15,13 @@ pub fn main() !void {
     const chunk_alloc = gpa.allocator();
 
     var camera = Camera.init();
-    var window = try Window.init(alloc, &camera, "zig-mesh");
+    var window = try Window.init(
+        alloc,
+        &camera,
+        "zig-mesh",
+        true,
+        null,
+    );
     defer window.kill();
 
     var shader = try Shader.init(

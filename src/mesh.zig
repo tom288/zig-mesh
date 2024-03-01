@@ -140,7 +140,7 @@ pub fn Mesh(comptime attrs: anytype) type {
             inline for (0.., vbos) |i, vbo| {
                 gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
                 const vert_size: gl.GLsizeiptr = @intCast(try bufferSize(mesh, verts, i, num_verts));
-                const data = if (vert_size > 0 and verts.len > 0 and verts[0].len > 0) &verts[i][0] else null;
+                const data = if (vert_size > 0 and verts.len > 0 and verts[i].len > 0) &verts[i][0] else null;
                 if (reuse) {
                     gl.bufferSubData(gl.ARRAY_BUFFER, 0, vert_size, data);
                 } else {
@@ -192,7 +192,7 @@ pub fn Mesh(comptime attrs: anytype) type {
                 (size < size_needed * 2 or size - size_needed < 64);
 
             const ids_size: gl.GLsizeiptr = if (indices.len > 0) @intCast(indices.len * @sizeOf(@TypeOf(indices[0]))) else 0;
-            const ids = if (indices.len > 0) indices else null;
+            const ids = if (indices.len > 0) &indices[0] else null;
             if (reuse) {
                 gl.bufferSubData(gl.ELEMENT_ARRAY_BUFFER, 0, ids_size, ids);
             } else {

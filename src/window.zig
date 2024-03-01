@@ -22,6 +22,7 @@ pub const Window = struct {
     actionState: [@typeInfo(Action).Enum.fields.len]bool,
     input: zm.Vec,
     camera: ?*Camera,
+    min_delta: f32,
 
     const Action = enum {
         left,
@@ -34,7 +35,7 @@ pub const Window = struct {
         attack2,
     };
 
-    pub fn init(alloc: std.mem.Allocator, camera: ?*Camera, title: [*:0]const u8) !Window {
+    pub fn init(alloc: std.mem.Allocator, camera: ?*Camera, title: [*:0]const u8, vsync: bool, min_delta: ?f32) !Window {
         // Ensure GLFW errors are logged
         glfw.setErrorCallback(errorCallback);
 
@@ -45,7 +46,6 @@ pub const Window = struct {
         const cull_faces = true;
         const test_depth = true;
         const wireframe = false;
-        const vertical_sync = true;
         const msaa_samples = 16;
         const clear_buffers = true;
 
@@ -114,7 +114,7 @@ pub const Window = struct {
         if (wireframe) gl.polygonMode(gl.FRONT_AND_BACK, gl.LINE);
 
         // Configure additional window properties
-        if (!vertical_sync) glfw.swapInterval(0);
+        glfw.swapInterval(if (vsync) 1 else 0);
         if (msaa_samples > 1) gl.enable(gl.MULTISAMPLE);
 
         // Determine which buffers get cleared
@@ -154,6 +154,7 @@ pub const Window = struct {
             .actionState = undefined,
             .input = @splat(0),
             .camera = camera,
+            .min_delta = min_delta orelse 0.1,
         };
     }
 
@@ -174,7 +175,7 @@ pub const Window = struct {
         const new_time: f32 = @floatCast(glfw.getTime());
         if (win.time) |time| {
             // Limit delta to 100 ms to avoid massive jumps
-            win.delta = @min(new_time - time, 0.1);
+            win.delta = @min(new_time - time, win.min_delta);
             if (false and @floor(time) != @floor(new_time)) {
                 const fps: usize = @intFromFloat(@min(1 / win.delta, 999999));
                 var b: [10:0]u8 = undefined;
