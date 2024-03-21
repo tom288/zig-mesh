@@ -10,7 +10,8 @@
 <https://github.com/tntmeijs/GLSL-Shader-Includes/blob/master/Shadinclude.hpp>
 
 ```cmd
-zigup 0.12.0-dev.2063+804cee3b9
+zigup 0.12.0-dev.3180+83e578a18
+zigup clean
 git submodule update --init --recursive
 git submodule update --recursive --remote
 zig build run
