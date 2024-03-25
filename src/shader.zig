@@ -4,6 +4,8 @@
 const std = @import("std");
 const gl = @import("gl");
 
+const GLSL_PATH = "src/glsl/";
+
 pub const Shader = struct {
     id: ?gl.GLuint,
 
@@ -197,7 +199,7 @@ fn compile(alloc: std.mem.Allocator, comptime src: ?[]const u8, comptime stage: 
     const file = try std.fs.cwd().openFile(path, .{});
     defer file.close();
     // Read file contents
-    const data = try file.readToEndAllocOptions(
+    var data = try file.readToEndAllocOptions(
         alloc,
         1024 * 1024, // 1 MB max
         null, // Default sizing
@@ -205,6 +207,47 @@ fn compile(alloc: std.mem.Allocator, comptime src: ?[]const u8, comptime stage: 
         0, // Null terminator
     );
     defer alloc.free(data);
+
+    const needle = "#include";
+
+    while (true) {
+        // Find index of first needle, if any
+        const index = std.mem.indexOf(u8, data, needle);
+        if (index == null) break;
+        // Walk over whitespace, ensuring there is at least 1 character
+        const needle_end = index.? + needle.len;
+        var start = needle_end;
+        while (std.ascii.isWhitespace(data[start])) start += 1;
+        std.debug.assert(start != needle_end);
+        // Walk length of file name
+        var end = start;
+        while (!std.ascii.isWhitespace(data[end])) end += 1;
+        // Construct file path
+        const new_path = try std.fmt.allocPrint(alloc, "{s}{s}", .{ GLSL_PATH, data[start..end] });
+        defer alloc.free(new_path);
+        // Open file
+        const new_file = try std.fs.cwd().openFile(new_path, .{});
+        defer new_file.close();
+        // Read contents without a null terminator
+        const new_contents = try new_file.readToEndAlloc(
+            alloc,
+            1024 * 1024, // 1 MB max
+        );
+        defer alloc.free(new_contents);
+        // Insert file contents
+        const new_data = try std.fmt.allocPrintZ(
+            alloc,
+            "{s}\n{s}\n{s}",
+            .{
+                std.mem.trim(u8, data[0..index.?], &std.ascii.whitespace),
+                std.mem.trim(u8, new_contents, &std.ascii.whitespace),
+                std.mem.trim(u8, data[end..], &std.ascii.whitespace),
+            },
+        );
+        alloc.free(data);
+        data = new_data;
+    }
+
     // Create shader using file
     const id = gl.createShader(stage);
     gl.shaderSource(id, 1, &&data[0], null);
@@ -237,7 +280,7 @@ fn compileError(id: gl.GLuint, comptime is_program: bool, path: ?[]const u8) boo
 }
 
 fn makePath(comptime src: ?[]const u8, comptime stage: gl.GLenum) ![]const u8 {
-    return "src/glsl/" ++ src.? ++ switch (stage) {
+    return GLSL_PATH ++ src.? ++ switch (stage) {
         gl.VERTEX_SHADER => ".vert",
         gl.GEOMETRY_SHADER => ".geom",
         gl.FRAGMENT_SHADER => ".frag",
