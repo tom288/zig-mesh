@@ -102,8 +102,7 @@ pub const World = struct {
                         try chunk.mesh.resizeVBOs((max_cubes - max_cubes / 2) * 6 * 2 * 3);
                     },
                     Surface.MarchingCubes => {
-                        // TODO determine max possible vert count per chunk
-                        unreachable;
+                        try chunk.mesh.resizeVBOs(max_cubes * 5 * 3); // TODO reduce this further
                     },
                     else => unreachable,
                 }

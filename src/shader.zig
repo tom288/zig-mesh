@@ -32,14 +32,14 @@ pub const Shader = struct {
 
     fn initShader(
         alloc: std.mem.Allocator,
-        comptime srcs: []const ?[]const u8,
+        comptime names: []const ?[]const u8,
         comptime stages: []const gl.GLenum,
     ) !Shader {
-        comptime std.debug.assert(srcs.len == stages.len);
-        var ids: [srcs.len]?gl.GLuint = undefined;
+        comptime std.debug.assert(names.len == stages.len);
+        var ids: [names.len]?gl.GLuint = undefined;
         var zero = false;
-        inline for (srcs, stages, &ids) |src, stage, *id| {
-            id.* = try compile(alloc, src, stage);
+        inline for (names, stages, &ids) |name, stage, *id| {
+            id.* = try compile(alloc, name, stage);
             zero = zero or id.* == 0;
         }
 
@@ -59,9 +59,9 @@ pub const Shader = struct {
 
         if (shader.id) |id| {
             var path: ?[]const u8 = null;
-            inline for (srcs, stages) |src, stage| {
-                if (src == null) continue;
-                const tmp: ?[]const u8 = makePath(src, stage) catch null;
+            inline for (names, stages) |_name, stage| {
+                const name = _name orelse continue;
+                const tmp: ?[]const u8 = getNameWithExt(name, stage) catch null;
                 if (tmp) |t| path = t;
             }
             if (compileError(id, true, path)) {
@@ -183,67 +183,62 @@ pub const Shader = struct {
     }
 };
 
-fn compile(alloc: std.mem.Allocator, comptime src: ?[]const u8, comptime stage: gl.GLenum) !?gl.GLuint {
-    if (src == null) return null;
+fn compile(alloc: std.mem.Allocator, comptime _name: ?[]const u8, comptime stage: gl.GLenum) !?gl.GLuint {
+    const name = _name orelse return null;
     comptime std.debug.assert(std.mem.trim(
         u8,
-        src.?,
+        name,
         &std.ascii.whitespace,
     ).len > 0);
-    // Get file path
-    const path = comptime makePath(src, stage) catch |e| {
-        std.log.err("Invalid shader stage {}", .{stage});
+
+    const needle = "#include";
+    const initial_path = getNameWithExt(name, stage) catch |e| {
+        std.log.err("Invalid shader stage {s}", .{stage});
         return e;
     };
-    // Open the file
-    const file = try std.fs.cwd().openFile(path, .{});
-    defer file.close();
-    // Read file contents
-    var data = try file.readToEndAllocOptions(
+    var data = try std.fmt.allocPrintZ(
         alloc,
-        1024 * 1024, // 1 MB max
-        null, // Default sizing
-        @alignOf(u8), // Default alignment
-        0, // Null terminator
+        "{s} {s}",
+        .{ needle, initial_path },
     );
     defer alloc.free(data);
 
-    const needle = "#include";
-
-    while (true) {
-        // Find index of first needle, if any
-        const index = std.mem.indexOf(u8, data, needle);
-        if (index == null) break;
+    while (std.mem.indexOf(u8, data, needle)) |needle_start| {
         // Walk over whitespace, ensuring there is at least 1 character
-        const needle_end = index.? + needle.len;
-        var start = needle_end;
-        while (std.ascii.isWhitespace(data[start])) start += 1;
-        std.debug.assert(start != needle_end);
-        // Walk length of file name
-        var end = start;
-        while (!std.ascii.isWhitespace(data[end])) end += 1;
+        const needle_end = needle_start + needle.len;
+        var name_start = needle_end;
+        while (name_start < data.len and std.ascii.isWhitespace(data[name_start])) name_start += 1;
+        std.debug.assert(name_start != needle_end);
+        // Walk length of file name, ensuring there is at least 1 character
+        var name_end = name_start;
+        while (name_end < data.len and !std.ascii.isWhitespace(data[name_end])) name_end += 1;
+        std.debug.assert(name_end != name_start);
         // Construct file path
-        const new_path = try std.fmt.allocPrint(alloc, "{s}{s}", .{ GLSL_PATH, data[start..end] });
-        defer alloc.free(new_path);
-        // Open file
-        const new_file = try std.fs.cwd().openFile(new_path, .{});
-        defer new_file.close();
-        // Read contents without a null terminator
-        const new_contents = try new_file.readToEndAlloc(
+        const path = try std.fmt.allocPrint(
             alloc,
-            1024 * 1024, // 1 MB max
+            "{s}{s}",
+            .{ GLSL_PATH, data[name_start..name_end] },
         );
-        defer alloc.free(new_contents);
-        // Insert file contents
+        defer alloc.free(path);
+        // Open file and read contents
+        const file = try std.fs.cwd().openFile(path, .{});
+        defer file.close();
+        const contents = try file.readToEndAlloc(
+            alloc,
+            1024 * 1024, // 1 MB
+        );
+        defer alloc.free(contents);
+        // Insert file contents into data, along with a null terminator
         const new_data = try std.fmt.allocPrintZ(
             alloc,
             "{s}\n{s}\n{s}",
             .{
-                std.mem.trim(u8, data[0..index.?], &std.ascii.whitespace),
-                std.mem.trim(u8, new_contents, &std.ascii.whitespace),
-                std.mem.trim(u8, data[end..], &std.ascii.whitespace),
+                std.mem.trim(u8, data[0..needle_start], &std.ascii.whitespace),
+                std.mem.trim(u8, contents, &std.ascii.whitespace),
+                std.mem.trim(u8, data[name_end..], &std.ascii.whitespace),
             },
         );
+        // Free old data, use new data
         alloc.free(data);
         data = new_data;
     }
@@ -252,7 +247,7 @@ fn compile(alloc: std.mem.Allocator, comptime src: ?[]const u8, comptime stage: 
     const id = gl.createShader(stage);
     gl.shaderSource(id, 1, &&data[0], null);
     gl.compileShader(id);
-    if (compileError(id, false, path)) return 0;
+    if (compileError(id, false, initial_path)) return 0;
     return id;
 }
 
@@ -279,8 +274,8 @@ fn compileError(id: gl.GLuint, comptime is_program: bool, path: ?[]const u8) boo
     return ok == gl.FALSE;
 }
 
-fn makePath(comptime src: ?[]const u8, comptime stage: gl.GLenum) ![]const u8 {
-    return GLSL_PATH ++ src.? ++ switch (stage) {
+fn getNameWithExt(comptime name: []const u8, comptime stage: gl.GLenum) ![]const u8 {
+    return name ++ switch (stage) {
         gl.VERTEX_SHADER => ".vert",
         gl.GEOMETRY_SHADER => ".geom",
         gl.FRAGMENT_SHADER => ".frag",
