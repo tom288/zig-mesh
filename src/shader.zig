@@ -64,7 +64,7 @@ pub const Shader = struct {
                 const tmp: ?[]const u8 = getNameWithExt(name, stage) catch null;
                 if (tmp) |t| path = t;
             }
-            if (compileError(id, true, path)) {
+            if (compileError(id, true, path, null)) {
                 shader.kill();
             }
         }
@@ -247,11 +247,11 @@ fn compile(alloc: std.mem.Allocator, comptime _name: ?[]const u8, comptime stage
     const id = gl.createShader(stage);
     gl.shaderSource(id, 1, &&data[0], null);
     gl.compileShader(id);
-    if (compileError(id, false, initial_path)) return 0;
+    if (compileError(id, false, initial_path, data)) return 0;
     return id;
 }
 
-fn compileError(id: gl.GLuint, comptime is_program: bool, path: ?[]const u8) bool {
+fn compileError(id: gl.GLuint, comptime is_program: bool, path: ?[]const u8, data: ?[:0]u8) bool {
     const max_length = 1024;
     var ok: gl.GLint = gl.FALSE;
     var log: [max_length]gl.GLchar = undefined;
@@ -270,6 +270,7 @@ fn compileError(id: gl.GLuint, comptime is_program: bool, path: ?[]const u8) boo
             path orelse "NO_PATH_GIVEN",
             log[0..@intCast(len)],
         });
+        if (data) |d| std.debug.print("{s}\n", .{d});
     }
     return ok == gl.FALSE;
 }

@@ -1,9 +1,8 @@
 #version 460 core
 
-layout (local_size_x = 16, local_size_y = 4, local_size_z = 1) in;
+// #include comp_snippets/layout.vert
 
-readonly buffer density_block
-{
+readonly buffer density_block {
     float density[];
 };
 
@@ -12,8 +11,7 @@ struct Vert {
     uint rgba;
 };
 
-writeonly buffer surface_block // TODO layout(std430) ?
-{
+writeonly buffer surface_block { // TODO layout(std430) ?
     Vert surface[];
 };
 
@@ -23,13 +21,12 @@ uniform uint chunk_size;
 uniform float mip_scale;
 uniform vec3 offset;
 
+// #include comp_snippets/index.vert
 // #include noise/simplex.vert
 
-vec3 sampleColour(vec3 pos)
-{
+vec3 sampleColour(vec3 pos) {
     vec3 colour = vec3(0);
-    for (uint c = 0; c < 3; ++c)
-    {
+    for (uint c = 0; c < 3; ++c) {
         vec3 c_pos = pos;
         c_pos[c] += chunk_size * 99;
         colour[c] += (simplexNoise(c_pos / chunk_size / 2) + 1) / 2;
@@ -37,24 +34,20 @@ vec3 sampleColour(vec3 pos)
     return colour;
 }
 
-bool fullIndex(uint id)
-{
+bool fullIndex(uint id) {
     return density[id] > 0;
 }
 
-bool emptyIndex(uint id)
-{
+bool emptyIndex(uint id) {
     return !fullIndex(id);
 }
 
-uint indexFromPos(vec3 _pos)
-{
+uint indexFromPos(vec3 _pos) {
     const uint size = chunk_size / uint(mip_scale);
     const vec3 pos = _pos; // floor((_pos + vec3(size / 2)) / mip_scale);
     uint index = 0;
 
-    for (uint d = 0; d < 3; ++d)
-    {
+    for (uint d = 0; d < 3; ++d) {
         const uint i = 2 - d;
         if (pos[i] < 0 || pos[i] >= size) return ~0; // Position is outside chunk
         index *= size;
@@ -64,35 +57,27 @@ uint indexFromPos(vec3 _pos)
     return index;
 }
 
-bool fullPos(vec3 pos)
-{
+bool fullPos(vec3 pos) {
     uint index = indexFromPos(pos);
     if (index == ~0) return false; // TODO query neighbours
     // TODO if mip_level != 0 and we are not calculating occlusion, return false
     return fullIndex(index);
 }
 
-void main()
-{
+void main() {
     // Calculate the index of density that corresponds to this thread
-    const vec3 num_threads = gl_NumWorkGroups * gl_WorkGroupSize;
-    const uint id = uint(dot(
-        gl_GlobalInvocationID,
-        vec3(1, num_threads.x, num_threads.y * num_threads.x)
-    ));
+    const uint id = threadIndex();
     // Skip empty cubes
     if (emptyIndex(id)) return;
     // Faces
     const vec3 pos = gl_GlobalInvocationID;
-    for (uint f = 0; f < 6; ++f)
-    {
+    for (uint f = 0; f < 6; ++f) {
         vec3 neighbour = pos;
         neighbour[f / 2] += (f % 2 > 0) ? mip_scale : -mip_scale;
         if (fullPos(neighbour)) continue;
         // Sample voxel occlusion
         bool occlusion[8];
-        for (uint e = 0; e < 4; ++e)
-        {
+        for (uint e = 0; e < 4; ++e) {
             // Voxels that share edges
             vec3 occluder = neighbour;
             occluder[(e / 2 + f / 2 + 1) % 3] += (e % 2 > 0) ? mip_scale : -mip_scale;
@@ -105,11 +90,9 @@ void main()
         }
         uint i = atomicCounterAdd(count, 2 * 3);
         // Triangles
-        for (uint t = 0; t < 2; ++t)
-        {
+        for (uint t = 0; t < 2; ++t) {
             // Vertices
-            for (uint v = 0; v < 3; ++v)
-            {
+            for (uint v = 0; v < 3; ++v) {
                 vec3 vert = (pos + neighbour) / 2 - vec3(chunk_size / uint(mip_scale) / 2);
                 const bool x = (t + v + f) % 2 > 0;
                 const bool y = v / 2 == t;

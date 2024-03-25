@@ -1,33 +1,20 @@
 #version 460 core
 
-// This needs some testing, but my assumptions are as follows:
-// - Due to warp/wavefront sizes being 32 or 64 threads, I should use a total
-// ... workgroup size that is a multiple of 64 threads.
-// - I have no reason to use any more than 64 threads in my workgroup.
-// - As changes in x are more local, local_size_x should be as big as possible.
-// So local_size_x should be the chunk size (or 64, whichever is smaller),
-// and local_size_y should be 64 / chunk size
+// #include comp_snippets/layout.vert
 
-layout (local_size_x = 16, local_size_y = 4, local_size_z = 1) in;
-
-writeonly buffer density_block
-{
+writeonly buffer density_block {
     float density[];
 };
 
 uniform uint chunk_size;
 uniform vec3 offset;
 
+// #include comp_snippets/index.vert
 // #include noise/simplex.vert
 
-void main()
-{
+void main() {
     // Calculate the index of density that corresponds to this thread
-    const vec3 num_threads = gl_NumWorkGroups * gl_WorkGroupSize;
-    const uint id = uint(dot(
-        gl_GlobalInvocationID,
-        vec3(1, num_threads.x, num_threads.y * num_threads.x)
-    ));
+    const uint id = threadIndex();
     // Sample noise at global coordinates
     const vec3 global_pos = gl_GlobalInvocationID + offset;
     density[id] = simplexNoise(global_pos / chunk_size / 2);

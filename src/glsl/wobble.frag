@@ -10,8 +10,7 @@ out vec4 colour;
 
 // Adapted https://www.shadertoy.com/view/7sdXzM
 
-float interpIter(float t, float a, float b)
-{
+float interpIter(float t, float a, float b) {
     float t_inv = 1.0 - t;
     return (
         t *     t_inv * t_inv * a * 3.0 +
@@ -20,8 +19,7 @@ float interpIter(float t, float a, float b)
     );
 }
 
-float interp(float t, float a, float b)
-{
+float interp(float t, float a, float b) {
     return interpIter(
         interpIter(
             clamp(t, 0.0, 1.0),
@@ -31,8 +29,7 @@ float interp(float t, float a, float b)
     );
 }
 
-void main()
-{
+void main() {
     vec2 uv = frag_position * 0.5 * uv_zoom + 0.5;
     float thres = interp(
         uv.x,

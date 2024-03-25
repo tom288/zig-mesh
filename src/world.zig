@@ -359,7 +359,8 @@ pub const World = struct {
                 world.surface_shader.set("chunk_size", gl.GLuint, @as(gl.GLuint, @intCast(Chunk.SIZE)));
                 world.density_shader.set("offset", f32, zm.vecToArr3(offset));
 
-                gl.dispatchCompute(Chunk.SIZE / 16, Chunk.SIZE / 4, Chunk.SIZE);
+                const groups = Chunk.SIZE / 4;
+                gl.dispatchCompute(groups, groups, groups);
                 gl.memoryBarrier(gl.BUFFER_UPDATE_BARRIER_BIT);
                 const ns: f32 = @floatFromInt(timer.read());
                 if (false) std.debug.print("genChunkDensity took {d:.3} ms\n", .{ns / 1_000_000});
@@ -436,7 +437,8 @@ pub const World = struct {
                 world.surface_shader.set("mip_scale", f32, std.math.pow(f32, 2, @floatFromInt(chunk.wip_mip.?)));
                 world.surface_shader.set("offset", f32, zm.vecToArr3(offset));
 
-                gl.dispatchCompute(Chunk.SIZE / 16, Chunk.SIZE / 4, Chunk.SIZE);
+                const groups = Chunk.SIZE / 4;
+                gl.dispatchCompute(groups, groups, groups);
                 gl.memoryBarrier(gl.BUFFER_UPDATE_BARRIER_BIT | gl.ATOMIC_COUNTER_BARRIER_BIT);
                 const ns: f32 = @floatFromInt(timer.read());
                 if (false) std.debug.print("genChunkSurface took {d:.3} ms\n", .{ns / 1_000_000});
