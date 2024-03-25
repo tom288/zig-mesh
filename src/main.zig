@@ -6,13 +6,9 @@ const World = @import("world.zig").World;
 const Camera = @import("camera.zig").Camera;
 
 pub fn main() !void {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const alloc = arena.allocator();
-
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer if (gpa.deinit() == .leak) unreachable;
-    const chunk_alloc = gpa.allocator();
+    const alloc = gpa.allocator();
 
     var camera = Camera.init();
     var window = try Window.init(
@@ -25,30 +21,30 @@ pub fn main() !void {
     defer window.kill();
 
     var shader = try Shader.init(
+        alloc,
         "perspective",
         null,
         "perspective",
     );
     defer shader.kill();
 
-    var density_shader = try Shader.initComp("density");
+    var density_shader = try Shader.initComp(alloc, "density");
     defer density_shader.kill();
     density_shader.bindBlock("density_block", 0);
 
-    var surface_shader = try Shader.initComp("surface");
+    var surface_shader = try Shader.initComp(alloc, "surface");
     defer surface_shader.kill();
     surface_shader.bindBlock("density_block", 0);
     surface_shader.bindBlock("surface_block", 1);
 
     var world = try World.init(
         alloc,
-        chunk_alloc,
         shader,
         density_shader,
         surface_shader,
         camera.position,
     );
-    defer world.kill(alloc) catch unreachable;
+    defer world.kill() catch unreachable;
 
     // Wait for the user to close the window.
     while (window.ok()) {

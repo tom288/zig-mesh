@@ -8,29 +8,36 @@ pub const Shader = struct {
     id: ?gl.GLuint,
 
     pub fn init(
+        alloc: std.mem.Allocator,
         comptime vertex: []const u8,
         comptime geometry: ?[]const u8,
         comptime fragment: []const u8,
     ) !Shader {
         return initShader(
+            alloc,
             &[_]?[]const u8{ vertex, geometry, fragment },
             &[_]gl.GLenum{ gl.VERTEX_SHADER, gl.GEOMETRY_SHADER, gl.FRAGMENT_SHADER },
         );
     }
 
-    pub fn initComp(comptime compute: []const u8) !Shader {
+    pub fn initComp(alloc: std.mem.Allocator, comptime compute: []const u8) !Shader {
         return initShader(
+            alloc,
             &[_]?[]const u8{compute},
             &[_]gl.GLenum{gl.COMPUTE_SHADER},
         );
     }
 
-    fn initShader(comptime srcs: []const ?[]const u8, comptime stages: []const gl.GLenum) !Shader {
+    fn initShader(
+        alloc: std.mem.Allocator,
+        comptime srcs: []const ?[]const u8,
+        comptime stages: []const gl.GLenum,
+    ) !Shader {
         comptime std.debug.assert(srcs.len == stages.len);
         var ids: [srcs.len]?gl.GLuint = undefined;
         var zero = false;
         inline for (srcs, stages, &ids) |src, stage, *id| {
-            id.* = compile(src, stage);
+            id.* = try compile(alloc, src, stage);
             zero = zero or id.* == 0;
         }
 
@@ -52,8 +59,8 @@ pub const Shader = struct {
             var path: ?[]const u8 = null;
             inline for (srcs, stages) |src, stage| {
                 if (src == null) continue;
-                const tmp = makePath(src, stage);
-                if (tmp != null) path = tmp;
+                const tmp: ?[]const u8 = makePath(src, stage) catch null;
+                if (tmp) |t| path = t;
             }
             if (compileError(id, true, path)) {
                 shader.kill();
@@ -174,20 +181,33 @@ pub const Shader = struct {
     }
 };
 
-fn compile(comptime name: ?[]const u8, comptime stage: gl.GLenum) ?gl.GLuint {
-    if (name == null) return null;
+fn compile(alloc: std.mem.Allocator, comptime src: ?[]const u8, comptime stage: gl.GLenum) !?gl.GLuint {
+    if (src == null) return null;
     comptime std.debug.assert(std.mem.trim(
         u8,
-        name.?,
+        src.?,
         &std.ascii.whitespace,
     ).len > 0);
-    const path = comptime makePath(name, stage) orelse {
+    // Get file path
+    const path = comptime makePath(src, stage) catch |e| {
         std.log.err("Invalid shader stage {}", .{stage});
-        return 0;
+        return e;
     };
-    const buffer: [*c]const [*c]const u8 = &&@embedFile(path)[0];
+    // Open the file
+    const file = try std.fs.cwd().openFile(path, .{});
+    defer file.close();
+    // Read file contents
+    const data = try file.readToEndAllocOptions(
+        alloc,
+        1024 * 1024, // 1 MB max
+        null, // Default sizing
+        @alignOf(u8), // Default alignment
+        0, // Null terminator
+    );
+    defer alloc.free(data);
+    // Create shader using file
     const id = gl.createShader(stage);
-    gl.shaderSource(id, 1, buffer, null);
+    gl.shaderSource(id, 1, &&data[0], null);
     gl.compileShader(id);
     if (compileError(id, false, path)) return 0;
     return id;
@@ -216,12 +236,12 @@ fn compileError(id: gl.GLuint, comptime is_program: bool, path: ?[]const u8) boo
     return ok == gl.FALSE;
 }
 
-fn makePath(comptime name: ?[]const u8, comptime stage: gl.GLenum) ?[]const u8 {
-    return "glsl/" ++ name.? ++ switch (stage) {
+fn makePath(comptime src: ?[]const u8, comptime stage: gl.GLenum) ![]const u8 {
+    return "src/glsl/" ++ src.? ++ switch (stage) {
         gl.VERTEX_SHADER => ".vert",
         gl.GEOMETRY_SHADER => ".geom",
         gl.FRAGMENT_SHADER => ".frag",
         gl.COMPUTE_SHADER => ".comp",
-        else => return null,
+        else => return error.BadExtension,
     };
 }

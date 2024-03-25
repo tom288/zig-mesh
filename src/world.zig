@@ -20,7 +20,6 @@ pub const World = struct {
     }.compute;
 
     alloc: std.mem.Allocator,
-    chunk_alloc: std.mem.Allocator,
     shader: Shader,
     density_shader: Shader,
     surface_shader: Shader,
@@ -33,7 +32,6 @@ pub const World = struct {
 
     pub fn init(
         alloc: std.mem.Allocator,
-        chunk_alloc: std.mem.Allocator,
         shader: Shader,
         density_shader: Shader,
         surface_shader: Shader,
@@ -41,7 +39,6 @@ pub const World = struct {
     ) !World {
         var world = World{
             .alloc = alloc,
-            .chunk_alloc = chunk_alloc,
             .shader = shader,
             .density_shader = density_shader,
             .surface_shader = surface_shader,
@@ -57,7 +54,7 @@ pub const World = struct {
         var count: usize = 0;
         errdefer {
             for (0..count) |i| {
-                world.chunks[i].kill(chunk_alloc);
+                world.chunks[i].kill(alloc);
             }
             alloc.free(world.chunks);
             world.chunks = &.{};
@@ -119,7 +116,7 @@ pub const World = struct {
         return world;
     }
 
-    pub fn kill(world: *World, alloc: std.mem.Allocator) !void {
+    pub fn kill(world: *World) !void {
         // Wait for the other threads
         for (world.pool.workers) |*worker| {
             while (worker.busy) {
@@ -129,10 +126,10 @@ pub const World = struct {
         }
         // Free everything
         for (world.chunks) |*chunk| {
-            chunk.kill(world.chunk_alloc);
+            chunk.kill(world.alloc);
         }
         world.pool.kill(world.alloc);
-        alloc.free(world.chunks);
+        world.alloc.free(world.chunks);
         world.chunks = &.{};
     }
 
@@ -236,7 +233,7 @@ pub const World = struct {
                             if (chunk.wip_mip != null or chunk.density_refs > 0) {
                                 chunk.must_free = true;
                             } else {
-                                chunk.free(world.chunk_alloc, true);
+                                chunk.free(world.alloc, true);
                             }
                         }
                     }
@@ -321,10 +318,10 @@ pub const World = struct {
         chunk_index: usize,
         mip_level: usize,
     ) !bool {
-        chunk.free(world.chunk_alloc, false);
+        chunk.free(world.alloc, false);
         const mip_scale = std.math.pow(f32, 2, @floatFromInt(mip_level));
         const size = Chunk.SIZE / @as(usize, @intFromFloat(mip_scale));
-        if (THREADING != .compute) chunk.density = try world.chunk_alloc.alloc(f32, size * size * size);
+        if (THREADING != .compute) chunk.density = try world.alloc.alloc(f32, size * size * size);
 
         const offset = world.offsetFromIndex(chunk_index, null);
         const old_mip = chunk.density_mip;
@@ -347,7 +344,7 @@ pub const World = struct {
                         .offset = offset,
                     },
                 )) {
-                    world.chunk_alloc.free(chunk.density);
+                    world.alloc.free(chunk.density);
                     chunk.density = &.{};
                     chunk.density_mip = old_mip;
                     chunk.wip_mip = null;
@@ -381,7 +378,7 @@ pub const World = struct {
         chunk_index: usize,
         comptime min: comptime_int,
     ) !bool {
-        if (THREADING != .compute) chunk.surface = std.ArrayList(f32).init(world.chunk_alloc);
+        if (THREADING != .compute) chunk.surface = std.ArrayList(f32).init(world.alloc);
         const offset = world.offsetFromIndex(chunk_index, null);
         const old_mip = chunk.surface_mip;
         chunk.surface_mip = null;
@@ -560,7 +557,7 @@ pub const World = struct {
                                 neighbour.density_refs == 0 and
                                 neighbour.wip_mip == null)
                             {
-                                neighbour.free(world.chunk_alloc, true);
+                                neighbour.free(world.alloc, true);
                             }
                         }
                     }
