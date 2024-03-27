@@ -36,6 +36,7 @@ pub fn build(b: *std.Build) !void {
         step.root_module.addImport("gl", gl);
         step.root_module.addImport("zmath", zmath.module("root"));
         step.root_module.addImport("znoise", znoise.module("root"));
+        step.linkLibrary(znoise.artifact("FastNoiseLite"));
     }
 
     // Add run step so 'zig build run' executes program after building
