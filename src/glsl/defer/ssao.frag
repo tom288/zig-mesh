@@ -31,13 +31,13 @@ void main() {
         vec3 sample_pos = tbn * samples[i]; // From tangent to view-space
         sample_pos = pos + sample_pos * radius;
 
-        // Project sample position (to sample texture) (to get position on screen/texture)
+        // Project sample position to obtain uv
         vec4 offset = vec4(sample_pos, 1);
-        offset = projection * offset; // From view to clip-space
+        offset = projection * offset; // From view to clip space
         offset.xyz /= offset.w; // Perspective divide
         offset.xyz = offset.xyz * 0.5 + 0.5; // Transform to range 0...1
-
-        float sample_depth = texture(g_pos, offset.xy).z; // Get depth value of kernel sample
+        // Add occlusion sample to total
+        float sample_depth = texture(g_pos, offset.xy).z;
         float range_check = smoothstep(0, 1, radius / abs(pos.z - sample_depth));
         occ += (sample_depth >= sample_pos.z + bias ? 1 : 0) * range_check;
         // occ += (sample_depth >= sample_pos.z + sample_depth / 100 ? 1 : 0) * range_check;

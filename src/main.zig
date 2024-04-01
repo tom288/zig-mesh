@@ -212,12 +212,28 @@ pub fn main() !void {
     gl.genTextures(1, &ssao_tex);
     defer gl.deleteTextures(1, &ssao_tex);
     gl.bindTexture(gl.TEXTURE_2D, ssao_tex);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RED, w, h, 0, gl.RED, gl.FLOAT, null);
+    gl.texImage2D(
+        gl.TEXTURE_2D,
+        0,
+        gl.RED,
+        w,
+        h,
+        0,
+        gl.RED,
+        gl.FLOAT,
+        null,
+    );
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, ssao_tex, 0);
+    gl.framebufferTexture2D(
+        gl.FRAMEBUFFER,
+        gl.COLOR_ATTACHMENT0,
+        gl.TEXTURE_2D,
+        ssao_tex,
+        0,
+    );
     std.debug.assert(gl.checkFramebufferStatus(gl.FRAMEBUFFER) == gl.FRAMEBUFFER_COMPLETE);
 
     // Create framebuffer for SSAO blur result
@@ -229,10 +245,26 @@ pub fn main() !void {
     gl.genTextures(1, &blur_tex);
     defer gl.deleteTextures(1, &blur_tex);
     gl.bindTexture(gl.TEXTURE_2D, blur_tex);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RED, w, h, 0, gl.RED, gl.FLOAT, null);
+    gl.texImage2D(
+        gl.TEXTURE_2D,
+        0,
+        gl.RED,
+        w,
+        h,
+        0,
+        gl.RED,
+        gl.FLOAT,
+        null,
+    );
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, blur_tex, 0);
+    gl.framebufferTexture2D(
+        gl.FRAMEBUFFER,
+        gl.COLOR_ATTACHMENT0,
+        gl.TEXTURE_2D,
+        blur_tex,
+        0,
+    );
     std.debug.assert(gl.checkFramebufferStatus(gl.FRAMEBUFFER) == gl.FRAMEBUFFER_COMPLETE);
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, 0);
@@ -285,7 +317,17 @@ pub fn main() !void {
     gl.genTextures(1, &noise_texture);
     defer gl.deleteTextures(1, &noise_texture);
     gl.bindTexture(gl.TEXTURE_2D, noise_texture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, SSAO_NOISE_SIZE, SSAO_NOISE_SIZE, 0, gl.RG, gl.FLOAT, &ssao_noise[0]);
+    gl.texImage2D(
+        gl.TEXTURE_2D,
+        0,
+        gl.RGBA16F,
+        SSAO_NOISE_SIZE,
+        SSAO_NOISE_SIZE,
+        0,
+        gl.RG,
+        gl.FLOAT,
+        &ssao_noise[0],
+    );
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
@@ -293,14 +335,14 @@ pub fn main() !void {
     ssao_shader.set("g_pos", gl.GLint, 0);
     ssao_shader.set("g_norm", gl.GLint, 1);
     ssao_shader.set("noise", gl.GLint, 2);
-    ssao_shader.set("resolution", f32, zm.vecToArr2(window.resolution)); // Resolution / noise size
+    ssao_shader.set("resolution", f32, zm.vecToArr2(window.resolution));
 
     blur_shader.use();
     blur_shader.set("tex", gl.GLint, 0);
 
     compose_shader.use();
-    compose_shader.set("g_pos", gl.GLint, 0);
-    compose_shader.set("g_norm", gl.GLint, 1);
+    // compose_shader.set("g_pos", gl.GLint, 0);
+    // compose_shader.set("g_norm", gl.GLint, 1);
     compose_shader.set("g_albedo_spec", gl.GLint, 2);
     compose_shader.set("ssao", gl.GLint, 3);
 
@@ -345,10 +387,10 @@ pub fn main() !void {
         // Compose geometry and lighting for final image
         window.clear();
         compose_shader.use();
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, g_pos);
-        gl.activeTexture(gl.TEXTURE1);
-        gl.bindTexture(gl.TEXTURE_2D, g_norm);
+        // gl.activeTexture(gl.TEXTURE0);
+        // gl.bindTexture(gl.TEXTURE_2D, g_pos);
+        // gl.activeTexture(gl.TEXTURE1);
+        // gl.bindTexture(gl.TEXTURE_2D, g_norm);
         gl.activeTexture(gl.TEXTURE2);
         gl.bindTexture(gl.TEXTURE_2D, g_albedo_spec);
         gl.activeTexture(gl.TEXTURE3);
