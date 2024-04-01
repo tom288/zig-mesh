@@ -14,30 +14,30 @@ pub const Voxel = struct {
     // Cube face visibility is calculated from neighbours in all directions
     pub const NEG_ADJ = true;
 
-    pub fn from(chunk: *Chunk, world: World, gen: znoise.FnlGenerator, pos: zm.Vec, offset: zm.Vec) !void {
-        if (chunk.empty(world, pos, offset, false, null).?) return;
+    pub fn gen(chunk: *Chunk, world: World, noise: znoise.FnlGenerator, pos: zm.Vec, offset: zm.Vec) !void {
+        if (empty(chunk, world, pos, offset, false, null).?) return;
         const mip_level = chunk.wip_mip.?;
         const mip_scale = std.math.pow(f32, 2, @floatFromInt(mip_level));
         const AVG_COLOUR = false;
         const OCCLUSION = false;
-        const avg_colour = sampleColour(pos + offset, gen);
+        const avg_colour = sampleColour(pos + offset, noise);
         // Faces
         for (0..6) |f| {
             var neighbour = pos;
             neighbour[f / 2] += if (f % 2 > 0) mip_scale else -mip_scale;
-            if (chunk.full(world, neighbour, offset, false, null) orelse false) continue;
+            if (full(chunk, world, neighbour, offset, false, null) orelse false) continue;
             var occlusion: [8]bool = undefined;
             // Sample voxel occlusion
             if (OCCLUSION) for (0..4) |e| {
                 // Voxels that share edges
                 var occluder = neighbour;
                 occluder[(e / 2 + f / 2 + 1) % 3] += if (e % 2 > 0) mip_scale else -mip_scale;
-                occlusion[e] = chunk.full(world, occluder, offset, true, null) orelse false;
+                occlusion[e] = full(chunk, world, occluder, offset, true, null) orelse false;
                 // Voxels that share corners
                 occluder = neighbour;
                 occluder[(f / 2 + 1) % 3] += if (e % 2 > 0) mip_scale else -mip_scale;
                 occluder[(f / 2 + 2) % 3] += if (e / 2 > 0) mip_scale else -mip_scale;
-                occlusion[e + 4] = chunk.full(world, occluder, offset, true, null) orelse false;
+                occlusion[e + 4] = full(chunk, world, occluder, offset, true, null) orelse false;
             };
 
             var norm = zm.f32x4s(0);
@@ -55,7 +55,7 @@ pub const Voxel = struct {
                     try chunk.surface.?.appendSlice(&zm.vecToArr3(vert));
                     try chunk.surface.?.appendSlice(&zm.vecToArr3(norm));
                     // Vertex colours
-                    var colour = if (AVG_COLOUR) avg_colour else sampleColour(vert + offset, gen);
+                    var colour = if (AVG_COLOUR) avg_colour else sampleColour(vert + offset, noise);
                     if (OCCLUSION) {
                         // Accumulate occlusion
                         var occ: f32 = 0;
@@ -161,8 +161,8 @@ pub const MarchingCubes = struct {
         switch (MODE) {
             .primitive => return (l + r) / zm.f32x4s(2),
             .risky => {
-                const sample_l = chunk.densityFromPos(world, l, offset, null, null).?;
-                const sample_r = chunk.densityFromPos(world, r, offset, null, null).?;
+                const sample_l = densityFromPos(chunk, world, l, offset, null, null).?;
+                const sample_r = densityFromPos(chunk, world, r, offset, null, null).?;
                 const sample_diff = sample_r - sample_l;
                 if (@abs(sample_l) < EPS) return l;
                 if (@abs(sample_r) < EPS) return r;
@@ -183,8 +183,8 @@ pub const MarchingCubes = struct {
                 }
                 const a = if (less) l else r;
                 const b = if (less) r else l;
-                const sample_a = chunk.densityFromPos(world, a, offset, null, null).?;
-                const sample_b = chunk.densityFromPos(world, b, offset, null, null).?;
+                const sample_a = densityFromPos(chunk, world, a, offset, null, null).?;
+                const sample_b = densityFromPos(chunk, world, b, offset, null, null).?;
                 const sample_diff = sample_b - sample_a;
 
                 var result = a;
@@ -199,7 +199,7 @@ pub const MarchingCubes = struct {
         }
     }
 
-    pub fn from(chunk: *Chunk, world: World, gen: znoise.FnlGenerator, pos: zm.Vec, offset: zm.Vec) !void {
+    pub fn gen(chunk: *Chunk, world: World, noise: znoise.FnlGenerator, pos: zm.Vec, offset: zm.Vec) !void {
         var corners: [8]zm.Vec = undefined;
         var config: u8 = 0;
         for (0..corners.len) |i| {
@@ -209,7 +209,7 @@ pub const MarchingCubes = struct {
                 if (i / 2 % 2 > 0) 1 else 0,
                 0,
             );
-            if (chunk.empty(world, corners[i], offset, false, null).?) continue;
+            if (empty(chunk, world, corners[i], offset, false, null).?) continue;
             config |= @as(u8, 1) << @intCast(i);
         }
 
@@ -228,13 +228,13 @@ pub const MarchingCubes = struct {
                 var avg = zm.f32x4s(0);
                 for (tri_verts) |t| avg += t;
                 avg /= @splat(tri_verts.len);
-                const avg_colour = sampleColour(avg + offset, gen);
+                const avg_colour = sampleColour(avg + offset, noise);
                 // Calculate (flat) normal vector TODO try smooth normals
                 const norm = zm.cross3(tri_verts[0] - tri_verts[1], tri_verts[1] - tri_verts[2]);
                 for (tri_verts) |t| {
                     try chunk.surface.?.appendSlice(&zm.vecToArr3(t));
                     try chunk.surface.?.appendSlice(&zm.vecToArr3(norm));
-                    const vert_colour = sampleColour(t + offset, gen);
+                    const vert_colour = sampleColour(t + offset, noise);
                     try appendColour(chunk, if (AVG_COLOUR) avg_colour else vert_colour);
                 }
             }
@@ -242,12 +242,12 @@ pub const MarchingCubes = struct {
     }
 };
 
-fn sampleColour(pos: zm.Vec, gen: znoise.FnlGenerator) zm.Vec {
+fn sampleColour(pos: zm.Vec, noise: znoise.FnlGenerator) zm.Vec {
     var colour = zm.f32x4s(0);
     for (0..3) |c| {
         var c_pos = pos;
         c_pos[c] += Chunk.SIZE * 99;
-        colour[c] += (gen.noise3(c_pos[0], c_pos[1], c_pos[2]) + 1) / 2;
+        colour[c] += (noise.noise3(c_pos[0], c_pos[1], c_pos[2]) + 1) / 2;
     }
     return colour;
 }
@@ -255,4 +255,66 @@ fn sampleColour(pos: zm.Vec, gen: znoise.FnlGenerator) zm.Vec {
 fn appendColour(chunk: *Chunk, colour: zm.Vec) !void {
     const c: @Vector(4, u8) = @intFromFloat(zm.f32x4s(255.999) * colour);
     try chunk.surface.?.append(@bitCast(c));
+}
+
+pub fn full(
+    chunk: *Chunk,
+    world: World,
+    pos: zm.Vec,
+    offset: zm.Vec,
+    occ: bool,
+    splits: ?zm.Vec,
+) ?bool {
+    if (densityFromPos(chunk, world, pos, offset, occ, splits)) |d| {
+        return d > 0;
+    } else {
+        return null;
+    }
+}
+
+pub fn empty(
+    chunk: *Chunk,
+    world: World,
+    pos: zm.Vec,
+    offset: zm.Vec,
+    occ: bool,
+    splits: ?zm.Vec,
+) ?bool {
+    return if (full(chunk, world, pos, offset, occ, splits)) |e| !e else null;
+}
+
+pub fn densityFromPos(
+    chunk: *Chunk,
+    world: World,
+    pos: zm.Vec,
+    offset: zm.Vec,
+    occ: ?bool,
+    splits: ?zm.Vec,
+) ?f32 {
+    const spl = splits orelse chunk.splits_copy.?;
+    if (densityLocal(chunk, pos)) |d| return d;
+    if (chunk.wip_mip != 0 and occ == false) return 0;
+    const i = world.indexFromOffset(pos + offset, spl) catch unreachable;
+    const off = world.offsetFromIndex(i, spl);
+    return densityFromPos(&world.chunks[i], world, pos + offset - off, off, occ, spl);
+}
+
+fn densityLocal(chunk: *Chunk, pos: zm.Vec) ?f32 {
+    return chunk.density[indexFromPos(chunk, pos) catch return null];
+}
+
+fn indexFromPos(chunk: *Chunk, _pos: zm.Vec) !usize {
+    const mip_level = chunk.wip_mip orelse chunk.density_mip.?;
+    const mip_scale = std.math.pow(f32, 2, @floatFromInt(mip_level));
+    const size = Chunk.SIZE / @as(usize, @intFromFloat(mip_scale));
+
+    const pos = zm.floor((_pos + zm.f32x4s(@as(f32, Chunk.SIZE) / 2)) / zm.f32x4s(mip_scale));
+    var index: usize = 0;
+    for (0..3) |d| {
+        const i = 2 - d;
+        if (pos[i] < 0 or pos[i] >= @as(f32, @floatFromInt(size))) return error.PositionOutsideChunk;
+        index *= size;
+        index += @intFromFloat(pos[i]);
+    }
+    return index;
 }
