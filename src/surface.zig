@@ -18,14 +18,17 @@ pub const Voxel = struct {
         if (chunk.empty(world, pos, offset, false, null).?) return;
         const mip_level = chunk.wip_mip.?;
         const mip_scale = std.math.pow(f32, 2, @floatFromInt(mip_level));
+        const AVG_COLOUR = false;
+        const OCCLUSION = false;
+        const avg_colour = sampleColour(pos + offset, gen);
         // Faces
         for (0..6) |f| {
             var neighbour = pos;
             neighbour[f / 2] += if (f % 2 > 0) mip_scale else -mip_scale;
             if (chunk.full(world, neighbour, offset, false, null) orelse false) continue;
-            // Sample voxel occlusion
             var occlusion: [8]bool = undefined;
-            for (0..4) |e| {
+            // Sample voxel occlusion
+            if (OCCLUSION) for (0..4) |e| {
                 // Voxels that share edges
                 var occluder = neighbour;
                 occluder[(e / 2 + f / 2 + 1) % 3] += if (e % 2 > 0) mip_scale else -mip_scale;
@@ -35,7 +38,10 @@ pub const Voxel = struct {
                 occluder[(f / 2 + 1) % 3] += if (e % 2 > 0) mip_scale else -mip_scale;
                 occluder[(f / 2 + 2) % 3] += if (e / 2 > 0) mip_scale else -mip_scale;
                 occlusion[e + 4] = chunk.full(world, occluder, offset, true, null) orelse false;
-            }
+            };
+
+            var norm = zm.f32x4s(0);
+            norm[f / 2] = if (f % 2 > 0) 1 else -1;
             // Triangles
             for (0..2) |t| {
                 // Vertices
@@ -47,18 +53,21 @@ pub const Voxel = struct {
                     vert[(f / 2 + 2) % 3] += if (y) mip_scale * 0.5 else mip_scale * -0.5;
                     // Vertex positions
                     try chunk.surface.?.appendSlice(&zm.vecToArr3(vert));
+                    try chunk.surface.?.appendSlice(&zm.vecToArr3(norm));
                     // Vertex colours
-                    var colour = sampleColour(vert + offset, gen);
-                    // Accumulate occlusion
-                    var occ: f32 = 0;
-                    if (occlusion[if (x) 1 else 0]) occ += 1;
-                    if (occlusion[if (y) 3 else 2]) occ += 1;
-                    if (occlusion[
-                        4 + @as(usize, if (x) 1 else 0) +
-                            @as(usize, if (y) 2 else 0)
-                    ]) occ += 1;
-                    // Darken occluded vertices
-                    colour /= @splat(std.math.pow(f32, 1.1, occ));
+                    var colour = if (AVG_COLOUR) avg_colour else sampleColour(vert + offset, gen);
+                    if (OCCLUSION) {
+                        // Accumulate occlusion
+                        var occ: f32 = 0;
+                        if (occlusion[if (x) 1 else 0]) occ += 1;
+                        if (occlusion[if (y) 3 else 2]) occ += 1;
+                        if (occlusion[
+                            4 + @as(usize, if (x) 1 else 0) +
+                                @as(usize, if (y) 2 else 0)
+                        ]) occ += 1;
+                        // Darken occluded vertices
+                        colour /= @splat(std.math.pow(f32, 1.1, occ));
+                    }
                     try appendColour(chunk, colour);
                 }
             }
@@ -204,7 +213,7 @@ pub const MarchingCubes = struct {
             config |= @as(u8, 1) << @intCast(i);
         }
 
-        const TRI_COLOUR = true;
+        const AVG_COLOUR = true;
         var tri_verts: [3]zm.Vec = undefined;
 
         for (0..15) |i| {
@@ -213,22 +222,21 @@ pub const MarchingCubes = struct {
             const other = @as(u64, 0o123056744567) >> // Octal
                 (11 - @as(u6, @intCast(v))) * 3 & 7;
             const vert = lerpVert(chunk, world, corners[v % 8], corners[other], offset);
-            if (TRI_COLOUR) {
-                tri_verts[i % tri_verts.len] = vert;
-                if (1 + i % tri_verts.len == tri_verts.len) {
-                    var avg = zm.f32x4s(0);
-                    for (tri_verts) |t| avg += t;
-                    avg /= @splat(tri_verts.len);
-                    const colour = sampleColour(avg + offset, gen);
-                    for (tri_verts) |t| {
-                        try chunk.surface.?.appendSlice(&zm.vecToArr3(t));
-                        try appendColour(chunk, colour);
-                    }
+            tri_verts[i % tri_verts.len] = vert;
+            if (1 + i % tri_verts.len == tri_verts.len) {
+                // Sample colour at the average vertex
+                var avg = zm.f32x4s(0);
+                for (tri_verts) |t| avg += t;
+                avg /= @splat(tri_verts.len);
+                const avg_colour = sampleColour(avg + offset, gen);
+                // Calculate (flat) normal vector TODO try smooth normals
+                const norm = zm.cross3(tri_verts[0] - tri_verts[1], tri_verts[1] - tri_verts[2]);
+                for (tri_verts) |t| {
+                    try chunk.surface.?.appendSlice(&zm.vecToArr3(t));
+                    try chunk.surface.?.appendSlice(&zm.vecToArr3(norm));
+                    const vert_colour = sampleColour(t + offset, gen);
+                    try appendColour(chunk, if (AVG_COLOUR) avg_colour else vert_colour);
                 }
-            } else {
-                try chunk.surface.?.appendSlice(&zm.vecToArr3(vert));
-                const colour = sampleColour(vert + offset, gen);
-                try appendColour(chunk, colour);
             }
         }
     }

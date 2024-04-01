@@ -84,6 +84,10 @@ pub const Shader = struct {
     }
 
     pub fn set(shader: Shader, name: [:0]const u8, comptime T: type, value: anytype) void {
+        shader.set_n(name, T, 1, value);
+    }
+
+    pub fn set_n(shader: Shader, name: [:0]const u8, comptime T: type, n: gl.GLint, value: anytype) void {
         const id = shader.id.?;
         const location = gl.getUniformLocation(id, name);
         if (location == -1) {
@@ -97,7 +101,9 @@ pub const Shader = struct {
                     else => value,
                 });
                 const ptr: [*c]const T = &vec[0];
-                switch (vec.len) {
+                const _n: usize = @intCast(n);
+                std.debug.assert(vec.len % _n == 0);
+                switch (vec.len / _n) {
                     1 => (switch (T) {
                         gl.GLfloat => gl.uniform1fv,
                         gl.GLdouble => gl.uniform1dv,
@@ -107,7 +113,7 @@ pub const Shader = struct {
                             std.log.err("Invalid uniform type {}", .{T});
                             unreachable;
                         },
-                    })(location, 1, ptr),
+                    })(location, n, ptr),
                     2 => (switch (T) {
                         gl.GLfloat => gl.uniform2fv,
                         gl.GLdouble => gl.uniform2dv,
@@ -117,7 +123,7 @@ pub const Shader = struct {
                             std.log.err("Invalid uniform type {}", .{T});
                             unreachable;
                         },
-                    })(location, 1, ptr),
+                    })(location, n, ptr),
                     3 => (switch (T) {
                         gl.GLfloat => gl.uniform3fv,
                         gl.GLdouble => gl.uniform3dv,
@@ -127,7 +133,7 @@ pub const Shader = struct {
                             std.log.err("Invalid uniform type {}", .{T});
                             unreachable;
                         },
-                    })(location, 1, ptr),
+                    })(location, n, ptr),
                     4 => (switch (T) {
                         gl.GLfloat => gl.uniform4fv,
                         gl.GLdouble => gl.uniform4dv,
@@ -137,7 +143,7 @@ pub const Shader = struct {
                             std.log.err("Invalid uniform type {}", .{T});
                             unreachable;
                         },
-                    })(location, 1, ptr),
+                    })(location, n, ptr),
                     9 => (switch (T) {
                         gl.GLfloat => gl.uniformMatrix3fv,
                         gl.GLdouble => gl.uniformMatrix3dv,
@@ -145,7 +151,7 @@ pub const Shader = struct {
                             std.log.err("Invalid uniform type {}", .{T});
                             unreachable;
                         },
-                    })(location, 1, gl.FALSE, ptr),
+                    })(location, n, gl.FALSE, ptr),
                     16 => (switch (T) {
                         gl.GLfloat => gl.uniformMatrix4fv,
                         gl.GLdouble => gl.uniformMatrix4dv,
@@ -153,7 +159,7 @@ pub const Shader = struct {
                             std.log.err("Invalid uniform type {} for length {}", .{ T, vec.len });
                             unreachable;
                         },
-                    })(location, 1, gl.FALSE, ptr),
+                    })(location, n, gl.FALSE, ptr),
                     else => {
                         std.log.err("Invalid uniform length {}", .{vec.len});
                         unreachable;

@@ -1,6 +1,6 @@
 #version 460 core
 
-// #include comp_snippets/layout.vert
+// #include snip/comp/layout.vert
 
 readonly buffer density_block {
     float density[];
@@ -11,7 +11,7 @@ struct Vert {
     uint rgba;
 };
 
-writeonly buffer surface_block { // TODO layout(std430) ?
+writeonly buffer surface_block {
     Vert surface[];
 };
 
@@ -21,8 +21,8 @@ uniform uint chunk_size;
 uniform float mip_scale;
 uniform vec3 offset;
 
-// #include comp_snippets/index.vert
-// #include noise/simplex.vert
+// #include snip/comp/index.vert
+// #include snip/noise/simplex.vert
 
 vec3 sampleColour(vec3 pos) {
     vec3 colour = vec3(0);
@@ -107,7 +107,7 @@ void main() {
                 if (occlusion[4 + (x ? 1 : 0)
                                 + (y ? 2 : 0)]) occ += 1;
                 colour /= pow(1.1, occ);
-                surface[i].rgba = packUnorm4x8(vec4(colour, 1));
+                surface[i].rgba = packUnorm4x8(vec4(colour, f / 255.999));
                 ++i;
             }
         }

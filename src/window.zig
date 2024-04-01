@@ -219,8 +219,8 @@ pub const Window = struct {
     }
 
     pub fn clearColour(win: Window, r: f32, g: f32, b: f32, a: f32) void {
+        _ = win;
         gl.clearColor(r, g, b, a);
-        win.clear();
     }
 
     pub fn swap(win: Window) void {

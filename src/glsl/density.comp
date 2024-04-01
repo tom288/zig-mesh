@@ -1,6 +1,6 @@
 #version 460 core
 
-// #include comp_snippets/layout.vert
+// #include snip/comp/layout.vert
 
 writeonly buffer density_block {
     float density[];
@@ -9,8 +9,8 @@ writeonly buffer density_block {
 uniform uint chunk_size;
 uniform vec3 offset;
 
-// #include comp_snippets/index.vert
-// #include noise/simplex.vert
+// #include snip/comp/index.vert
+// #include snip/noise/simplex.vert
 
 void main() {
     // Calculate the index of density that corresponds to this thread

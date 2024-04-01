@@ -8,6 +8,6 @@ in uvec4 colour;
 out vec3 frag_colour;
 
 void main() {
-   gl_Position = model_to_clip * vec4(position, 1.0);
+   gl_Position = model_to_clip * vec4(position, 1);
    frag_colour = colour.rgb / 255.999;
 }

@@ -11,7 +11,7 @@ out vec4 colour;
 // Adapted https://www.shadertoy.com/view/7sdXzM
 
 float interpIter(float t, float a, float b) {
-    float t_inv = 1.0 - t;
+    const float t_inv = 1 - t;
     return (
         t *     t_inv * t_inv * a * 3.0 +
         t * t * t_inv *         b * 3.0 +
@@ -22,7 +22,7 @@ float interpIter(float t, float a, float b) {
 float interp(float t, float a, float b) {
     return interpIter(
         interpIter(
-            clamp(t, 0.0, 1.0),
+            clamp(t, 0, 1),
             a, b
         ),
         a, b
@@ -30,15 +30,15 @@ float interp(float t, float a, float b) {
 }
 
 void main() {
-    vec2 uv = frag_position * 0.5 * uv_zoom + 0.5;
-    float thres = interp(
+    const vec2 uv = frag_position * 0.5 * uv_zoom + 0.5;
+    const float thres = interp(
         uv.x,
         cos(time * 6.283185307) * 0.5 + 0.5,
         sin(time * 6.283185307) * 0.5 + 0.5
     );
     colour = vec4(mix(
-        1.0 - frag_colour,
+        1 - frag_colour,
         frag_colour,
         step(uv.y, thres)
-    ), 1.0);
+    ), 1);
 }

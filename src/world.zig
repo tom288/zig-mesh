@@ -17,7 +17,7 @@ pub const World = struct {
         single,
         multi,
         compute,
-    }.compute;
+    }.multi;
 
     alloc: std.mem.Allocator,
     shader: Shader,
@@ -132,7 +132,7 @@ pub const World = struct {
         world.chunks = &.{};
     }
 
-    pub fn draw(world: World, pos: zm.Vec, world_to_clip: zm.Mat) !void {
+    pub fn draw(world: World, pos: zm.Vec, view: zm.Mat, proj: zm.Mat) !void {
         const cull = true;
         const count = false;
         const bench = false;
@@ -145,12 +145,15 @@ pub const World = struct {
             attempts += 1;
             const offset = world.offsetFromIndex(i, null);
             const model = zm.translationV(offset);
+            const world_to_clip = zm.mul(view, proj);
             const model_to_clip = zm.mul(model, world_to_clip);
 
             // Draw the chunk we are inside of no matter what
-            // Chunk.SIZE is assumed to be sufficient - half of it is not...
-            if (zm.all(@abs(pos - offset) < zm.f32x4s(Chunk.SIZE), 3) and !bench) {
-                world.shader.set("model_to_clip", f32, &zm.matToArr(model_to_clip));
+            // Chunk.SIZE * 1.3 is not sufficient at 16:9 so let's try 1.4
+            if (zm.all(@abs(pos - offset) < zm.f32x4s(Chunk.SIZE) * zm.f32x4s(1.4), 3) and !bench) {
+                world.shader.set("model", f32, zm.matToArr(model));
+                world.shader.set("view", f32, zm.matToArr(view));
+                world.shader.set("proj", f32, zm.matToArr(proj));
                 chunk.mesh.draw(gl.TRIANGLES, null, chunk.atomics_buffer);
                 draws += 1;
                 continue;
@@ -174,7 +177,9 @@ pub const World = struct {
                     if (corner[2] < 0) continue :corners;
                 }
                 if (!bench) {
-                    world.shader.set("model_to_clip", f32, zm.matToArr(model_to_clip));
+                    world.shader.set("model", f32, zm.matToArr(model));
+                    world.shader.set("view", f32, zm.matToArr(view));
+                    world.shader.set("proj", f32, zm.matToArr(proj));
                     chunk.mesh.draw(gl.TRIANGLES, null, chunk.atomics_buffer);
                 }
                 draws += 1;
@@ -569,7 +574,11 @@ pub const World = struct {
             // If the task was to generate the surface
             if (worker.data.task == .surface) {
                 // Upload the surface verts
-                try chunk.mesh.upload(.{chunk.surface.?.items});
+                chunk.mesh.upload(.{chunk.surface.?.items}) catch |e| {
+                    chunk.wip_mip = null;
+                    chunk.splits_copy = null;
+                    return e;
+                };
                 chunk.surface_mip = chunk.wip_mip;
             } else {
                 chunk.density_mip = chunk.wip_mip;

@@ -24,6 +24,7 @@ pub const Chunk = struct {
 
     mesh: Mesh(.{.{
         .{ .name = "position", .size = 3, .type = gl.FLOAT },
+        .{ .name = "normal", .size = 3, .type = gl.FLOAT },
         .{ .name = "colour", .size = 4, .type = gl.UNSIGNED_BYTE },
     }}),
 
