@@ -53,6 +53,7 @@ pub const Voxel = struct {
                     vert[(f / 2 + 2) % 3] += if (y) mip_scale * 0.5 else mip_scale * -0.5;
                     // Vertex positions
                     try chunk.surface.?.appendSlice(&zm.vecToArr3(vert));
+                    try appendColour(chunk, zm.f32x4s(0)); // Padding
                     try chunk.surface.?.appendSlice(&zm.vecToArr3(norm));
                     // Vertex colours
                     var colour = if (AVG_COLOUR) avg_colour else sampleColour(vert + offset, noise);
@@ -233,6 +234,7 @@ pub const MarchingCubes = struct {
                 const norm = zm.cross3(tri_verts[0] - tri_verts[1], tri_verts[1] - tri_verts[2]);
                 for (tri_verts) |t| {
                     try chunk.surface.?.appendSlice(&zm.vecToArr3(t));
+                    try appendColour(chunk, zm.f32x4s(0)); // Padding
                     try chunk.surface.?.appendSlice(&zm.vecToArr3(norm));
                     const vert_colour = sampleColour(t + offset, noise);
                     try appendColour(chunk, if (AVG_COLOUR) avg_colour else vert_colour);

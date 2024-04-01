@@ -5,6 +5,7 @@ uniform mat4 view;
 uniform mat4 proj;
 
 in vec3 position;
+in uvec4 padding;
 in vec3 normal;
 in uvec4 colour;
 
@@ -18,4 +19,6 @@ void main() {
     frag_position = view_pos.xyz;
     frag_normal = transpose(inverse(mat3(view * model))) * normal;
     frag_colour = colour / 255.999;
+    // Stop padding from being optimised away
+    frag_colour.a += padding.a;
 }

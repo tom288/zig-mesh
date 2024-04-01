@@ -17,7 +17,7 @@ pub const World = struct {
         single,
         multi,
         compute,
-    }.multi;
+    }.compute;
 
     alloc: std.mem.Allocator,
     shader: Shader,
