@@ -13,9 +13,9 @@ pub fn main() !void {
     const alloc = gpa.allocator();
 
     var camera = Camera.init();
+
     var window = try Window.init(
         alloc,
-        &camera,
         "zig-mesh",
         true,
         null,
@@ -352,6 +352,102 @@ pub fn main() !void {
         camera.step(window.input, window.delta);
         camera.scroll(window.scroll_delta);
         try world.gen(camera.position);
+
+        if (window.resized) {
+            camera.calcAspect(window.resolution);
+
+            const new_w: gl.GLint = @intFromFloat(window.resolution[0]);
+            const new_h: gl.GLint = @intFromFloat(window.resolution[1]);
+
+            gl.bindTexture(gl.TEXTURE_2D, g_pos);
+            gl.texImage2D(
+                gl.TEXTURE_2D,
+                0,
+                gl.RGBA16F,
+                new_w,
+                new_h,
+                0,
+                gl.RGBA,
+                gl.FLOAT,
+                null,
+            );
+
+            gl.bindTexture(gl.TEXTURE_2D, g_norm);
+            gl.texImage2D(
+                gl.TEXTURE_2D,
+                0,
+                gl.RGBA16F,
+                new_w,
+                new_h,
+                0,
+                gl.RGBA,
+                gl.FLOAT,
+                null,
+            );
+
+            gl.bindTexture(gl.TEXTURE_2D, g_albedo_spec);
+            gl.texImage2D(
+                gl.TEXTURE_2D,
+                0,
+                gl.RGBA,
+                new_w,
+                new_h,
+                0,
+                gl.RGBA,
+                gl.UNSIGNED_BYTE,
+                null,
+            );
+
+            gl.bindTexture(gl.TEXTURE_2D, ssao_tex);
+            gl.texImage2D(
+                gl.TEXTURE_2D,
+                0,
+                gl.RED,
+                new_w,
+                new_h,
+                0,
+                gl.RED,
+                gl.FLOAT,
+                null,
+            );
+
+            gl.bindTexture(gl.TEXTURE_2D, blur_tex);
+            gl.texImage2D(
+                gl.TEXTURE_2D,
+                0,
+                gl.RED,
+                new_w,
+                new_h,
+                0,
+                gl.RED,
+                gl.FLOAT,
+                null,
+            );
+
+            gl.bindTexture(gl.TEXTURE_2D, noise_texture);
+            gl.texImage2D(
+                gl.TEXTURE_2D,
+                0,
+                gl.RGBA16F,
+                SSAO_NOISE_SIZE,
+                SSAO_NOISE_SIZE,
+                0,
+                gl.RG,
+                gl.FLOAT,
+                &ssao_noise[0],
+            );
+
+            gl.bindTexture(gl.TEXTURE_2D, 0);
+
+            gl.bindRenderbuffer(gl.RENDERBUFFER, rbo_depth);
+            gl.renderbufferStorage(
+                gl.RENDERBUFFER,
+                gl.DEPTH_COMPONENT,
+                new_w,
+                new_h,
+            );
+            gl.bindRenderbuffer(gl.RENDERBUFFER, 0);
+        }
 
         // Render geometry to G-buffer
         gl.bindFramebuffer(gl.FRAMEBUFFER, g_buffer);

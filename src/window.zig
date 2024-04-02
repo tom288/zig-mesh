@@ -4,7 +4,6 @@ const std = @import("std");
 const glfw = @import("glfw");
 const gl = @import("gl");
 const zm = @import("zmath");
-const Camera = @import("camera.zig").Camera;
 
 pub const Window = struct {
     var windows: usize = 0;
@@ -12,7 +11,7 @@ pub const Window = struct {
     window: glfw.Window,
     clear_mask: gl.GLbitfield,
     resolution: zm.Vec,
-    new_viewport: ?glfw.Window.Size,
+    viewport: ?glfw.Window.Size,
     time: ?f32,
     delta: f32,
     mouse_pos: ?zm.Vec,
@@ -21,8 +20,8 @@ pub const Window = struct {
     binds: std.AutoHashMap(glfw.Key, Action),
     actionState: [@typeInfo(Action).Enum.fields.len]bool,
     input: zm.Vec,
-    camera: ?*Camera,
     min_delta: f32,
+    resized: bool,
 
     const Action = enum {
         left,
@@ -35,7 +34,7 @@ pub const Window = struct {
         attack2,
     };
 
-    pub fn init(alloc: std.mem.Allocator, camera: ?*Camera, title: [*:0]const u8, vsync: bool, min_delta: ?f32) !Window {
+    pub fn init(alloc: std.mem.Allocator, title: [*:0]const u8, vsync: bool, min_delta: ?f32) !Window {
         // Ensure GLFW errors are logged
         glfw.setErrorCallback(errorCallback);
 
@@ -62,7 +61,7 @@ pub const Window = struct {
             return error.MonitorUnobtainable;
         };
 
-        const resolution = try calcResolution(windowed, camera);
+        const resolution = try calcResolution(windowed);
 
         // Create our window
         const window = glfw.Window.create(
@@ -140,11 +139,11 @@ pub const Window = struct {
         try binds.put(.left_shift, .descend);
         try binds.put(.left_control, .descend);
 
-        return .{
+        var win = Window{
             .window = window,
             .clear_mask = clear_mask,
             .resolution = resolution,
-            .new_viewport = null,
+            .viewport = null,
             .time = null,
             .delta = 0,
             .mouse_pos = null,
@@ -153,9 +152,12 @@ pub const Window = struct {
             .binds = binds,
             .actionState = undefined,
             .input = @splat(0),
-            .camera = camera,
             .min_delta = min_delta orelse 0.1,
+            .resized = true,
         };
+        try win.calcViewport();
+        win.actionState = std.mem.zeroes(@TypeOf(win.actionState));
+        return win;
     }
 
     pub fn kill(win: *Window) void {
@@ -174,6 +176,7 @@ pub const Window = struct {
         // Update deltaTime
         const new_time: f32 = @floatCast(glfw.getTime());
         if (win.time) |time| {
+            win.resized = false;
             // Limit delta to 100 ms to avoid massive jumps
             win.delta = @min(new_time - time, win.min_delta);
             if (false and @floor(time) != @floor(new_time)) {
@@ -187,7 +190,6 @@ pub const Window = struct {
         } else {
             // Set the user pointer if we are about to poll the first events
             win.window.setUserPointer(win);
-            win.actionState = std.mem.zeroes(@TypeOf(win.actionState));
         }
         win.time = new_time;
 
@@ -207,10 +209,10 @@ pub const Window = struct {
         if (action.active(.ascend)) win.input[1] += 1;
         if (action.active(.backward)) win.input[2] -= 1;
         if (action.active(.forward)) win.input[2] += 1;
-        if (win.new_viewport) |size| {
-            gl.viewport(0, 0, @intCast(size.width), @intCast(size.height));
+        if (win.resized) if (win.viewport) |viewport| {
+            gl.viewport(0, 0, @intCast(viewport.width), @intCast(viewport.height));
             win.mouse_pos = null;
-        }
+        };
         return !win.window.shouldClose();
     }
 
@@ -229,7 +231,7 @@ pub const Window = struct {
 
     fn toggleWindowed(win: *Window) !void {
         const windowed = win.window.getMonitor() == null;
-        const resolution = try calcResolution(!windowed, win.camera);
+        const resolution = try calcResolution(!windowed);
 
         const monitor = if (windowed) (glfw.Monitor.getPrimary() orelse {
             std.log.err("Failed to get primary monitor: {?s}", .{glfw.getErrorString()});
@@ -245,16 +247,23 @@ pub const Window = struct {
             @intFromFloat(resolution[1]),
             null,
         );
+        try win.calcViewport();
+    }
 
+    fn calcViewport(win: *Window) !void {
         const size = win.window.getFramebufferSize();
         if (size.width == 0 or size.height == 0) {
             std.log.err("Failed to get primary monitor: {?s}", .{glfw.getErrorString()});
             return error.FramebufferUnobtainable;
         }
-        win.new_viewport = size;
+        win.resized = true;
+        if (win.viewport) |viewport| {
+            win.resized = viewport.width != size.width or viewport.height == size.height;
+        }
+        win.viewport = size;
     }
 
-    fn calcResolution(windowed: bool, camera: ?*Camera) !zm.Vec {
+    fn calcResolution(windowed: bool) !zm.Vec {
         // Obtain primary monitor
         const monitor = glfw.Monitor.getPrimary() orelse {
             std.log.err("Failed to get primary monitor: {?s}", .{glfw.getErrorString()});
@@ -276,7 +285,6 @@ pub const Window = struct {
             @floatFromInt(mode.getWidth()),
             @floatFromInt(mode.getHeight()),
         ) * zm.f32x4(scale, scale, scale_gap, scale_gap);
-        if (camera) |cam| cam.calcAspect(size);
         return size;
     }
 
