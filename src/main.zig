@@ -21,9 +21,7 @@ pub fn main() !void {
 
     var window = try Window.init(
         alloc,
-        "zig-mesh",
-        true,
-        null,
+        .{ .title = "zig-mesh" },
     );
     defer window.kill();
     window.clearColour(0.1, 0, 0.2, 1);

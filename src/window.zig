@@ -34,19 +34,22 @@ pub const Window = struct {
         attack2,
     };
 
-    pub fn init(alloc: std.mem.Allocator, title: [*:0]const u8, vsync: bool, min_delta: ?f32) !Window {
+    pub fn init(alloc: std.mem.Allocator, cfg: struct {
+        title: [*:0]const u8 = "",
+        vsync: bool = true,
+        min_delta: f32 = 0.1,
+        windowed: bool = true,
+        resizable: bool = false,
+        show_cursor: bool = false,
+        raw_input: bool = true,
+        cull_faces: bool = true,
+        test_depth: bool = true,
+        wireframe: bool = false,
+        msaa_samples: ?u31 = 16,
+        clear_buffers: bool = true,
+    }) !Window {
         // Ensure GLFW errors are logged
         glfw.setErrorCallback(errorCallback);
-
-        const windowed = true;
-        const resizable = false;
-        const show_cursor = false;
-        const raw_input = true;
-        const cull_faces = true;
-        const test_depth = true;
-        const wireframe = false;
-        const msaa_samples = 16;
-        const clear_buffers = true;
 
         // If we currently have no windows then initialise GLFW
         if (windows == 0 and !glfw.init(.{})) {
@@ -61,21 +64,21 @@ pub const Window = struct {
             return error.MonitorUnobtainable;
         };
 
-        const resolution = try calcResolution(windowed);
+        const resolution = try calcResolution(cfg.windowed);
 
         // Create our window
         const window = glfw.Window.create(
             @intFromFloat(resolution[0]),
             @intFromFloat(resolution[1]),
-            title,
-            if (windowed) null else monitor,
+            cfg.title,
+            if (cfg.windowed) null else monitor,
             null,
             .{
                 .opengl_profile = .opengl_core_profile,
                 .context_version_major = 4,
                 .context_version_minor = 6,
-                .resizable = resizable,
-                .samples = msaa_samples,
+                .resizable = cfg.resizable,
+                .samples = cfg.msaa_samples,
                 .position_x = @intFromFloat(resolution[2]),
                 .position_y = @intFromFloat(resolution[3]),
             },
@@ -93,10 +96,10 @@ pub const Window = struct {
         glfw.makeContextCurrent(window);
 
         // Configure input
-        if (!show_cursor) {
+        if (!cfg.show_cursor) {
             window.setInputModeCursor(glfw.Window.InputModeCursor.disabled);
         }
-        if (raw_input and glfw.rawMouseMotionSupported()) {
+        if (cfg.raw_input and glfw.rawMouseMotionSupported()) {
             // Disable mouse motion acceleration and scaling
             window.setInputModeRawMouseMotion(true);
         }
@@ -108,19 +111,19 @@ pub const Window = struct {
         };
 
         // Configure triangle visibility
-        if (cull_faces) gl.enable(gl.CULL_FACE);
-        if (test_depth) gl.enable(gl.DEPTH_TEST);
-        if (wireframe) gl.polygonMode(gl.FRONT_AND_BACK, gl.LINE);
+        if (cfg.cull_faces) gl.enable(gl.CULL_FACE);
+        if (cfg.test_depth) gl.enable(gl.DEPTH_TEST);
+        if (cfg.wireframe) gl.polygonMode(gl.FRONT_AND_BACK, gl.LINE);
 
         // Configure additional window properties
-        glfw.swapInterval(if (vsync) 1 else 0);
-        if (msaa_samples > 1) gl.enable(gl.MULTISAMPLE);
+        glfw.swapInterval(if (cfg.vsync) 1 else 0);
+        if (cfg.msaa_samples orelse 0 > 1) gl.enable(gl.MULTISAMPLE);
 
         // Determine which buffers get cleared
         var clear_mask: gl.GLbitfield = 0;
-        if (clear_buffers) {
+        if (cfg.clear_buffers) {
             clear_mask |= gl.COLOR_BUFFER_BIT;
-            if (test_depth) {
+            if (cfg.test_depth) {
                 clear_mask |= gl.DEPTH_BUFFER_BIT;
             }
         }
@@ -152,7 +155,7 @@ pub const Window = struct {
             .binds = binds,
             .actionState = undefined,
             .input = @splat(0),
-            .min_delta = min_delta orelse 0.1,
+            .min_delta = cfg.min_delta,
             .resized = true,
         };
         try win.calcViewport();

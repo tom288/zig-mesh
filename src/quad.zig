@@ -10,32 +10,38 @@ const glTypeEnum = @import("mesh.zig").glTypeEnum;
 pub const Quad = QuadT(f32);
 
 fn QuadT(T: type) type {
+    // This can be inlined if it's possible to get the non-null @TypeOf(T) of ?T
     const QuadMesh = Mesh(.{.{
         .{ .name = "position", .size = 2, .type = glTypeEnum(T) catch unreachable },
     }});
-
-    const CFG = struct {
-        min: ?T = switch (@typeInfo(T)) {
-            .Int => if (std.math.minInt(T) > MIN) null else MIN,
-            .Float => MIN,
-            else => unreachable, // Reject comptime and non-numeric types
-        },
-        max: ?T = switch (@typeInfo(T)) {
-            .Int => if (std.math.maxInt(T) < MAX) null else MAX,
-            .Float => MAX,
-            else => unreachable, // Reject comptime and non-numeric types
-        },
-        shader: ?Shader = null,
-
-        const MIN = -1;
-        const MAX = 1;
-    };
 
     return struct {
         mesh: ?QuadMesh,
 
         // Return an initialised Quad with pre-uploaded vertices
-        pub fn init(cfg: CFG) !@This() {
+        pub fn init(
+            cfg: struct {
+                // Minimum X & Y position values
+                min: ?T = switch (@typeInfo(T)) {
+                    .Int => if (std.math.minInt(T) > MIN) null else MIN,
+                    .Float => MIN,
+                    else => unreachable, // Reject comptime and non-numeric types
+                },
+                // Maximum X & Y position values
+                max: ?T = switch (@typeInfo(T)) {
+                    .Int => if (std.math.maxInt(T) < MAX) null else MAX,
+                    .Float => MAX,
+                    else => unreachable, // Reject comptime and non-numeric types
+                },
+                // Shader to query input locations of
+                shader: ?Shader = null,
+
+                // Default min
+                const MIN = -1;
+                // Default max
+                const MAX = 1;
+            },
+        ) !@This() {
             var quad = @This(){ .mesh = null };
             errdefer quad.kill();
             quad.mesh = try QuadMesh.init(cfg.shader);
