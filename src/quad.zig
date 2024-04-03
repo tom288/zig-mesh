@@ -1,3 +1,6 @@
+//! A Quad is a mesh with pre-determined rectangular contents
+//! Primarily useful in full-screen shaders for deferred shading
+
 const gl = @import("gl");
 const std = @import("std");
 const Mesh = @import("mesh.zig").Mesh;
@@ -14,11 +17,13 @@ fn QuadT(T: type) type {
     const CFG = struct {
         min: ?T = switch (@typeInfo(T)) {
             .Int => if (std.math.minInt(T) > MIN) null else MIN,
-            else => MIN,
+            .Float => MIN,
+            else => unreachable, // Reject comptime and non-numeric types
         },
         max: ?T = switch (@typeInfo(T)) {
             .Int => if (std.math.maxInt(T) < MAX) null else MAX,
-            else => MAX,
+            .Float => MAX,
+            else => unreachable, // Reject comptime and non-numeric types
         },
         shader: ?Shader = null,
 
@@ -29,6 +34,7 @@ fn QuadT(T: type) type {
     return struct {
         mesh: ?QuadMesh,
 
+        // Return an initialised Quad with pre-uploaded vertices
         pub fn init(cfg: CFG) !@This() {
             var quad = @This(){ .mesh = null };
             errdefer quad.kill();
