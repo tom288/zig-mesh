@@ -21,16 +21,9 @@ pub fn Mesh(comptime attrs: anytype) type {
         };
 
         pub fn init(shader: ?Shader) !@This() {
-            var vao: gl.GLuint = undefined;
-            var vbos: [attrs.len]gl.GLuint = undefined;
-            gl.genVertexArrays(1, &vao);
-            gl.genBuffers(@intCast(attrs.len), &vbos);
-            gl.bindVertexArray(vao);
-            defer gl.bindVertexArray(0);
-
             var mesh = @This(){
-                .vao = vao,
-                .vbos = vbos,
+                .vao = null,
+                .vbos = null,
                 .ebo = null,
                 .strides = undefined,
                 .vert_count = null,
@@ -39,8 +32,15 @@ pub fn Mesh(comptime attrs: anytype) type {
             };
             errdefer mesh.kill();
 
+            mesh.vao = undefined;
+            gl.genVertexArrays(1, &mesh.vao.?);
+            mesh.vbos = undefined;
+            gl.genBuffers(@intCast(attrs.len), &mesh.vbos.?);
+            gl.bindVertexArray(mesh.vao.?);
+            defer gl.bindVertexArray(0);
+
             inline for (0..attrs.len) |i| {
-                gl.bindBuffer(gl.ARRAY_BUFFER, vbos[i]);
+                gl.bindBuffer(gl.ARRAY_BUFFER, mesh.vbos.?[i]);
                 try initAttrs(attrs[i], &mesh.strides[i], shader);
                 gl.bindBuffer(gl.ARRAY_BUFFER, 0);
             }
@@ -168,19 +168,19 @@ pub fn Mesh(comptime attrs: anytype) type {
                 }
                 return;
             }
+
+            // Generate an EBO if we don't have one
             if (mesh.ebo == null) {
-                var ebo: gl.GLuint = undefined;
-                gl.genBuffers(1, &ebo);
-                mesh.ebo = ebo;
+                mesh.ebo = undefined;
+                gl.genBuffers(1, &mesh.ebo.?);
                 gl.bindVertexArray(mesh.vao orelse return);
-                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo);
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.ebo.?);
                 gl.bindVertexArray(0);
             }
-            const ebo = mesh.ebo.?;
 
             // Get the current buffer size
             var signed_size: gl.GLint64 = undefined;
-            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo);
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.ebo.?);
             defer gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, 0);
             gl.getBufferParameteri64v(gl.ELEMENT_ARRAY_BUFFER, gl.BUFFER_SIZE, &signed_size);
             const size: usize = @intCast(signed_size);

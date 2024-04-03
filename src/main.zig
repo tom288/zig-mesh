@@ -6,6 +6,7 @@ const Shader = @import("shader.zig").Shader;
 const World = @import("world.zig").World;
 const Camera = @import("camera.zig").Camera;
 const Quad = @import("quad.zig").Quad;
+const Texture = @import("texture.zig").Texture;
 
 const TECHNIQUE = enum {
     ForwardRendering,
@@ -96,82 +97,35 @@ pub fn main() !void {
     defer gl.deleteFramebuffers(1, &g_buffer);
     gl.bindFramebuffer(gl.FRAMEBUFFER, g_buffer);
 
-    var g_pos: gl.GLuint = undefined;
-    gl.genTextures(1, &g_pos);
-    defer gl.deleteTextures(1, &g_pos);
-    gl.bindTexture(gl.TEXTURE_2D, g_pos);
-    gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RGBA16F,
-        w,
-        h,
-        0,
-        gl.RGBA,
-        gl.FLOAT,
-        null,
-    );
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.framebufferTexture2D(
-        gl.FRAMEBUFFER,
-        gl.COLOR_ATTACHMENT0,
-        gl.TEXTURE_2D,
-        g_pos,
-        0,
-    );
+    var g_pos = Texture.init(.{
+        .width = w,
+        .height = h,
+        .format = gl.RGBA,
+        .internal_format = gl.RGBA16F,
+        .wrap_s = gl.CLAMP_TO_EDGE,
+        .wrap_t = gl.CLAMP_TO_EDGE,
+        .fbo_attach = gl.COLOR_ATTACHMENT0,
+    });
+    defer g_pos.kill();
 
-    var g_norm: gl.GLuint = undefined;
-    gl.genTextures(1, &g_norm);
-    defer gl.deleteTextures(1, &g_norm);
-    gl.bindTexture(gl.TEXTURE_2D, g_norm);
-    gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RGBA16F,
-        w,
-        h,
-        0,
-        gl.RGBA,
-        gl.FLOAT,
-        null,
-    );
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.framebufferTexture2D(
-        gl.FRAMEBUFFER,
-        gl.COLOR_ATTACHMENT1,
-        gl.TEXTURE_2D,
-        g_norm,
-        0,
-    );
+    var g_norm = Texture.init(.{
+        .width = w,
+        .height = h,
+        .format = gl.RGBA,
+        .internal_format = gl.RGBA16F,
+        .fbo_attach = gl.COLOR_ATTACHMENT1,
+    });
+    defer g_norm.kill();
 
-    var g_albedo_spec: gl.GLuint = undefined;
-    gl.genTextures(1, &g_albedo_spec);
-    defer gl.deleteTextures(1, &g_albedo_spec);
-    gl.bindTexture(gl.TEXTURE_2D, g_albedo_spec);
-    gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RGBA,
-        w,
-        h,
-        0,
-        gl.RGBA,
-        gl.UNSIGNED_BYTE,
-        null,
-    );
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.framebufferTexture2D(
-        gl.FRAMEBUFFER,
-        gl.COLOR_ATTACHMENT2,
-        gl.TEXTURE_2D,
-        g_albedo_spec,
-        0,
-    );
+    var g_albedo_spec = Texture.init(.{
+        .width = w,
+        .height = h,
+        .format = gl.RGBA,
+        .internal_format = gl.RGBA,
+        .type = gl.UNSIGNED_BYTE,
+        .fbo_attach = gl.COLOR_ATTACHMENT2,
+    });
+    defer g_albedo_spec.kill();
 
     // Choose which attachments of this framebuffer will be used for rendering
     gl.drawBuffers(3, &[3]gl.GLuint{
@@ -208,65 +162,33 @@ pub fn main() !void {
     gl.genFramebuffers(1, &ssao_buffer);
     defer gl.deleteFramebuffers(1, &ssao_buffer);
     gl.bindFramebuffer(gl.FRAMEBUFFER, ssao_buffer);
-    var ssao_tex: gl.GLuint = undefined;
-    gl.genTextures(1, &ssao_tex);
-    defer gl.deleteTextures(1, &ssao_tex);
-    gl.bindTexture(gl.TEXTURE_2D, ssao_tex);
-    gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RED,
-        w,
-        h,
-        0,
-        gl.RED,
-        gl.FLOAT,
-        null,
-    );
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.framebufferTexture2D(
-        gl.FRAMEBUFFER,
-        gl.COLOR_ATTACHMENT0,
-        gl.TEXTURE_2D,
-        ssao_tex,
-        0,
-    );
+    var ssao_tex = Texture.init(.{
+        .width = w,
+        .height = h,
+        .format = gl.RED,
+        .internal_format = gl.RED,
+        .wrap_s = gl.CLAMP_TO_EDGE,
+        .wrap_t = gl.CLAMP_TO_EDGE,
+        .fbo_attach = gl.COLOR_ATTACHMENT0,
+    });
+    defer ssao_tex.kill();
     std.debug.assert(gl.checkFramebufferStatus(gl.FRAMEBUFFER) == gl.FRAMEBUFFER_COMPLETE);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, 0);
 
     // Create framebuffer for SSAO blur result
     var blur_buffer: gl.GLuint = undefined;
     gl.genFramebuffers(1, &blur_buffer);
     defer gl.deleteFramebuffers(1, &blur_buffer);
     gl.bindFramebuffer(gl.FRAMEBUFFER, blur_buffer);
-    var blur_tex: gl.GLuint = undefined;
-    gl.genTextures(1, &blur_tex);
-    defer gl.deleteTextures(1, &blur_tex);
-    gl.bindTexture(gl.TEXTURE_2D, blur_tex);
-    gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RED,
-        w,
-        h,
-        0,
-        gl.RED,
-        gl.FLOAT,
-        null,
-    );
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.framebufferTexture2D(
-        gl.FRAMEBUFFER,
-        gl.COLOR_ATTACHMENT0,
-        gl.TEXTURE_2D,
-        blur_tex,
-        0,
-    );
+    var blur_texture = Texture.init(.{
+        .width = w,
+        .height = h,
+        .format = gl.RED,
+        .internal_format = gl.RED,
+        .fbo_attach = gl.COLOR_ATTACHMENT0,
+    });
+    defer blur_texture.kill();
     std.debug.assert(gl.checkFramebufferStatus(gl.FRAMEBUFFER) == gl.FRAMEBUFFER_COMPLETE);
-
     gl.bindFramebuffer(gl.FRAMEBUFFER, 0);
 
     // Generate sample kernel
@@ -313,23 +235,15 @@ pub fn main() !void {
             ssao_noise[i * SSAO_NOISE_COMPONENTS + c] = noise[c];
         }
     }
-    var noise_texture: gl.GLuint = undefined;
-    gl.genTextures(1, &noise_texture);
-    defer gl.deleteTextures(1, &noise_texture);
-    gl.bindTexture(gl.TEXTURE_2D, noise_texture);
-    gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RGBA16F,
-        SSAO_NOISE_SIZE,
-        SSAO_NOISE_SIZE,
-        0,
-        gl.RG,
-        gl.FLOAT,
-        &ssao_noise[0],
-    );
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+    var noise_texture = Texture.init(.{
+        .width = SSAO_NOISE_SIZE,
+        .height = SSAO_NOISE_SIZE,
+        .format = gl.RG,
+        .internal_format = gl.RGBA16F,
+        .pixels = &ssao_noise[0],
+    });
+    defer noise_texture.kill();
 
     ssao_shader.use();
     ssao_shader.set("g_pos", gl.GLint, 0);
@@ -359,86 +273,13 @@ pub fn main() !void {
             if (TECHNIQUE == .DeferredShading) {
                 const new_w: gl.GLint = @intFromFloat(window.resolution[0]);
                 const new_h: gl.GLint = @intFromFloat(window.resolution[1]);
+                const size = .{ .width = new_w, .height = new_h };
 
-                gl.bindTexture(gl.TEXTURE_2D, g_pos);
-                gl.texImage2D(
-                    gl.TEXTURE_2D,
-                    0,
-                    gl.RGBA16F,
-                    new_w,
-                    new_h,
-                    0,
-                    gl.RGBA,
-                    gl.FLOAT,
-                    null,
-                );
-
-                gl.bindTexture(gl.TEXTURE_2D, g_norm);
-                gl.texImage2D(
-                    gl.TEXTURE_2D,
-                    0,
-                    gl.RGBA16F,
-                    new_w,
-                    new_h,
-                    0,
-                    gl.RGBA,
-                    gl.FLOAT,
-                    null,
-                );
-
-                gl.bindTexture(gl.TEXTURE_2D, g_albedo_spec);
-                gl.texImage2D(
-                    gl.TEXTURE_2D,
-                    0,
-                    gl.RGBA,
-                    new_w,
-                    new_h,
-                    0,
-                    gl.RGBA,
-                    gl.UNSIGNED_BYTE,
-                    null,
-                );
-
-                gl.bindTexture(gl.TEXTURE_2D, ssao_tex);
-                gl.texImage2D(
-                    gl.TEXTURE_2D,
-                    0,
-                    gl.RED,
-                    new_w,
-                    new_h,
-                    0,
-                    gl.RED,
-                    gl.FLOAT,
-                    null,
-                );
-
-                gl.bindTexture(gl.TEXTURE_2D, blur_tex);
-                gl.texImage2D(
-                    gl.TEXTURE_2D,
-                    0,
-                    gl.RED,
-                    new_w,
-                    new_h,
-                    0,
-                    gl.RED,
-                    gl.FLOAT,
-                    null,
-                );
-
-                gl.bindTexture(gl.TEXTURE_2D, noise_texture);
-                gl.texImage2D(
-                    gl.TEXTURE_2D,
-                    0,
-                    gl.RGBA16F,
-                    SSAO_NOISE_SIZE,
-                    SSAO_NOISE_SIZE,
-                    0,
-                    gl.RG,
-                    gl.FLOAT,
-                    &ssao_noise[0],
-                );
-
-                gl.bindTexture(gl.TEXTURE_2D, 0);
+                g_pos.resize(size);
+                g_norm.resize(size);
+                g_albedo_spec.resize(size);
+                ssao_tex.resize(size);
+                blur_texture.resize(size);
 
                 gl.bindRenderbuffer(gl.RENDERBUFFER, rbo_depth);
                 gl.renderbufferStorage(
@@ -466,12 +307,9 @@ pub fn main() !void {
                 ssao_shader.use();
                 ssao_shader.set_n("samples", f32, SSAO_KERNEL_SAMPLES, ssao_kernel);
                 ssao_shader.set("proj", f32, zm.matToArr(camera.proj));
-                gl.activeTexture(gl.TEXTURE0);
-                gl.bindTexture(gl.TEXTURE_2D, g_pos);
-                gl.activeTexture(gl.TEXTURE1);
-                gl.bindTexture(gl.TEXTURE_2D, g_norm);
-                gl.activeTexture(gl.TEXTURE2);
-                gl.bindTexture(gl.TEXTURE_2D, noise_texture);
+                g_pos.activate(gl.TEXTURE0);
+                g_norm.activate(gl.TEXTURE1);
+                noise_texture.activate(gl.TEXTURE2);
                 quad.?.draw();
                 gl.bindFramebuffer(gl.FRAMEBUFFER, 0);
 
@@ -479,22 +317,17 @@ pub fn main() !void {
                 gl.bindFramebuffer(gl.FRAMEBUFFER, blur_buffer);
                 gl.clear(gl.COLOR_BUFFER_BIT);
                 blur_shader.use();
-                gl.activeTexture(gl.TEXTURE0);
-                gl.bindTexture(gl.TEXTURE_2D, ssao_tex);
+                ssao_tex.activate(gl.TEXTURE0);
                 quad.?.draw();
                 gl.bindFramebuffer(gl.FRAMEBUFFER, 0);
 
                 // Compose geometry and lighting for final image
                 window.clear();
                 compose_shader.use();
-                // gl.activeTexture(gl.TEXTURE0);
-                // gl.bindTexture(gl.TEXTURE_2D, g_pos);
-                // gl.activeTexture(gl.TEXTURE1);
-                // gl.bindTexture(gl.TEXTURE_2D, g_norm);
-                gl.activeTexture(gl.TEXTURE2);
-                gl.bindTexture(gl.TEXTURE_2D, g_albedo_spec);
-                gl.activeTexture(gl.TEXTURE3);
-                gl.bindTexture(gl.TEXTURE_2D, blur_tex);
+                // g_pos.activate(gl.TEXTURE0);
+                // g_norm.activate(gl.TEXTURE1);
+                g_albedo_spec.activate(gl.TEXTURE2);
+                blur_texture.activate(gl.TEXTURE3);
                 quad.?.draw();
             },
             .ForwardRendering => {

@@ -81,18 +81,14 @@ pub const World = struct {
             if (THREADING == .compute) {
                 const max_cubes = std.math.pow(usize, Chunk.SIZE, 3);
 
-                var density_buffer: gl.GLuint = undefined;
-                gl.genBuffers(1, &density_buffer);
-                chunk.density_buffer = density_buffer;
-
-                var atomics_buffer: gl.GLuint = undefined;
-                gl.genBuffers(1, &atomics_buffer);
-                chunk.atomics_buffer = atomics_buffer;
-
+                chunk.density_buffer = undefined;
+                gl.genBuffers(1, &chunk.density_buffer.?);
                 gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, chunk.density_buffer.?);
                 gl.bufferData(gl.SHADER_STORAGE_BUFFER, @intCast(max_cubes * @sizeOf(f32)), null, gl.STATIC_DRAW);
                 gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, 0);
 
+                chunk.atomics_buffer = undefined;
+                gl.genBuffers(1, &chunk.atomics_buffer.?);
                 gl.bindBuffer(gl.ATOMIC_COUNTER_BUFFER, chunk.atomics_buffer.?);
                 gl.bufferData(gl.ATOMIC_COUNTER_BUFFER, @sizeOf(gl.GLuint) * 4, null, gl.DYNAMIC_DRAW);
                 gl.bindBuffer(gl.ATOMIC_COUNTER_BUFFER, 0);
