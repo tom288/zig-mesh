@@ -7,6 +7,11 @@ const World = @import("world.zig").World;
 const Camera = @import("camera.zig").Camera;
 const Mesh = @import("mesh.zig").Mesh;
 
+const TECHNIQUE = enum {
+    ForwardRendering,
+    DeferredShading,
+}.DeferredShading;
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer if (gpa.deinit() == .leak) unreachable;
@@ -22,6 +27,14 @@ pub fn main() !void {
     );
     defer window.kill();
     window.clearColour(0.1, 0, 0.2, 1);
+
+    var forward_shader = try Shader.init(
+        alloc,
+        "perspective",
+        null,
+        "perspective",
+    );
+    defer forward_shader.kill();
 
     var gbuffer_shader = try Shader.init(
         alloc,
@@ -66,30 +79,26 @@ pub fn main() !void {
 
     var world = try World.init(
         alloc,
-        gbuffer_shader,
+        if (TECHNIQUE == .DeferredShading) gbuffer_shader else forward_shader,
         density_shader,
         surface_shader,
         camera.position,
     );
     defer world.kill() catch unreachable;
 
-    // Quad to use for
-    var quad = try Mesh(.{.{
+    var quad: ?Mesh(.{.{
         .{ .name = "position", .size = 2, .type = gl.FLOAT },
-        .{ .name = "uv", .size = 2, .type = gl.FLOAT },
-    }}).init(null);
-    const verts = [_]f32{
-        -1.0, -1.0, 0.0, 0.0,
-        1.0,  1.0,  1.0, 1.0,
-        -1.0, 1.0,  0.0, 1.0,
-
-        1.0,  1.0,  1.0, 1.0,
-        -1.0, -1.0, 0.0, 0.0,
-        1.0,  -1.0, 1.0, 0.0,
-    };
-    try quad.upload(.{&verts});
-    defer quad.kill();
-
+    }}) = null;
+    defer if (quad) |_| quad.?.kill();
+    if (TECHNIQUE == .DeferredShading) {
+        quad = try @TypeOf(quad.?).init(null);
+        try quad.?.upload(.{&[_]f32{
+            -1.0, -1.0,
+            1.0,  -1.0,
+            -1.0, 1.0,
+            1.0,  1.0,
+        }});
+    }
     const w: gl.GLint = @intFromFloat(window.resolution[0]);
     const h: gl.GLint = @intFromFloat(window.resolution[1]);
 
@@ -193,6 +202,8 @@ pub fn main() !void {
         w,
         h,
     );
+    gl.bindRenderbuffer(gl.RENDERBUFFER, 0);
+
     gl.framebufferRenderbuffer(
         gl.FRAMEBUFFER,
         gl.DEPTH_ATTACHMENT,
@@ -356,142 +367,153 @@ pub fn main() !void {
         if (window.resized) {
             camera.calcAspect(window.resolution);
 
-            const new_w: gl.GLint = @intFromFloat(window.resolution[0]);
-            const new_h: gl.GLint = @intFromFloat(window.resolution[1]);
+            if (TECHNIQUE == .DeferredShading) {
+                const new_w: gl.GLint = @intFromFloat(window.resolution[0]);
+                const new_h: gl.GLint = @intFromFloat(window.resolution[1]);
 
-            gl.bindTexture(gl.TEXTURE_2D, g_pos);
-            gl.texImage2D(
-                gl.TEXTURE_2D,
-                0,
-                gl.RGBA16F,
-                new_w,
-                new_h,
-                0,
-                gl.RGBA,
-                gl.FLOAT,
-                null,
-            );
+                gl.bindTexture(gl.TEXTURE_2D, g_pos);
+                gl.texImage2D(
+                    gl.TEXTURE_2D,
+                    0,
+                    gl.RGBA16F,
+                    new_w,
+                    new_h,
+                    0,
+                    gl.RGBA,
+                    gl.FLOAT,
+                    null,
+                );
 
-            gl.bindTexture(gl.TEXTURE_2D, g_norm);
-            gl.texImage2D(
-                gl.TEXTURE_2D,
-                0,
-                gl.RGBA16F,
-                new_w,
-                new_h,
-                0,
-                gl.RGBA,
-                gl.FLOAT,
-                null,
-            );
+                gl.bindTexture(gl.TEXTURE_2D, g_norm);
+                gl.texImage2D(
+                    gl.TEXTURE_2D,
+                    0,
+                    gl.RGBA16F,
+                    new_w,
+                    new_h,
+                    0,
+                    gl.RGBA,
+                    gl.FLOAT,
+                    null,
+                );
 
-            gl.bindTexture(gl.TEXTURE_2D, g_albedo_spec);
-            gl.texImage2D(
-                gl.TEXTURE_2D,
-                0,
-                gl.RGBA,
-                new_w,
-                new_h,
-                0,
-                gl.RGBA,
-                gl.UNSIGNED_BYTE,
-                null,
-            );
+                gl.bindTexture(gl.TEXTURE_2D, g_albedo_spec);
+                gl.texImage2D(
+                    gl.TEXTURE_2D,
+                    0,
+                    gl.RGBA,
+                    new_w,
+                    new_h,
+                    0,
+                    gl.RGBA,
+                    gl.UNSIGNED_BYTE,
+                    null,
+                );
 
-            gl.bindTexture(gl.TEXTURE_2D, ssao_tex);
-            gl.texImage2D(
-                gl.TEXTURE_2D,
-                0,
-                gl.RED,
-                new_w,
-                new_h,
-                0,
-                gl.RED,
-                gl.FLOAT,
-                null,
-            );
+                gl.bindTexture(gl.TEXTURE_2D, ssao_tex);
+                gl.texImage2D(
+                    gl.TEXTURE_2D,
+                    0,
+                    gl.RED,
+                    new_w,
+                    new_h,
+                    0,
+                    gl.RED,
+                    gl.FLOAT,
+                    null,
+                );
 
-            gl.bindTexture(gl.TEXTURE_2D, blur_tex);
-            gl.texImage2D(
-                gl.TEXTURE_2D,
-                0,
-                gl.RED,
-                new_w,
-                new_h,
-                0,
-                gl.RED,
-                gl.FLOAT,
-                null,
-            );
+                gl.bindTexture(gl.TEXTURE_2D, blur_tex);
+                gl.texImage2D(
+                    gl.TEXTURE_2D,
+                    0,
+                    gl.RED,
+                    new_w,
+                    new_h,
+                    0,
+                    gl.RED,
+                    gl.FLOAT,
+                    null,
+                );
 
-            gl.bindTexture(gl.TEXTURE_2D, noise_texture);
-            gl.texImage2D(
-                gl.TEXTURE_2D,
-                0,
-                gl.RGBA16F,
-                SSAO_NOISE_SIZE,
-                SSAO_NOISE_SIZE,
-                0,
-                gl.RG,
-                gl.FLOAT,
-                &ssao_noise[0],
-            );
+                gl.bindTexture(gl.TEXTURE_2D, noise_texture);
+                gl.texImage2D(
+                    gl.TEXTURE_2D,
+                    0,
+                    gl.RGBA16F,
+                    SSAO_NOISE_SIZE,
+                    SSAO_NOISE_SIZE,
+                    0,
+                    gl.RG,
+                    gl.FLOAT,
+                    &ssao_noise[0],
+                );
 
-            gl.bindTexture(gl.TEXTURE_2D, 0);
+                gl.bindTexture(gl.TEXTURE_2D, 0);
 
-            gl.bindRenderbuffer(gl.RENDERBUFFER, rbo_depth);
-            gl.renderbufferStorage(
-                gl.RENDERBUFFER,
-                gl.DEPTH_COMPONENT,
-                new_w,
-                new_h,
-            );
-            gl.bindRenderbuffer(gl.RENDERBUFFER, 0);
+                gl.bindRenderbuffer(gl.RENDERBUFFER, rbo_depth);
+                gl.renderbufferStorage(
+                    gl.RENDERBUFFER,
+                    gl.DEPTH_COMPONENT,
+                    new_w,
+                    new_h,
+                );
+                gl.bindRenderbuffer(gl.RENDERBUFFER, 0);
+            }
         }
 
-        // Render geometry to G-buffer
-        gl.bindFramebuffer(gl.FRAMEBUFFER, g_buffer);
-        window.clear();
-        gbuffer_shader.use();
-        try world.draw(camera.position, camera.view, camera.proj);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, 0);
+        switch (TECHNIQUE) {
+            .DeferredShading => {
+                // Render geometry to G-buffer
+                gl.bindFramebuffer(gl.FRAMEBUFFER, g_buffer);
+                window.clear();
+                gbuffer_shader.use();
+                try world.draw(camera.position, camera.view, camera.proj);
+                gl.bindFramebuffer(gl.FRAMEBUFFER, 0);
 
-        // Generate SSAO texture
-        gl.bindFramebuffer(gl.FRAMEBUFFER, ssao_buffer);
-        gl.clear(gl.COLOR_BUFFER_BIT);
-        ssao_shader.use();
-        ssao_shader.set_n("samples", f32, SSAO_KERNEL_SAMPLES, ssao_kernel);
-        ssao_shader.set("projection", f32, zm.matToArr(camera.proj));
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, g_pos);
-        gl.activeTexture(gl.TEXTURE1);
-        gl.bindTexture(gl.TEXTURE_2D, g_norm);
-        gl.activeTexture(gl.TEXTURE2);
-        gl.bindTexture(gl.TEXTURE_2D, noise_texture);
-        quad.draw(gl.TRIANGLES, null, null);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, 0);
+                // Generate SSAO texture
+                gl.bindFramebuffer(gl.FRAMEBUFFER, ssao_buffer);
+                gl.clear(gl.COLOR_BUFFER_BIT);
+                ssao_shader.use();
+                ssao_shader.set_n("samples", f32, SSAO_KERNEL_SAMPLES, ssao_kernel);
+                ssao_shader.set("proj", f32, zm.matToArr(camera.proj));
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, g_pos);
+                gl.activeTexture(gl.TEXTURE1);
+                gl.bindTexture(gl.TEXTURE_2D, g_norm);
+                gl.activeTexture(gl.TEXTURE2);
+                gl.bindTexture(gl.TEXTURE_2D, noise_texture);
+                quad.?.draw(gl.TRIANGLE_STRIP, null, null);
+                gl.bindFramebuffer(gl.FRAMEBUFFER, 0);
 
-        // Blur SSAO texture
-        gl.bindFramebuffer(gl.FRAMEBUFFER, blur_buffer);
-        gl.clear(gl.COLOR_BUFFER_BIT);
-        blur_shader.use();
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, ssao_tex);
-        quad.draw(gl.TRIANGLES, null, null);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, 0);
+                // Blur SSAO texture
+                gl.bindFramebuffer(gl.FRAMEBUFFER, blur_buffer);
+                gl.clear(gl.COLOR_BUFFER_BIT);
+                blur_shader.use();
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, ssao_tex);
+                quad.?.draw(gl.TRIANGLE_STRIP, null, null);
+                gl.bindFramebuffer(gl.FRAMEBUFFER, 0);
 
-        // Compose geometry and lighting for final image
-        window.clear();
-        compose_shader.use();
-        // gl.activeTexture(gl.TEXTURE0);
-        // gl.bindTexture(gl.TEXTURE_2D, g_pos);
-        // gl.activeTexture(gl.TEXTURE1);
-        // gl.bindTexture(gl.TEXTURE_2D, g_norm);
-        gl.activeTexture(gl.TEXTURE2);
-        gl.bindTexture(gl.TEXTURE_2D, g_albedo_spec);
-        gl.activeTexture(gl.TEXTURE3);
-        gl.bindTexture(gl.TEXTURE_2D, blur_tex);
-        quad.draw(gl.TRIANGLES, null, null);
+                // Compose geometry and lighting for final image
+                window.clear();
+                compose_shader.use();
+                // gl.activeTexture(gl.TEXTURE0);
+                // gl.bindTexture(gl.TEXTURE_2D, g_pos);
+                // gl.activeTexture(gl.TEXTURE1);
+                // gl.bindTexture(gl.TEXTURE_2D, g_norm);
+                gl.activeTexture(gl.TEXTURE2);
+                gl.bindTexture(gl.TEXTURE_2D, g_albedo_spec);
+                gl.activeTexture(gl.TEXTURE3);
+                gl.bindTexture(gl.TEXTURE_2D, blur_tex);
+                quad.?.draw(gl.TRIANGLE_STRIP, null, null);
+            },
+            .ForwardRendering => {
+                window.clear();
+                forward_shader.use();
+                try world.draw(camera.position, camera.view, camera.proj);
+            },
+        }
 
         window.swap();
     }

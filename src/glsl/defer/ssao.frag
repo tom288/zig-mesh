@@ -3,7 +3,7 @@
 uniform sampler2D g_pos;
 uniform sampler2D g_norm;
 uniform sampler2D noise;
-uniform mat4 projection;
+uniform mat4 proj;
 uniform vec3 samples[64];
 uniform vec2 resolution;
 
@@ -30,10 +30,9 @@ void main() {
         // Get sample position
         vec3 sample_pos = tbn * samples[i]; // From tangent to view-space
         sample_pos = pos + sample_pos * radius;
-
         // Project sample position to obtain uv
         vec4 offset = vec4(sample_pos, 1);
-        offset = projection * offset; // From view to clip space
+        offset = proj * offset; // From view to clip space
         offset.xyz /= offset.w; // Perspective divide
         offset.xyz = offset.xyz * 0.5 + 0.5; // Transform to range 0...1
         // Add occlusion sample to total
