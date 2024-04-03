@@ -96,12 +96,12 @@ pub fn Mesh(comptime attrs: anytype) type {
             try updateVBOs(mesh, .{}, vert_num);
         }
 
-        // Expects an empty 1D array or a 2D array
+        // Expect an empty 1D array or a 2D array
         pub fn upload(mesh: *@This(), verts: anytype) !void {
             try updateVBOs(mesh, verts, null);
         }
 
-        // Expects an empty 1D array or a 2D array
+        // Expect an empty 1D array or a 2D array
         fn updateVBOs(mesh: *@This(), verts: anytype, num_verts: ?usize) !void {
             if (verts.len != attrs.len and verts.len != 0) {
                 std.log.err(
@@ -153,7 +153,7 @@ pub fn Mesh(comptime attrs: anytype) type {
             try glOk();
         }
 
-        // Expects an empty 1D array or a 2D array, or null
+        // Expect a 1D array or null
         pub fn uploadIndices(mesh: *@This(), indices: anytype) !void {
             // Use null to delete the element buffer
             if (@TypeOf(indices) == @TypeOf(null)) {
@@ -323,6 +323,17 @@ fn glIndexTypeEnum(comptime T: type) !gl.GLenum {
         gl.GLubyte => gl.UNSIGNED_BYTE,
         gl.GLushort => gl.UNSIGNED_SHORT,
         gl.GLuint => gl.UNSIGNED_INT,
+        else => error.InvalidOpenGlIndexType,
+    };
+}
+
+pub fn glTypeEnum(comptime T: type) !gl.GLenum {
+    return glIndexTypeEnum(T) catch switch (T) {
+        gl.GLubyte => gl.BYTE,
+        gl.GLushort => gl.SHORT,
+        gl.GLint => gl.INT,
+        gl.GLfloat => gl.FLOAT,
+        gl.GLdouble => gl.DOUBLE,
         else => error.InvalidOpenGlIndexType,
     };
 }

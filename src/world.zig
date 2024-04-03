@@ -10,15 +10,6 @@ const Pool = @import("pool.zig").Pool;
 const Surface = @import("surface.zig");
 
 pub const World = struct {
-    const SIZE = Chunk.SIZE * CHUNKS;
-    const CHUNKS = 16;
-    const MIP0_DIST = CHUNKS / 2; // CHUNKS / 2 = Whole world
-    const THREADING = enum {
-        single,
-        multi,
-        compute,
-    }.compute;
-
     alloc: std.mem.Allocator,
     shader: Shader,
     density_shader: Shader,
@@ -29,6 +20,15 @@ pub const World = struct {
     pool: Pool(WorkerData),
     dist_done: usize,
     index_done: usize,
+
+    const SIZE = Chunk.SIZE * CHUNKS;
+    const CHUNKS = 16;
+    const MIP0_DIST = CHUNKS / 2; // CHUNKS / 2 = Whole world
+    const THREADING = enum {
+        single,
+        multi,
+        compute,
+    }.compute;
 
     pub fn init(
         alloc: std.mem.Allocator,
@@ -627,12 +627,7 @@ pub const World = struct {
     }
 
     const WorkerData = struct {
-        pub const Task = enum {
-            density,
-            surface,
-        };
-
-        task: Task,
+        task: enum { density, surface },
         world: *World,
         chunk: *Chunk,
         offset: zm.Vec,

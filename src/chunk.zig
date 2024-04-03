@@ -14,10 +14,6 @@ const Surface = @import("surface.zig");
 const Density = @import("density.zig");
 
 pub const Chunk = struct {
-    pub const SIZE = 16;
-    pub const DENSITY = Density.Perlin;
-    pub const SURFACE = Surface.Voxel;
-
     // The fullness at internal grid positions
     density: []f32,
 
@@ -49,6 +45,10 @@ pub const Chunk = struct {
 
     density_buffer: ?gl.GLuint,
     atomics_buffer: ?gl.GLuint,
+
+    pub const SIZE = 16;
+    pub const DENSITY = Density.Perlin;
+    pub const SURFACE = Surface.Voxel;
 
     pub fn free(chunk: *Chunk, alloc: std.mem.Allocator, gpu: bool) void {
         if (chunk.wip_mip) |_| unreachable;

@@ -6,8 +6,6 @@ const gl = @import("gl");
 const zm = @import("zmath");
 
 pub const Window = struct {
-    var windows: usize = 0;
-
     window: glfw.Window,
     clear_mask: gl.GLbitfield,
     resolution: zm.Vec,
@@ -22,6 +20,8 @@ pub const Window = struct {
     input: zm.Vec,
     min_delta: f32,
     resized: bool,
+
+    var windows: usize = 0;
 
     const Action = enum {
         left,

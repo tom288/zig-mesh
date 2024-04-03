@@ -5,7 +5,7 @@ const Window = @import("window.zig").Window;
 const Shader = @import("shader.zig").Shader;
 const World = @import("world.zig").World;
 const Camera = @import("camera.zig").Camera;
-const Mesh = @import("mesh.zig").Mesh;
+const Quad = @import("quad.zig").Quad;
 
 const TECHNIQUE = enum {
     ForwardRendering,
@@ -86,19 +86,10 @@ pub fn main() !void {
     );
     defer world.kill() catch unreachable;
 
-    var quad: ?Mesh(.{.{
-        .{ .name = "position", .size = 2, .type = gl.FLOAT },
-    }}) = null;
+    var quad: ?Quad = if (TECHNIQUE == .DeferredShading) try Quad.init(.{
+        .shader = compose_shader,
+    }) else null;
     defer if (quad) |_| quad.?.kill();
-    if (TECHNIQUE == .DeferredShading) {
-        quad = try @TypeOf(quad.?).init(null);
-        try quad.?.upload(.{&[_]f32{
-            -1.0, -1.0,
-            1.0,  -1.0,
-            -1.0, 1.0,
-            1.0,  1.0,
-        }});
-    }
     const w: gl.GLint = @intFromFloat(window.resolution[0]);
     const h: gl.GLint = @intFromFloat(window.resolution[1]);
 
@@ -483,7 +474,7 @@ pub fn main() !void {
                 gl.bindTexture(gl.TEXTURE_2D, g_norm);
                 gl.activeTexture(gl.TEXTURE2);
                 gl.bindTexture(gl.TEXTURE_2D, noise_texture);
-                quad.?.draw(gl.TRIANGLE_STRIP, null, null);
+                quad.?.draw();
                 gl.bindFramebuffer(gl.FRAMEBUFFER, 0);
 
                 // Blur SSAO texture
@@ -492,7 +483,7 @@ pub fn main() !void {
                 blur_shader.use();
                 gl.activeTexture(gl.TEXTURE0);
                 gl.bindTexture(gl.TEXTURE_2D, ssao_tex);
-                quad.?.draw(gl.TRIANGLE_STRIP, null, null);
+                quad.?.draw();
                 gl.bindFramebuffer(gl.FRAMEBUFFER, 0);
 
                 // Compose geometry and lighting for final image
@@ -506,7 +497,7 @@ pub fn main() !void {
                 gl.bindTexture(gl.TEXTURE_2D, g_albedo_spec);
                 gl.activeTexture(gl.TEXTURE3);
                 gl.bindTexture(gl.TEXTURE_2D, blur_tex);
-                quad.?.draw(gl.TRIANGLE_STRIP, null, null);
+                quad.?.draw();
             },
             .ForwardRendering => {
                 window.clear();
