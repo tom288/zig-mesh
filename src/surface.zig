@@ -302,21 +302,5 @@ pub fn densityFromPos(
 }
 
 fn densityLocal(chunk: *Chunk, pos: zm.Vec) ?f32 {
-    return chunk.density[indexFromPos(chunk, pos) catch return null];
-}
-
-fn indexFromPos(chunk: *Chunk, _pos: zm.Vec) !usize {
-    const mip_level = chunk.wip_mip orelse chunk.density_mip.?;
-    const mip_scale = std.math.pow(f32, 2, @floatFromInt(mip_level));
-    const size = Chunk.SIZE / @as(usize, @intFromFloat(mip_scale));
-
-    const pos = zm.floor((_pos + zm.f32x4s(@as(f32, Chunk.SIZE) / 2)) / zm.f32x4s(mip_scale));
-    var index: usize = 0;
-    for (0..3) |d| {
-        const i = 2 - d;
-        if (pos[i] < 0 or pos[i] >= @as(f32, @floatFromInt(size))) return error.PositionOutsideChunk;
-        index *= size;
-        index += @intFromFloat(pos[i]);
-    }
-    return index;
+    return chunk.density[chunk.indexFromPos(pos) catch return null];
 }

@@ -265,7 +265,10 @@ pub fn main() !void {
         camera.turn(window.mouse_delta);
         camera.step(window.input, window.delta);
         camera.scroll(window.scroll_delta);
-        try world.gen(camera.position);
+
+        try world.updateSplits(camera.position);
+        if (window.active(.attack1)) try world.dig(camera.position, 5);
+        try world.gen();
 
         if (window.resized) {
             camera.calcAspect(window.resolution);

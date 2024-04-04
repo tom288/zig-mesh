@@ -28,7 +28,7 @@ pub const World = struct {
         single,
         multi,
         compute,
-    }.compute;
+    }.multi;
 
     pub fn init(
         alloc: std.mem.Allocator,
@@ -106,7 +106,8 @@ pub const World = struct {
             count += 1;
         }
 
-        try world.gen(null);
+        try world.updateSplits(cam_pos);
+        try world.gen();
 
         return world;
     }
@@ -189,17 +190,13 @@ pub const World = struct {
 
     // Chunk boundaries occur at multiples of Chunk.SIZE
     // The group of closest chunks changes halfway between these boundaries
-    pub fn gen(world: *World, cam_pos: ?zm.Vec) !void {
+    pub fn updateSplits(world: *World, cam_pos: ?zm.Vec) !void {
         if (cam_pos) |pos| {
             world.cam_pos = (pos / zm.f32x4s(Chunk.SIZE)) - zm.f32x4s(0.5);
             world.cam_pos = zm.ceil(world.cam_pos) * zm.f32x4s(Chunk.SIZE);
             world.cam_pos[3] = 0;
         }
         const new_splits = splitsFromPos(world.cam_pos);
-        const max_dist = CHUNKS / 2;
-        const bench = false;
-        var timer = try std.time.Timer.start();
-        var ns: f32 = undefined;
 
         try world.sync();
         // ns = @floatFromInt(timer.lap());
@@ -248,7 +245,13 @@ pub const World = struct {
             // ns = @floatFromInt(timer.lap());
             // if (bench) std.debug.print("Splits took {d:.3} ms\n", .{ns / 1_000_000});
         }
+    }
 
+    pub fn gen(world: *World) !void {
+        const max_dist = CHUNKS / 2;
+        const bench = false;
+        var timer = try std.time.Timer.start();
+        var ns: f32 = undefined;
         var start_index = world.index_done;
         var all_done = true;
 
@@ -299,7 +302,7 @@ pub const World = struct {
 
                 if (try world.genChunk(
                     world.cam_pos + pos * zm.f32x4s(Chunk.SIZE),
-                    dist,
+                    if (dist < MIP0_DIST) 0 else 2,
                     edge,
                 )) |done| {
                     all_done = all_done and done;
@@ -377,14 +380,24 @@ pub const World = struct {
         world: *World,
         chunk: *Chunk,
         chunk_index: usize,
-        comptime min: comptime_int,
     ) !bool {
-        if (THREADING != .compute) chunk.surface = std.ArrayList(f32).init(world.alloc);
+        const min = if (Chunk.SURFACE.NEG_ADJ) 0 else 1;
         const offset = world.offsetFromIndex(chunk_index, null);
         const old_mip = chunk.surface_mip;
         chunk.surface_mip = null;
         chunk.wip_mip = chunk.density_mip;
         chunk.splits_copy = world.splits;
+        if (THREADING != .compute) {
+            // TODO why does it segfault if I use this instead?
+            // if (chunk.surface) |_| chunk.surface.?.clearAndFree();
+            // chunk.surface = std.ArrayList(f32).init(world.alloc);
+
+            if (chunk.surface) |_| {
+                chunk.surface.?.clearRetainingCapacity();
+            } else {
+                chunk.surface = std.ArrayList(f32).init(world.alloc);
+            }
+        }
         switch (THREADING) {
             .single => {
                 try chunk.genSurface(world.*, offset);
@@ -400,7 +413,8 @@ pub const World = struct {
                         .offset = offset,
                     },
                 )) {
-                    chunk.surface.?.deinit();
+                    chunk.surface.?.clearAndFree();
+                    chunk.surface = null;
                     chunk.surface_mip = old_mip;
                     chunk.wip_mip = null;
                     chunk.splits_copy = null;
@@ -451,11 +465,10 @@ pub const World = struct {
         return true;
     }
 
+    // Return false if work for the chunk is pending
     // Return null if we have ran out of threads so that the caller can break
     // Return true if the chunk is already generated at a sufficient mip level
-    // Otherwise return false
-    pub fn genChunk(world: *World, pos: zm.Vec, dist: usize, edge: bool) !?bool {
-        const mip_level: usize = if (dist < MIP0_DIST) 0 else 2;
+    pub fn genChunk(world: *World, pos: zm.Vec, mip_level: usize, edge: bool) !?bool {
         const chunk_index = try world.indexFromOffset(pos, null);
         const chunk = &world.chunks[chunk_index];
 
@@ -523,12 +536,8 @@ pub const World = struct {
             }
         }
         if (!all_ready) return false;
-        // If all densities are already present then generate the surface
-        return switch (try world.genChunkSurface(
-            chunk,
-            chunk_index,
-            min,
-        )) {
+        // All densities are present so lets generate the surface
+        return switch (try world.genChunkSurface(chunk, chunk_index)) {
             true => THREADING == .single,
             false => null,
         };
@@ -582,6 +591,102 @@ pub const World = struct {
             chunk.wip_mip = null;
             chunk.splits_copy = null;
         }
+    }
+
+    pub fn dig(world: *World, pos: zm.Vec, rad: f32) !void {
+        std.debug.assert(rad >= 0);
+        const iters: usize = @intFromFloat(@ceil(rad * 2 / Chunk.SIZE) + 1);
+        var skip_last: [3]bool = undefined;
+        var corner = pos - zm.f32x4s(rad);
+        corner[3] = 0;
+
+        for (0..3) |d| {
+            var l = corner;
+            var r = corner;
+            l[d] = @as(f32, @floatFromInt(iters - 2)) * Chunk.SIZE;
+            r[d] = rad * 2;
+            skip_last[d] = try world.indexFromOffset(corner + l, null) ==
+                try world.indexFromOffset(corner + r, null);
+        }
+
+        // Density
+        for (0..iters) |k| {
+            var z = @as(f32, @floatFromInt(k)) * Chunk.SIZE;
+            if (k + 1 == iters and rad > 0) {
+                if (skip_last[2]) continue;
+                z = rad * 2;
+            }
+            for (0..iters) |j| {
+                var y = @as(f32, @floatFromInt(j)) * Chunk.SIZE;
+                if (j + 1 == iters and rad > 0) {
+                    if (skip_last[1]) continue;
+                    y = rad * 2;
+                }
+
+                for (0..iters) |i| {
+                    var x = @as(f32, @floatFromInt(i)) * Chunk.SIZE;
+                    if (i + 1 == iters and rad > 0) {
+                        if (skip_last[0]) continue;
+                        x = rad * 2;
+                    }
+
+                    const chunk_pos = corner + zm.f32x4(x, y, z, 0);
+                    const chunk_index = try world.indexFromOffset(chunk_pos, null);
+                    const offset = world.offsetFromIndex(chunk_index, null);
+                    var chunk = world.chunks[chunk_index];
+                    switch (THREADING) {
+                        .single, .multi => try chunk.dig(pos - offset, rad),
+                        .compute => @panic("Digging is not implemented in compute shaders"),
+                    }
+                }
+            }
+        }
+        // Surface
+        for (0..iters) |k| {
+            var z = @as(f32, @floatFromInt(k)) * Chunk.SIZE;
+            if (k + 1 == iters and rad > 0) {
+                if (skip_last[2]) continue;
+                z = rad * 2;
+            }
+            for (0..iters) |j| {
+                var y = @as(f32, @floatFromInt(j)) * Chunk.SIZE;
+                if (j + 1 == iters and rad > 0) {
+                    if (skip_last[1]) continue;
+                    y = rad * 2;
+                }
+
+                for (0..iters) |i| {
+                    var x = @as(f32, @floatFromInt(i)) * Chunk.SIZE;
+                    if (i + 1 == iters and rad > 0) {
+                        if (skip_last[0]) continue;
+                        x = rad * 2;
+                    }
+
+                    const chunk_pos = corner + zm.f32x4(x, y, z, 0);
+
+                    const min = if (Chunk.SURFACE.NEG_ADJ) 0 else 1;
+                    for (min..3) |c| {
+                        for (min..3) |b| {
+                            for (min..3) |a| {
+                                const neighbour_pos = (zm.f32x4(
+                                    @floatFromInt(a),
+                                    @floatFromInt(b),
+                                    @floatFromInt(c),
+                                    1,
+                                ) - zm.f32x4s(1)) * zm.f32x4s(Chunk.SIZE) + chunk_pos;
+                                const neighbour = &world.chunks[try world.indexFromOffset(neighbour_pos, null)];
+                                if (neighbour.density_refs == 0 and neighbour.wip_mip == null) {
+                                    neighbour.surface_mip = null; // Request surface regen
+                                } else unreachable; // TODO queue
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // TODO ought to consider distance to the pos, minus radius
+        world.dist_done = 0;
+        world.index_done = 0;
     }
 
     pub fn indexFromOffset(world: World, _pos: zm.Vec, splits: ?zm.Vec) !usize {

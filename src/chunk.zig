@@ -33,6 +33,7 @@ pub const Chunk = struct {
     // Mip levels
     density_mip: ?usize,
     surface_mip: ?usize,
+    // TODO add an 'uploaded mip' to eliminate flicker
 
     // The mip level currently being calculated
     wip_mip: ?usize,
@@ -54,8 +55,8 @@ pub const Chunk = struct {
         if (chunk.wip_mip) |_| unreachable;
         if (chunk.density_refs > 0) unreachable;
         if (gpu) chunk.mesh.vert_count = 0;
-        if (chunk.surface) |surface| {
-            surface.deinit();
+        if (chunk.surface) |_| {
+            chunk.surface.?.clearAndFree();
             chunk.surface = null;
         }
         chunk.surface_mip = null;
@@ -88,6 +89,7 @@ pub const Chunk = struct {
         const gen = znoise.FnlGenerator{
             .frequency = 0.4 / @as(f32, SIZE),
         };
+        chunk.surface.?.clearRetainingCapacity();
         for (0..chunk.density.len) |i| {
             try SURFACE.gen(chunk, world, gen, chunk.posFromIndex(i), offset);
         }
@@ -105,5 +107,41 @@ pub const Chunk = struct {
             @floatFromInt(index / size / size),
             half - SURFACE.CELL_OFFSET,
         ) + zm.f32x4s(SURFACE.CELL_OFFSET - half)) * zm.f32x4s(mip_scale);
+    }
+
+    pub fn indexFromPos(chunk: *Chunk, _pos: zm.Vec) !usize {
+        const mip_level = chunk.wip_mip orelse chunk.density_mip.?;
+        const mip_scale = std.math.pow(f32, 2, @floatFromInt(mip_level));
+        const size = Chunk.SIZE / @as(usize, @intFromFloat(mip_scale));
+
+        const pos = zm.floor((_pos + zm.f32x4s(@as(f32, Chunk.SIZE) / 2)) / zm.f32x4s(mip_scale));
+        var index: usize = 0;
+        for (0..3) |d| {
+            const i = 2 - d;
+            if (pos[i] < 0 or pos[i] >= @as(f32, @floatFromInt(size))) return error.PositionOutsideChunk;
+            index *= size;
+            index += @intFromFloat(pos[i]);
+        }
+        return index;
+    }
+
+    pub fn dig(chunk: *Chunk, pos: zm.Vec, rad: f32) !void {
+        std.debug.assert(rad >= 0);
+        var corner = pos - zm.f32x4s(rad);
+        corner[3] = 0;
+        const iters: usize = @intFromFloat(@ceil(rad * 2) + 1);
+
+        for (0..iters) |k| {
+            const z = @as(f32, @floatFromInt(k));
+            for (0..iters) |j| {
+                const y = @as(f32, @floatFromInt(j));
+                for (0..iters) |i| {
+                    const x = @as(f32, @floatFromInt(i));
+                    const block_pos = corner + zm.f32x4(x, y, z, 0);
+                    const block_index = chunk.indexFromPos(block_pos) catch continue;
+                    chunk.density[block_index] -= @max(rad - zm.length3(block_pos - pos)[0], 0);
+                }
+            }
+        }
     }
 };

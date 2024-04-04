@@ -16,6 +16,7 @@ pub const Window = struct {
     mouse_delta: zm.Vec,
     scroll_delta: zm.Vec,
     binds: std.AutoHashMap(glfw.Key, Action),
+    mouse_binds: std.AutoHashMap(glfw.MouseButton, Action),
     actionState: [@typeInfo(Action).Enum.fields.len]bool,
     input: zm.Vec,
     min_delta: f32,
@@ -132,7 +133,7 @@ pub const Window = struct {
         windows += 1;
 
         var binds = std.AutoHashMap(glfw.Key, Action).init(alloc);
-        errdefer binds.deinit();
+        errdefer binds.clearAndFree();
         try binds.put(.w, .forward);
         try binds.put(.s, .backward);
         try binds.put(.a, .left);
@@ -141,6 +142,11 @@ pub const Window = struct {
         try binds.put(.caps_lock, .descend);
         try binds.put(.left_shift, .descend);
         try binds.put(.left_control, .descend);
+
+        var mouse_binds = std.AutoHashMap(glfw.MouseButton, Action).init(alloc);
+        errdefer mouse_binds.clearAndFree();
+        try mouse_binds.put(.left, .attack1);
+        try mouse_binds.put(.right, .attack2);
 
         var win = Window{
             .window = window,
@@ -153,6 +159,7 @@ pub const Window = struct {
             .mouse_delta = @splat(0),
             .scroll_delta = @splat(0),
             .binds = binds,
+            .mouse_binds = mouse_binds,
             .actionState = undefined,
             .input = @splat(0),
             .min_delta = cfg.min_delta,
@@ -164,7 +171,8 @@ pub const Window = struct {
     }
 
     pub fn kill(win: *Window) void {
-        win.binds.deinit();
+        win.mouse_binds.clearAndFree();
+        win.binds.clearAndFree();
         win.window.destroy();
         windows -= 1;
         // When we have no windows we have no use for GLFW
@@ -196,22 +204,16 @@ pub const Window = struct {
         }
         win.time = new_time;
 
-        // Create a closure without language support
-        const action = struct {
-            state: @TypeOf(win.actionState),
-            fn active(self: @This(), a: Action) bool {
-                return self.state[@intFromEnum(a)];
-            }
-        }{ .state = win.actionState };
-
+        win.set_active(.attack1, false);
+        win.set_active(.attack2, false);
         glfw.pollEvents();
         win.input = @splat(0);
-        if (action.active(.left)) win.input[0] -= 1;
-        if (action.active(.right)) win.input[0] += 1;
-        if (action.active(.descend)) win.input[1] -= 1;
-        if (action.active(.ascend)) win.input[1] += 1;
-        if (action.active(.backward)) win.input[2] -= 1;
-        if (action.active(.forward)) win.input[2] += 1;
+        if (win.active(.left)) win.input[0] -= 1;
+        if (win.active(.right)) win.input[0] += 1;
+        if (win.active(.descend)) win.input[1] -= 1;
+        if (win.active(.ascend)) win.input[1] += 1;
+        if (win.active(.backward)) win.input[2] -= 1;
+        if (win.active(.forward)) win.input[2] += 1;
         if (win.resized) if (win.viewport) |viewport| {
             gl.viewport(0, 0, @intCast(viewport.width), @intCast(viewport.height));
             win.mouse_pos = null;
@@ -230,6 +232,14 @@ pub const Window = struct {
 
     pub fn swap(win: Window) void {
         win.window.swapBuffers();
+    }
+
+    pub fn active(win: Window, action: Action) bool {
+        return win.actionState[@intFromEnum(action)];
+    }
+
+    fn set_active(win: *Window, action: Action, b: bool) void {
+        win.actionState[@intFromEnum(action)] = b;
     }
 
     fn toggleWindowed(win: *Window) !void {
@@ -313,9 +323,9 @@ pub const Window = struct {
 
     fn mouseButtonCallback(window: glfw.Window, button: glfw.MouseButton, action: glfw.Action, mods: glfw.Mods) void {
         _ = mods;
-        _ = action;
-        _ = button;
-        _ = window;
+        const win = window.getUserPointer(Window).?;
+        const target = win.mouse_binds.get(button) orelse return;
+        win.actionState[@intFromEnum(target)] = action != .release;
     }
 
     fn cursorPosCallback(window: glfw.Window, xpos: f64, ypos: f64) void {
