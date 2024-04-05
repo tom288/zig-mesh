@@ -33,7 +33,7 @@ pub const Chunk = struct {
     // Mip levels
     density_mip: ?usize,
     surface_mip: ?usize,
-    // TODO add an 'uploaded mip' to eliminate flicker
+    gpu_mip: ?usize,
 
     // The mip level currently being calculated
     wip_mip: ?usize,
@@ -54,7 +54,10 @@ pub const Chunk = struct {
     pub fn free(chunk: *@This(), alloc: std.mem.Allocator, gpu: bool) void {
         if (chunk.wip_mip) |_| unreachable;
         if (chunk.density_refs > 0) unreachable;
-        if (gpu) chunk.mesh.vert_count = 0;
+        if (gpu) {
+            chunk.mesh.vert_count = 0;
+            chunk.gpu_mip = null;
+        }
         if (chunk.surface) |_| {
             chunk.surface.?.clearAndFree();
             chunk.surface = null;
@@ -78,6 +81,7 @@ pub const Chunk = struct {
         }
         chunk.mesh.kill();
         chunk.free(alloc, false);
+        chunk.gpu_mip = null;
     }
 
     pub fn genDensity(chunk: *@This(), offset: zm.Vec) !void {

@@ -72,6 +72,7 @@ pub const World = struct {
                 .must_free = false,
                 .density_mip = null,
                 .surface_mip = null,
+                .gpu_mip = null,
                 .wip_mip = null,
                 .density_refs = 0,
                 .splits_copy = null,
@@ -138,7 +139,7 @@ pub const World = struct {
         var attempts: usize = 0;
         var draws: usize = 0;
         for (0.., world.chunks) |i, chunk| {
-            if (chunk.surface_mip == null) continue; // The chunk has no surface
+            if (chunk.gpu_mip == null) continue; // The chunk has no surface
             attempts += 1;
             const offset = world.offsetFromIndex(i, null);
             const model = zm.translationV(offset);
@@ -460,6 +461,7 @@ pub const World = struct {
             },
         }
         chunk.surface_mip = chunk.wip_mip;
+        chunk.gpu_mip = chunk.surface_mip;
         chunk.wip_mip = null;
         chunk.splits_copy = null;
         return true;
@@ -585,6 +587,7 @@ pub const World = struct {
                     return e;
                 };
                 chunk.surface_mip = chunk.wip_mip;
+                chunk.gpu_mip = chunk.wip_mip;
             } else {
                 chunk.density_mip = chunk.wip_mip;
             }
