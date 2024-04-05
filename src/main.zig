@@ -89,8 +89,7 @@ pub fn main() !void {
         .shader = compose_shader,
     }) else null;
     defer if (quad) |_| quad.?.kill();
-    const w: gl.GLint = @intFromFloat(window.resolution[0]);
-    const h: gl.GLint = @intFromFloat(window.resolution[1]);
+    const res: @Vector(4, gl.GLint) = @intFromFloat(window.resolution);
 
     var g_buffer: gl.GLuint = undefined;
     gl.genFramebuffers(1, &g_buffer);
@@ -98,8 +97,8 @@ pub fn main() !void {
     gl.bindFramebuffer(gl.FRAMEBUFFER, g_buffer);
 
     var g_pos = Texture.init(.{
-        .width = w,
-        .height = h,
+        .width = res[0],
+        .height = res[1],
         .format = gl.RGBA,
         .internal_format = gl.RGBA16F,
         .wrap_s = gl.CLAMP_TO_EDGE,
@@ -109,8 +108,8 @@ pub fn main() !void {
     defer g_pos.kill();
 
     var g_norm = Texture.init(.{
-        .width = w,
-        .height = h,
+        .width = res[0],
+        .height = res[1],
         .format = gl.RGBA,
         .internal_format = gl.RGBA16F,
         .fbo_attach = gl.COLOR_ATTACHMENT1,
@@ -118,8 +117,8 @@ pub fn main() !void {
     defer g_norm.kill();
 
     var g_albedo_spec = Texture.init(.{
-        .width = w,
-        .height = h,
+        .width = res[0],
+        .height = res[1],
         .format = gl.RGBA,
         .internal_format = gl.RGBA,
         .type = gl.UNSIGNED_BYTE,
@@ -142,8 +141,8 @@ pub fn main() !void {
     gl.renderbufferStorage(
         gl.RENDERBUFFER,
         gl.DEPTH_COMPONENT,
-        w,
-        h,
+        res[0],
+        res[1],
     );
     gl.bindRenderbuffer(gl.RENDERBUFFER, 0);
 
@@ -163,8 +162,8 @@ pub fn main() !void {
     defer gl.deleteFramebuffers(1, &ssao_buffer);
     gl.bindFramebuffer(gl.FRAMEBUFFER, ssao_buffer);
     var ssao_tex = Texture.init(.{
-        .width = w,
-        .height = h,
+        .width = res[0],
+        .height = res[1],
         .format = gl.RED,
         .internal_format = gl.RED,
         .wrap_s = gl.CLAMP_TO_EDGE,
@@ -181,8 +180,8 @@ pub fn main() !void {
     defer gl.deleteFramebuffers(1, &blur_buffer);
     gl.bindFramebuffer(gl.FRAMEBUFFER, blur_buffer);
     var blur_texture = Texture.init(.{
-        .width = w,
-        .height = h,
+        .width = res[0],
+        .height = res[1],
         .format = gl.RED,
         .internal_format = gl.RED,
         .fbo_attach = gl.COLOR_ATTACHMENT0,
@@ -277,9 +276,8 @@ pub fn main() !void {
             camera.calcAspect(window.resolution);
 
             if (TECHNIQUE == .DeferredShading) {
-                const new_w: gl.GLint = @intFromFloat(window.resolution[0]);
-                const new_h: gl.GLint = @intFromFloat(window.resolution[1]);
-                const size = .{ .width = new_w, .height = new_h };
+                const new_res: @Vector(4, gl.GLint) = @intFromFloat(window.resolution);
+                const size = .{ .width = new_res[0], .height = new_res[1] };
 
                 g_pos.resize(size);
                 g_norm.resize(size);
@@ -291,8 +289,8 @@ pub fn main() !void {
                 gl.renderbufferStorage(
                     gl.RENDERBUFFER,
                     gl.DEPTH_COMPONENT,
-                    new_w,
-                    new_h,
+                    new_res[0],
+                    new_res[1],
                 );
                 gl.bindRenderbuffer(gl.RENDERBUFFER, 0);
             }

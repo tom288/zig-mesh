@@ -637,6 +637,7 @@ pub const World = struct {
                     const offset = world.offsetFromIndex(chunk_index, null);
                     var chunk = world.chunks[chunk_index];
                     switch (THREADING) {
+                        // TODO .multi should do this on another thread
                         .single, .multi => try chunk.dig(pos - offset, rad),
                         .compute => @panic("Digging is not implemented in compute shaders"),
                     }
@@ -665,11 +666,11 @@ pub const World = struct {
                     }
 
                     const chunk_pos = corner + zm.f32x4(x, y, z, 0);
-
                     const min = if (Chunk.SURFACE.NEG_ADJ) 0 else 1;
                     for (min..3) |c| {
                         for (min..3) |b| {
                             for (min..3) |a| {
+                                // TODO ideally all of these chunks would wait to be visually updated all at the same time
                                 const neighbour_pos = (zm.f32x4(
                                     @floatFromInt(a),
                                     @floatFromInt(b),
@@ -679,7 +680,7 @@ pub const World = struct {
                                 const neighbour = &world.chunks[try world.indexFromOffset(neighbour_pos, null)];
                                 if (neighbour.density_refs == 0 and neighbour.wip_mip == null) {
                                     neighbour.surface_mip = null; // Request surface regen
-                                } else unreachable; // TODO add to a queue
+                                } else unreachable; // TODO add to a queue in the case of .multi
                             }
                         }
                     }

@@ -6,17 +6,17 @@ const gl = @import("gl");
 const zm = @import("zmath");
 
 pub const Window = struct {
-    window: glfw.Window,
+    window: ?glfw.Window = null,
     clear_mask: gl.GLbitfield,
     resolution: zm.Vec,
-    viewport: ?glfw.Window.Size,
-    time: ?f32,
+    viewport: ?glfw.Window.Size = null,
+    time: ?f32 = null,
     delta: f32,
-    mouse_pos: ?zm.Vec,
+    mouse_pos: ?zm.Vec = null,
     mouse_delta: zm.Vec,
     scroll_delta: zm.Vec,
-    binds: std.AutoHashMap(glfw.Key, Action),
-    mouse_binds: std.AutoHashMap(glfw.MouseButton, Action),
+    binds: ?std.AutoHashMap(glfw.Key, Action) = null,
+    mouse_binds: ?std.AutoHashMap(glfw.MouseButton, Action) = null,
     actionState: [@typeInfo(Action).Enum.fields.len]bool,
     input: zm.Vec,
     min_delta: f32,
@@ -49,6 +49,19 @@ pub const Window = struct {
         msaa_samples: ?u31 = 16,
         clear_buffers: bool = true,
     }) !@This() {
+        var win = @This(){
+            .clear_mask = 0,
+            .resolution = undefined,
+            .delta = 0,
+            .mouse_delta = @splat(0),
+            .scroll_delta = @splat(0),
+            .actionState = std.mem.zeroes(@TypeOf(@as(@This(), undefined).actionState)),
+            .input = @splat(0),
+            .min_delta = cfg.min_delta,
+            .resized = true,
+        };
+        errdefer win.kill();
+
         // Ensure GLFW errors are logged
         glfw.setErrorCallback(errorCallback);
 
@@ -57,22 +70,21 @@ pub const Window = struct {
             std.log.err("Failed to initialize GLFW: {?s}", .{glfw.getErrorString()});
             return error.GlfwInitFailure;
         }
-        errdefer if (windows == 0) glfw.terminate();
+
+        win.resolution = try calcResolution(cfg.windowed);
 
         // Obtain primary monitor
-        const monitor = glfw.Monitor.getPrimary() orelse {
+        const monitor = if (cfg.windowed) null else glfw.Monitor.getPrimary() orelse {
             std.log.err("Failed to get primary monitor: {?s}", .{glfw.getErrorString()});
             return error.MonitorUnobtainable;
         };
 
-        const resolution = try calcResolution(cfg.windowed);
-
         // Create our window
-        const window = glfw.Window.create(
-            @intFromFloat(resolution[0]),
-            @intFromFloat(resolution[1]),
+        win.window = glfw.Window.create(
+            @intFromFloat(win.resolution[0]),
+            @intFromFloat(win.resolution[1]),
             cfg.title,
-            if (cfg.windowed) null else monitor,
+            monitor,
             null,
             .{
                 .opengl_profile = .opengl_core_profile,
@@ -80,16 +92,16 @@ pub const Window = struct {
                 .context_version_minor = 6,
                 .resizable = cfg.resizable,
                 .samples = cfg.msaa_samples,
-                .position_x = @intFromFloat(resolution[2]),
-                .position_y = @intFromFloat(resolution[3]),
+                .position_x = @intFromFloat(win.resolution[2]),
+                .position_y = @intFromFloat(win.resolution[3]),
             },
         ) orelse {
             std.log.err("Failed to create GLFW window: {?s}", .{glfw.getErrorString()});
             return error.WindowCreationFailure;
         };
-        errdefer window.destroy();
 
         // Listen to window input
+        const window = win.window.?;
         window.setKeyCallback(keyCallback);
         window.setMouseButtonCallback(mouseButtonCallback);
         window.setCursorPosCallback(cursorPosCallback);
@@ -121,19 +133,15 @@ pub const Window = struct {
         if (cfg.msaa_samples orelse 0 > 1) gl.enable(gl.MULTISAMPLE);
 
         // Determine which buffers get cleared
-        var clear_mask: gl.GLbitfield = 0;
         if (cfg.clear_buffers) {
-            clear_mask |= gl.COLOR_BUFFER_BIT;
+            win.clear_mask |= gl.COLOR_BUFFER_BIT;
             if (cfg.test_depth) {
-                clear_mask |= gl.DEPTH_BUFFER_BIT;
+                win.clear_mask |= gl.DEPTH_BUFFER_BIT;
             }
         }
 
-        // Update window count
-        windows += 1;
-
-        var binds = std.AutoHashMap(glfw.Key, Action).init(alloc);
-        errdefer binds.clearAndFree();
+        win.binds = std.AutoHashMap(glfw.Key, Action).init(alloc);
+        var binds = &(win.binds.?);
         try binds.put(.w, .forward);
         try binds.put(.s, .backward);
         try binds.put(.a, .left);
@@ -143,37 +151,34 @@ pub const Window = struct {
         try binds.put(.left_shift, .descend);
         try binds.put(.left_control, .descend);
 
-        var mouse_binds = std.AutoHashMap(glfw.MouseButton, Action).init(alloc);
-        errdefer mouse_binds.clearAndFree();
+        win.mouse_binds = std.AutoHashMap(glfw.MouseButton, Action).init(alloc);
+        var mouse_binds = &(win.mouse_binds.?);
         try mouse_binds.put(.left, .attack1);
         try mouse_binds.put(.right, .attack2);
-
-        var win = @This(){
-            .window = window,
-            .clear_mask = clear_mask,
-            .resolution = resolution,
-            .viewport = null,
-            .time = null,
-            .delta = 0,
-            .mouse_pos = null,
-            .mouse_delta = @splat(0),
-            .scroll_delta = @splat(0),
-            .binds = binds,
-            .mouse_binds = mouse_binds,
-            .actionState = undefined,
-            .input = @splat(0),
-            .min_delta = cfg.min_delta,
-            .resized = true,
-        };
         try win.calcViewport();
-        win.actionState = std.mem.zeroes(@TypeOf(win.actionState));
+
+        // Update window count
+        windows += 1;
         return win;
     }
 
     pub fn kill(win: *@This()) void {
-        win.mouse_binds.clearAndFree();
-        win.binds.clearAndFree();
-        win.window.destroy();
+        if (win.mouse_binds) |_| {
+            win.mouse_binds.?.clearAndFree();
+            win.mouse_binds = null;
+        }
+        if (win.binds) |_| {
+            win.binds.?.clearAndFree();
+            win.binds = null;
+        }
+        win.mouse_pos = null;
+        win.time = null;
+        win.viewport = null;
+        win.resolution = zm.f32x4s(0);
+        if (win.window) |window| {
+            window.destroy();
+            win.window = null;
+        }
         windows -= 1;
         // When we have no windows we have no use for GLFW
         if (windows == 0) glfw.terminate();
@@ -200,7 +205,7 @@ pub const Window = struct {
             }
         } else {
             // Set the user pointer if we are about to poll the first events
-            win.window.setUserPointer(win);
+            win.window.?.setUserPointer(win);
         }
         win.time = new_time;
 
@@ -218,7 +223,7 @@ pub const Window = struct {
             gl.viewport(0, 0, @intCast(viewport.width), @intCast(viewport.height));
             win.mouse_pos = null;
         };
-        return !win.window.shouldClose();
+        return !win.window.?.shouldClose();
     }
 
     pub fn clear(win: @This()) void {
@@ -231,7 +236,7 @@ pub const Window = struct {
     }
 
     pub fn swap(win: @This()) void {
-        win.window.swapBuffers();
+        win.window.?.swapBuffers();
     }
 
     pub fn active(win: @This(), action: Action) bool {
@@ -243,28 +248,27 @@ pub const Window = struct {
     }
 
     fn toggleWindowed(win: *@This()) !void {
-        const windowed = win.window.getMonitor() == null;
-        const resolution = try calcResolution(!windowed);
+        const windowed = win.window.?.getMonitor() == null;
 
         const monitor = if (windowed) (glfw.Monitor.getPrimary() orelse {
             std.log.err("Failed to get primary monitor: {?s}", .{glfw.getErrorString()});
             return error.MonitorUnobtainable;
         }) else null;
 
-        win.resolution = resolution;
-        win.window.setMonitor(
+        win.resolution = try calcResolution(!windowed);
+        win.window.?.setMonitor(
             monitor,
-            @intFromFloat(resolution[2]),
-            @intFromFloat(resolution[3]),
-            @intFromFloat(resolution[0]),
-            @intFromFloat(resolution[1]),
+            @intFromFloat(win.resolution[2]),
+            @intFromFloat(win.resolution[3]),
+            @intFromFloat(win.resolution[0]),
+            @intFromFloat(win.resolution[1]),
             null,
         );
         try win.calcViewport();
     }
 
     fn calcViewport(win: *@This()) !void {
-        const size = win.window.getFramebufferSize();
+        const size = win.window.?.getFramebufferSize();
         if (size.width == 0 or size.height == 0) {
             std.log.err("Failed to get primary monitor: {?s}", .{glfw.getErrorString()});
             return error.FramebufferUnobtainable;
@@ -317,14 +321,14 @@ pub const Window = struct {
         if ((key == .enter or key == .kp_enter) and action == .press and mods.alt) {
             win.toggleWindowed() catch unreachable;
         }
-        const target = win.binds.get(key) orelse return;
+        const target = win.binds.?.get(key) orelse return;
         win.actionState[@intFromEnum(target)] = action != .release;
     }
 
     fn mouseButtonCallback(window: glfw.Window, button: glfw.MouseButton, action: glfw.Action, mods: glfw.Mods) void {
         _ = mods;
         const win = window.getUserPointer(@This()).?;
-        const target = win.mouse_binds.get(button) orelse return;
+        const target = win.mouse_binds.?.get(button) orelse return;
         win.actionState[@intFromEnum(target)] = action != .release;
     }
 

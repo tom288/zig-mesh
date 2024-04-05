@@ -45,8 +45,8 @@ fn QuadT(T: type) type {
             var quad = @This(){ .mesh = null };
             errdefer quad.kill();
             quad.mesh = try QuadMesh.init(cfg.shader);
-            const min = cfg.min orelse unreachable; // Default min CFG.MIN incompatible with T
-            const max = cfg.max orelse unreachable; // Default max CFG.MAX incompatible with T
+            const min = cfg.min.?; // Default min CFG.MIN incompatible with T
+            const max = cfg.max.?; // Default max CFG.MAX incompatible with T
             try quad.mesh.?.upload(.{&[_]T{
                 min, min,
                 max, min,

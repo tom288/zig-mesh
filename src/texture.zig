@@ -69,8 +69,8 @@ pub const Texture = struct {
         if (size.width) |width| tex.cfg.width = width;
         if (size.height) |height| tex.cfg.height = height;
         tex.bind();
+        defer unbind();
         tex.upload();
-        unbind();
     }
 
     fn upload(tex: @This()) void {
