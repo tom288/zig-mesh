@@ -595,18 +595,17 @@ pub const World = struct {
 
     pub fn dig(world: *World, pos: zm.Vec, rad: f32) !void {
         std.debug.assert(rad >= 0);
-        const iters: usize = @intFromFloat(@ceil(rad * 2 / Chunk.SIZE) + 1);
+        const last = rad * 2;
+        const iters: usize = @intFromFloat(@ceil(last / Chunk.SIZE) + 1);
         var skip_last: [3]bool = undefined;
         var corner = pos - zm.f32x4s(rad);
         corner[3] = 0;
 
         for (0..3) |d| {
-            var l = corner;
-            var r = corner;
-            l[d] = @as(f32, @floatFromInt(iters - 2)) * Chunk.SIZE;
-            r[d] = rad * 2;
-            skip_last[d] = try world.indexFromOffset(corner + l, null) ==
-                try world.indexFromOffset(corner + r, null);
+            var other = corner;
+            other[d] += @mod(last, Chunk.SIZE);
+            skip_last[d] = try world.indexFromOffset(corner, null) ==
+                try world.indexFromOffset(other, null);
         }
 
         // Density
@@ -614,20 +613,20 @@ pub const World = struct {
             var z = @as(f32, @floatFromInt(k)) * Chunk.SIZE;
             if (k + 1 == iters and rad > 0) {
                 if (skip_last[2]) continue;
-                z = rad * 2;
+                z = last;
             }
             for (0..iters) |j| {
                 var y = @as(f32, @floatFromInt(j)) * Chunk.SIZE;
                 if (j + 1 == iters and rad > 0) {
                     if (skip_last[1]) continue;
-                    y = rad * 2;
+                    y = last;
                 }
 
                 for (0..iters) |i| {
                     var x = @as(f32, @floatFromInt(i)) * Chunk.SIZE;
                     if (i + 1 == iters and rad > 0) {
                         if (skip_last[0]) continue;
-                        x = rad * 2;
+                        x = last;
                     }
 
                     const chunk_pos = corner + zm.f32x4(x, y, z, 0);
@@ -646,20 +645,20 @@ pub const World = struct {
             var z = @as(f32, @floatFromInt(k)) * Chunk.SIZE;
             if (k + 1 == iters and rad > 0) {
                 if (skip_last[2]) continue;
-                z = rad * 2;
+                z = last;
             }
             for (0..iters) |j| {
                 var y = @as(f32, @floatFromInt(j)) * Chunk.SIZE;
                 if (j + 1 == iters and rad > 0) {
                     if (skip_last[1]) continue;
-                    y = rad * 2;
+                    y = last;
                 }
 
                 for (0..iters) |i| {
                     var x = @as(f32, @floatFromInt(i)) * Chunk.SIZE;
                     if (i + 1 == iters and rad > 0) {
                         if (skip_last[0]) continue;
-                        x = rad * 2;
+                        x = last;
                     }
 
                     const chunk_pos = corner + zm.f32x4(x, y, z, 0);
@@ -677,7 +676,7 @@ pub const World = struct {
                                 const neighbour = &world.chunks[try world.indexFromOffset(neighbour_pos, null)];
                                 if (neighbour.density_refs == 0 and neighbour.wip_mip == null) {
                                     neighbour.surface_mip = null; // Request surface regen
-                                } else unreachable; // TODO queue
+                                } else unreachable; // TODO add to a queue
                             }
                         }
                     }

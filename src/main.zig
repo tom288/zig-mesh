@@ -267,7 +267,10 @@ pub fn main() !void {
         camera.scroll(window.scroll_delta);
 
         try world.updateSplits(camera.position);
-        if (window.active(.attack1)) try world.dig(camera.position, 5);
+        if (window.active(.attack1)) {
+            const RAD = 5;
+            try world.dig(camera.position + camera.look * zm.f32x4s(RAD), RAD);
+        }
         try world.gen();
 
         if (window.resized) {
