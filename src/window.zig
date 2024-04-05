@@ -48,7 +48,7 @@ pub const Window = struct {
         wireframe: bool = false,
         msaa_samples: ?u31 = 16,
         clear_buffers: bool = true,
-    }) !Window {
+    }) !@This() {
         // Ensure GLFW errors are logged
         glfw.setErrorCallback(errorCallback);
 
@@ -148,7 +148,7 @@ pub const Window = struct {
         try mouse_binds.put(.left, .attack1);
         try mouse_binds.put(.right, .attack2);
 
-        var win = Window{
+        var win = @This(){
             .window = window,
             .clear_mask = clear_mask,
             .resolution = resolution,
@@ -170,7 +170,7 @@ pub const Window = struct {
         return win;
     }
 
-    pub fn kill(win: *Window) void {
+    pub fn kill(win: *@This()) void {
         win.mouse_binds.clearAndFree();
         win.binds.clearAndFree();
         win.window.destroy();
@@ -179,7 +179,7 @@ pub const Window = struct {
         if (windows == 0) glfw.terminate();
     }
 
-    pub fn ok(win: *Window) bool {
+    pub fn ok(win: *@This()) bool {
         // Clear mouse delta
         win.mouse_delta = @splat(0);
         win.scroll_delta = @splat(0);
@@ -221,28 +221,28 @@ pub const Window = struct {
         return !win.window.shouldClose();
     }
 
-    pub fn clear(win: Window) void {
+    pub fn clear(win: @This()) void {
         gl.clear(win.clear_mask);
     }
 
-    pub fn clearColour(win: Window, r: f32, g: f32, b: f32, a: f32) void {
+    pub fn clearColour(win: @This(), r: f32, g: f32, b: f32, a: f32) void {
         _ = win;
         gl.clearColor(r, g, b, a);
     }
 
-    pub fn swap(win: Window) void {
+    pub fn swap(win: @This()) void {
         win.window.swapBuffers();
     }
 
-    pub fn active(win: Window, action: Action) bool {
+    pub fn active(win: @This(), action: Action) bool {
         return win.actionState[@intFromEnum(action)];
     }
 
-    fn set_active(win: *Window, action: Action, b: bool) void {
+    fn set_active(win: *@This(), action: Action, b: bool) void {
         win.actionState[@intFromEnum(action)] = b;
     }
 
-    fn toggleWindowed(win: *Window) !void {
+    fn toggleWindowed(win: *@This()) !void {
         const windowed = win.window.getMonitor() == null;
         const resolution = try calcResolution(!windowed);
 
@@ -263,7 +263,7 @@ pub const Window = struct {
         try win.calcViewport();
     }
 
-    fn calcViewport(win: *Window) !void {
+    fn calcViewport(win: *@This()) !void {
         const size = win.window.getFramebufferSize();
         if (size.width == 0 or size.height == 0) {
             std.log.err("Failed to get primary monitor: {?s}", .{glfw.getErrorString()});
@@ -313,7 +313,7 @@ pub const Window = struct {
     fn keyCallback(window: glfw.Window, key: glfw.Key, scancode: i32, action: glfw.Action, mods: glfw.Mods) void {
         _ = scancode;
         if (key == .escape) window.setShouldClose(true);
-        const win = window.getUserPointer(Window).?;
+        const win = window.getUserPointer(@This()).?;
         if ((key == .enter or key == .kp_enter) and action == .press and mods.alt) {
             win.toggleWindowed() catch unreachable;
         }
@@ -323,13 +323,13 @@ pub const Window = struct {
 
     fn mouseButtonCallback(window: glfw.Window, button: glfw.MouseButton, action: glfw.Action, mods: glfw.Mods) void {
         _ = mods;
-        const win = window.getUserPointer(Window).?;
+        const win = window.getUserPointer(@This()).?;
         const target = win.mouse_binds.get(button) orelse return;
         win.actionState[@intFromEnum(target)] = action != .release;
     }
 
     fn cursorPosCallback(window: glfw.Window, xpos: f64, ypos: f64) void {
-        const win = window.getUserPointer(Window).?;
+        const win = window.getUserPointer(@This()).?;
         const new_pos = zm.loadArr2([2]f32{
             @floatCast(xpos),
             @floatCast(win.resolution[1] - ypos - 1),
@@ -339,7 +339,7 @@ pub const Window = struct {
     }
 
     fn scrollCallback(window: glfw.Window, xoffset: f64, yoffset: f64) void {
-        const win = window.getUserPointer(Window).?;
+        const win = window.getUserPointer(@This()).?;
         win.scroll_delta += zm.loadArr2([2]f32{ @floatCast(xoffset), @floatCast(yoffset) });
     }
 };

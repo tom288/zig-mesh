@@ -304,7 +304,7 @@ pub fn main() !void {
                 gl.bindFramebuffer(gl.FRAMEBUFFER, g_buffer);
                 window.clear();
                 gbuffer_shader.use();
-                try world.draw(camera.position, camera.view, camera.proj);
+                try world.draw(camera.position, camera.view, camera.proj.?);
                 gl.bindFramebuffer(gl.FRAMEBUFFER, 0);
 
                 // Generate SSAO texture
@@ -312,7 +312,7 @@ pub fn main() !void {
                 gl.clear(gl.COLOR_BUFFER_BIT);
                 ssao_shader.use();
                 ssao_shader.set_n("samples", f32, SSAO_KERNEL_SAMPLES, ssao_kernel);
-                ssao_shader.set("proj", f32, zm.matToArr(camera.proj));
+                ssao_shader.set("proj", f32, zm.matToArr(camera.proj.?));
                 g_pos.activate(gl.TEXTURE0);
                 g_norm.activate(gl.TEXTURE1);
                 noise_texture.activate(gl.TEXTURE2);
@@ -339,7 +339,7 @@ pub fn main() !void {
             .ForwardRendering => {
                 window.clear();
                 forward_shader.use();
-                try world.draw(camera.position, camera.view, camera.proj);
+                try world.draw(camera.position, camera.view, camera.proj.?);
             },
         }
 

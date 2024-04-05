@@ -12,7 +12,7 @@ pub const Camera = struct {
     // Scalars
     yaw: f32,
     pitch: f32,
-    aspect: f32,
+    aspect: ?f32,
     fov: f32,
     // Vectors
     look: zm.Vec,
@@ -20,8 +20,8 @@ pub const Camera = struct {
     above: zm.Vec,
     // Matrices
     view: zm.Mat,
-    proj: zm.Mat,
-    world_to_clip: zm.Mat,
+    proj: ?zm.Mat,
+    world_to_clip: ?zm.Mat,
 
     pub fn init() Camera {
         var cam = Camera{
@@ -38,8 +38,8 @@ pub const Camera = struct {
             .above = undefined,
 
             .view = undefined,
-            .proj = undefined,
-            .world_to_clip = undefined,
+            .proj = null,
+            .world_to_clip = null,
         };
 
         cam.calcVecs();
@@ -116,12 +116,21 @@ pub const Camera = struct {
 
     fn calcView(cam: *Camera) void {
         cam.view = zm.lookToRh(cam.position, cam.look, UP);
-        cam.world_to_clip = zm.mul(cam.view, cam.proj);
+        cam.calcWorldToClip();
     }
 
     fn calcProj(cam: *Camera) void {
-        cam.proj = zm.perspectiveFovRhGl(cam.fov, cam.aspect, NEAR, FAR);
-        cam.world_to_clip = zm.mul(cam.view, cam.proj);
+        cam.proj = zm.perspectiveFovRhGl(
+            cam.fov,
+            cam.aspect orelse return,
+            NEAR,
+            FAR,
+        );
+        cam.calcWorldToClip();
+    }
+
+    fn calcWorldToClip(cam: *Camera) void {
+        cam.world_to_clip = zm.mul(cam.view, cam.proj orelse return);
     }
 };
 

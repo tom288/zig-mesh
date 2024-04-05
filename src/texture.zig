@@ -2,9 +2,7 @@ const gl = @import("gl");
 
 pub const Texture = struct {
     id: ?gl.GLuint,
-    cfg: CFG,
-
-    const CFG = struct {
+    cfg: struct {
         width: gl.GLsizei,
         height: gl.GLsizei,
         format: gl.GLenum,
@@ -16,10 +14,10 @@ pub const Texture = struct {
         wrap_s: ?gl.GLint = null,
         wrap_t: ?gl.GLint = null,
         fbo_attach: ?gl.GLenum = null,
-    };
+    },
 
-    pub fn init(cfg: CFG) Texture {
-        var texture = Texture{ .id = null, .cfg = cfg };
+    pub fn init(cfg: @TypeOf(@as(@This(), undefined).cfg)) @This() {
+        var texture = @This(){ .id = null, .cfg = cfg };
         errdefer texture.kill();
         texture.id = undefined;
         gl.genTextures(1, &texture.id.?);
@@ -57,14 +55,14 @@ pub const Texture = struct {
         return texture;
     }
 
-    pub fn kill(tex: *Texture) void {
+    pub fn kill(tex: *@This()) void {
         if (tex.id) |id| {
             gl.deleteTextures(1, &id);
             tex.id = null;
         }
     }
 
-    pub fn resize(tex: *Texture, size: struct {
+    pub fn resize(tex: *@This(), size: struct {
         width: ?gl.GLsizei,
         height: ?gl.GLsizei,
     }) void {
@@ -75,7 +73,7 @@ pub const Texture = struct {
         unbind();
     }
 
-    fn upload(tex: Texture) void {
+    fn upload(tex: @This()) void {
         gl.texImage2D(
             gl.TEXTURE_2D,
             0,
@@ -89,7 +87,7 @@ pub const Texture = struct {
         );
     }
 
-    pub fn activate(tex: Texture, unit: gl.GLenum) void {
+    pub fn activate(tex: @This(), unit: gl.GLenum) void {
         gl.activeTexture(unit);
         tex.bind();
     }
@@ -98,7 +96,7 @@ pub const Texture = struct {
         gl.bindTexture(gl.TEXTURE_2D, id);
     }
 
-    fn bind(tex: Texture) void {
+    fn bind(tex: @This()) void {
         _bind(tex.id.?);
     }
 

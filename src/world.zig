@@ -36,8 +36,8 @@ pub const World = struct {
         density_shader: Shader,
         surface_shader: Shader,
         cam_pos: ?zm.Vec,
-    ) !World {
-        var world = World{
+    ) !@This() {
+        var world = @This(){
             .alloc = alloc,
             .shader = shader,
             .density_shader = density_shader,
@@ -112,7 +112,7 @@ pub const World = struct {
         return world;
     }
 
-    pub fn kill(world: *World) !void {
+    pub fn kill(world: *@This()) !void {
         // Wait for the other threads
         for (world.pool.workers) |*worker| {
             while (worker.busy) {
@@ -129,7 +129,7 @@ pub const World = struct {
         world.chunks = &.{};
     }
 
-    pub fn draw(world: World, pos: zm.Vec, view: zm.Mat, proj: zm.Mat) !void {
+    pub fn draw(world: @This(), pos: zm.Vec, view: zm.Mat, proj: zm.Mat) !void {
         const cull = true;
         const count = false;
         const bench = false;
@@ -190,7 +190,7 @@ pub const World = struct {
 
     // Chunk boundaries occur at multiples of Chunk.SIZE
     // The group of closest chunks changes halfway between these boundaries
-    pub fn updateSplits(world: *World, cam_pos: ?zm.Vec) !void {
+    pub fn updateSplits(world: *@This(), cam_pos: ?zm.Vec) !void {
         if (cam_pos) |pos| {
             world.cam_pos = (pos / zm.f32x4s(Chunk.SIZE)) - zm.f32x4s(0.5);
             world.cam_pos = zm.ceil(world.cam_pos) * zm.f32x4s(Chunk.SIZE);
@@ -247,7 +247,7 @@ pub const World = struct {
         }
     }
 
-    pub fn gen(world: *World) !void {
+    pub fn gen(world: *@This()) !void {
         const max_dist = CHUNKS / 2;
         const bench = false;
         var timer = try std.time.Timer.start();
@@ -316,7 +316,7 @@ pub const World = struct {
     }
 
     pub fn genChunkDensity(
-        world: *World,
+        world: *@This(),
         chunk: *Chunk,
         chunk_index: usize,
         mip_level: usize,
@@ -377,7 +377,7 @@ pub const World = struct {
     }
 
     pub fn genChunkSurface(
-        world: *World,
+        world: *@This(),
         chunk: *Chunk,
         chunk_index: usize,
     ) !bool {
@@ -468,7 +468,7 @@ pub const World = struct {
     // Return false if work for the chunk is pending
     // Return null if we have ran out of threads so that the caller can break
     // Return true if the chunk is already generated at a sufficient mip level
-    pub fn genChunk(world: *World, pos: zm.Vec, mip_level: usize, edge: bool) !?bool {
+    pub fn genChunk(world: *@This(), pos: zm.Vec, mip_level: usize, edge: bool) !?bool {
         const chunk_index = try world.indexFromOffset(pos, null);
         const chunk = &world.chunks[chunk_index];
 
@@ -543,7 +543,7 @@ pub const World = struct {
         };
     }
 
-    fn sync(world: *World) !void {
+    fn sync(world: *@This()) !void {
         const min = if (Chunk.SURFACE.NEG_ADJ) 0 else 1;
         // Iterate over pool workers
         for (world.pool.workers) |*worker| {
@@ -593,7 +593,7 @@ pub const World = struct {
         }
     }
 
-    pub fn dig(world: *World, pos: zm.Vec, rad: f32) !void {
+    pub fn dig(world: *@This(), pos: zm.Vec, rad: f32) !void {
         std.debug.assert(rad >= 0);
         const last = rad * 2;
         const iters: usize = @intFromFloat(@ceil(last / Chunk.SIZE) + 1);
@@ -688,7 +688,7 @@ pub const World = struct {
         world.index_done = 0;
     }
 
-    pub fn indexFromOffset(world: World, _pos: zm.Vec, splits: ?zm.Vec) !usize {
+    pub fn indexFromOffset(world: @This(), _pos: zm.Vec, splits: ?zm.Vec) !usize {
         const spl = splits orelse world.splits;
         const pos = zm.floor(_pos / zm.f32x4s(Chunk.SIZE));
         var index: usize = 0;
@@ -704,7 +704,7 @@ pub const World = struct {
         return index;
     }
 
-    pub fn offsetFromIndex(world: World, index: usize, splits: ?zm.Vec) zm.Vec {
+    pub fn offsetFromIndex(world: @This(), index: usize, splits: ?zm.Vec) zm.Vec {
         const spl = splits orelse world.splits;
         var offset = (zm.f32x4(
             @floatFromInt(index % CHUNKS),

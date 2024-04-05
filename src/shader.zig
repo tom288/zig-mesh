@@ -14,7 +14,7 @@ pub const Shader = struct {
         comptime vertex: []const u8,
         comptime geometry: ?[]const u8,
         comptime fragment: []const u8,
-    ) !Shader {
+    ) !@This() {
         return initShader(
             alloc,
             &[_]?[]const u8{ vertex, geometry, fragment },
@@ -22,7 +22,7 @@ pub const Shader = struct {
         );
     }
 
-    pub fn initComp(alloc: std.mem.Allocator, comptime compute: []const u8) !Shader {
+    pub fn initComp(alloc: std.mem.Allocator, comptime compute: []const u8) !@This() {
         return initShader(
             alloc,
             &[_]?[]const u8{compute},
@@ -34,7 +34,7 @@ pub const Shader = struct {
         alloc: std.mem.Allocator,
         comptime names: []const ?[]const u8,
         comptime stages: []const gl.GLenum,
-    ) !Shader {
+    ) !@This() {
         comptime std.debug.assert(names.len == stages.len);
         var ids: [names.len]?gl.GLuint = undefined;
         var zero = false;
@@ -43,7 +43,7 @@ pub const Shader = struct {
             zero = zero or id.* == 0;
         }
 
-        var shader = Shader{
+        var shader = @This(){
             .id = null,
         };
 
@@ -72,22 +72,22 @@ pub const Shader = struct {
         return if (shader.id == null) error.ShaderInitFailure else shader;
     }
 
-    pub fn kill(shader: *Shader) void {
+    pub fn kill(shader: *@This()) void {
         if (shader.id) |id| {
             gl.deleteProgram(id);
             shader.id = null;
         }
     }
 
-    pub fn use(shader: Shader) void {
+    pub fn use(shader: @This()) void {
         if (shader.id) |id| gl.useProgram(id);
     }
 
-    pub fn set(shader: Shader, name: [:0]const u8, comptime T: type, value: anytype) void {
+    pub fn set(shader: @This(), name: [:0]const u8, comptime T: type, value: anytype) void {
         shader.set_n(name, T, 1, value);
     }
 
-    pub fn set_n(shader: Shader, name: [:0]const u8, comptime T: type, n: gl.GLint, value: anytype) void {
+    pub fn set_n(shader: @This(), name: [:0]const u8, comptime T: type, n: gl.GLint, value: anytype) void {
         const id = shader.id.?;
         const location = gl.getUniformLocation(id, name);
         if (location == -1) {
@@ -181,7 +181,7 @@ pub const Shader = struct {
         }
     }
 
-    pub fn bindBlock(shader: Shader, name: [:0]const u8, binding: gl.GLuint) void {
+    pub fn bindBlock(shader: @This(), name: [:0]const u8, binding: gl.GLuint) void {
         if (shader.id) |id| {
             const index = gl.getProgramResourceIndex(id, gl.SHADER_STORAGE_BLOCK, name);
             gl.shaderStorageBlockBinding(id, index, binding);
