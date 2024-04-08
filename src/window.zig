@@ -35,7 +35,8 @@ pub const Window = struct {
         attack2,
     };
 
-    pub fn init(alloc: std.mem.Allocator, cfg: struct {
+    pub fn init(cfg: struct {
+        alloc: std.mem.Allocator,
         title: [*:0]const u8 = "",
         vsync: bool = true,
         min_delta: f32 = 0.1,
@@ -140,7 +141,7 @@ pub const Window = struct {
             }
         }
 
-        win.binds = std.AutoHashMap(glfw.Key, Action).init(alloc);
+        win.binds = std.AutoHashMap(glfw.Key, Action).init(cfg.alloc);
         var binds = &(win.binds.?);
         try binds.put(.w, .forward);
         try binds.put(.s, .backward);
@@ -151,7 +152,7 @@ pub const Window = struct {
         try binds.put(.left_shift, .descend);
         try binds.put(.left_control, .descend);
 
-        win.mouse_binds = std.AutoHashMap(glfw.MouseButton, Action).init(alloc);
+        win.mouse_binds = std.AutoHashMap(glfw.MouseButton, Action).init(cfg.alloc);
         var mouse_binds = &(win.mouse_binds.?);
         try mouse_binds.put(.left, .attack1);
         try mouse_binds.put(.right, .attack2);

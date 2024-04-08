@@ -12,14 +12,14 @@ const Surface = @import("surface.zig");
 pub const World = struct {
     alloc: std.mem.Allocator,
     shader: Shader,
-    density_shader: Shader,
-    surface_shader: Shader,
+    density_shader: ?Shader = null,
+    surface_shader: ?Shader = null,
     chunks: []Chunk,
     cam_pos: zm.Vec,
     splits: zm.Vec,
+    dist_done: usize = 0,
+    index_done: usize = 0,
     pool: Pool(WorkerData),
-    dist_done: usize,
-    index_done: usize,
 
     const SIZE = Chunk.SIZE * CHUNKS;
     const CHUNKS = 16;
@@ -33,35 +33,42 @@ pub const World = struct {
     pub fn init(
         alloc: std.mem.Allocator,
         shader: Shader,
-        density_shader: Shader,
-        surface_shader: Shader,
         cam_pos: ?zm.Vec,
     ) !@This() {
         var world = @This(){
             .alloc = alloc,
             .shader = shader,
-            .density_shader = density_shader,
-            .surface_shader = surface_shader,
-            .chunks = try alloc.alloc(Chunk, CHUNKS * CHUNKS * CHUNKS),
+            .chunks = undefined,
             .cam_pos = cam_pos orelse zm.f32x4s(0),
             .splits = undefined,
             .pool = undefined,
-            .dist_done = 0,
-            .index_done = 0,
         };
-        world.splits = splitsFromPos(world.cam_pos);
 
-        var count: usize = 0;
+        world.density_shader = try Shader.initComp(alloc, "density");
         errdefer {
-            for (0..count) |i| {
-                world.chunks[i].kill(alloc);
-            }
+            world.density_shader.?.kill();
+            world.density_shader = null;
+        }
+        world.density_shader.?.bindBlock("density_block", 0);
+
+        world.surface_shader = try Shader.initComp(alloc, "surface");
+        errdefer {
+            world.surface_shader.?.kill();
+            world.surface_shader = null;
+        }
+        world.surface_shader.?.bindBlock("density_block", 0);
+        world.surface_shader.?.bindBlock("surface_block", 1);
+
+        world.chunks = try alloc.alloc(Chunk, CHUNKS * CHUNKS * CHUNKS);
+        errdefer {
             alloc.free(world.chunks);
             world.chunks = &.{};
         }
 
-        world.pool = try @TypeOf(world.pool).init(alloc);
-        errdefer world.pool.kill(alloc);
+        var count: usize = 0;
+        errdefer for (0..count) |i| {
+            world.chunks[i].kill(alloc);
+        };
 
         // Assign uninitialised chunks
         for (world.chunks) |*chunk| {
@@ -107,6 +114,11 @@ pub const World = struct {
             count += 1;
         }
 
+        world.splits = splitsFromPos(world.cam_pos);
+
+        world.pool = try @TypeOf(world.pool).init(alloc);
+        errdefer world.pool.kill(alloc);
+
         try world.updateSplits(cam_pos);
         try world.gen();
 
@@ -121,21 +133,34 @@ pub const World = struct {
                 std.time.sleep(100_000); // 0.1 ms
             }
         }
+        world.pool.kill(world.alloc);
         // Free everything
         for (world.chunks) |*chunk| {
             chunk.kill(world.alloc);
         }
-        world.pool.kill(world.alloc);
         world.alloc.free(world.chunks);
         world.chunks = &.{};
+        // Free shaders
+        inline for (&.{
+            &world.density_shader,
+            &world.surface_shader,
+        }) |*shader| {
+            if (shader.*.*) |_| {
+                shader.*.*.?.kill();
+                shader.*.* = null;
+            }
+        }
     }
 
     pub fn draw(world: @This(), pos: zm.Vec, view: zm.Mat, proj: zm.Mat) !void {
+        var timer = try std.time.Timer.start();
+        defer if (false) {
+            const ns: f32 = @floatFromInt(timer.read());
+            std.debug.print("Culling took {d:.3} ms\n", .{ns / 1_000_000});
+        };
+
         const cull = true;
         const count = false;
-        const bench = false;
-        var timer = try std.time.Timer.start();
-        var ns: f32 = undefined;
         var attempts: usize = 0;
         var draws: usize = 0;
         for (0.., world.chunks) |i, chunk| {
@@ -148,7 +173,7 @@ pub const World = struct {
 
             // Draw the chunk we are inside of no matter what
             // Chunk.SIZE * 1.3 is not sufficient at 16:9 so let's try 1.4
-            if (zm.all(@abs(pos - offset) < zm.f32x4s(Chunk.SIZE) * zm.f32x4s(1.4), 3) and !bench) {
+            if (zm.all(@abs(pos - offset) < zm.f32x4s(Chunk.SIZE) * zm.f32x4s(1.4), 3)) {
                 world.shader.set("model", f32, zm.matToArr(model));
                 world.shader.set("view", f32, zm.matToArr(view));
                 world.shader.set("proj", f32, zm.matToArr(proj));
@@ -174,24 +199,26 @@ pub const World = struct {
                     }
                     if (corner[2] < 0) continue :corners;
                 }
-                if (!bench) {
-                    world.shader.set("model", f32, zm.matToArr(model));
-                    world.shader.set("view", f32, zm.matToArr(view));
-                    world.shader.set("proj", f32, zm.matToArr(proj));
-                    chunk.mesh.draw(gl.TRIANGLES, null, chunk.atomics_buffer);
-                }
+                world.shader.set("model", f32, zm.matToArr(model));
+                world.shader.set("view", f32, zm.matToArr(view));
+                world.shader.set("proj", f32, zm.matToArr(proj));
+                chunk.mesh.draw(gl.TRIANGLES, null, chunk.atomics_buffer);
                 draws += 1;
                 break :corners;
             }
         }
         if (count) std.debug.print("{} / {}\n", .{ draws, attempts });
-        ns = @floatFromInt(timer.read());
-        if (bench) std.debug.print("Culling took {d:.3} ms\n", .{ns / 1_000_000});
     }
 
     // Chunk boundaries occur at multiples of Chunk.SIZE
     // The group of closest chunks changes halfway between these boundaries
     pub fn updateSplits(world: *@This(), cam_pos: ?zm.Vec) !void {
+        var timer = try std.time.Timer.start();
+        defer if (false) {
+            const ns: f32 = @floatFromInt(timer.read());
+            std.debug.print("Splits took {d:.3} ms\n", .{ns / 1_000_000});
+        };
+
         if (cam_pos) |pos| {
             world.cam_pos = (pos / zm.f32x4s(Chunk.SIZE)) - zm.f32x4s(0.5);
             world.cam_pos = zm.ceil(world.cam_pos) * zm.f32x4s(Chunk.SIZE);
@@ -200,8 +227,11 @@ pub const World = struct {
         const new_splits = splitsFromPos(world.cam_pos);
 
         try world.sync();
-        // ns = @floatFromInt(timer.lap());
-        // if (bench) std.debug.print("Sync took {d:.3} ms\n", .{ns / 1_000_000});
+
+        if (false) {
+            const ns: f32 = @floatFromInt(timer.lap());
+            std.debug.print("Sync took {d:.3} ms\n", .{ns / 1_000_000});
+        }
 
         if (zm.any(world.splits != new_splits, 3)) {
             var diff = new_splits - world.splits;
@@ -243,16 +273,18 @@ pub const World = struct {
             const max_diff: usize = @intFromFloat(@max(diff[0], @max(diff[1], diff[2])));
             world.dist_done = @min(MIP0_DIST, world.dist_done) -| max_diff; // Saturating sub on usize
             world.index_done = 0;
-            // ns = @floatFromInt(timer.lap());
-            // if (bench) std.debug.print("Splits took {d:.3} ms\n", .{ns / 1_000_000});
         }
     }
 
     pub fn gen(world: *@This()) !void {
-        const max_dist = CHUNKS / 2;
-        const bench = false;
         var timer = try std.time.Timer.start();
-        var ns: f32 = undefined;
+        defer if (false) {
+            const ns: f32 = @floatFromInt(timer.read());
+            std.debug.print("Generation took {d:.3} ms\n", .{ns / 1_000_000});
+        };
+
+        const max_dist = CHUNKS / 2;
+
         var start_index = world.index_done;
         var all_done = true;
 
@@ -312,8 +344,6 @@ pub const World = struct {
             start_index = 0;
             if (all_done and big < max_dist) world.index_done = 0;
         }
-        ns = @floatFromInt(timer.read());
-        if (bench) std.debug.print("Gen took {d:.3} ms\n", .{ns / 1_000_000});
     }
 
     pub fn genChunkDensity(
@@ -359,16 +389,19 @@ pub const World = struct {
             },
             .compute => {
                 var timer = try std.time.Timer.start();
+                defer if (false) {
+                    const ns: f32 = @floatFromInt(timer.read());
+                    std.debug.print("Density compute shader took {d:.3} ms\n", .{ns / 1_000_000});
+                };
                 gl.bindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, chunk.density_buffer.?); // 0 is the index chosen in main
-                world.density_shader.use();
-                world.surface_shader.set("chunk_size", gl.GLuint, @as(gl.GLuint, @intCast(Chunk.SIZE)));
-                world.density_shader.set("offset", f32, zm.vecToArr3(offset));
+                const shader = world.density_shader.?;
+                shader.use();
+                shader.set("chunk_size", gl.GLuint, @as(gl.GLuint, @intCast(Chunk.SIZE)));
+                shader.set("offset", f32, zm.vecToArr3(offset));
 
                 const groups = Chunk.SIZE / 4;
                 gl.dispatchCompute(groups, groups, groups);
                 gl.memoryBarrier(gl.BUFFER_UPDATE_BARRIER_BIT);
-                const ns: f32 = @floatFromInt(timer.read());
-                if (false) std.debug.print("genChunkDensity took {d:.3} ms\n", .{ns / 1_000_000});
             },
         }
         chunk.density_mip = chunk.wip_mip;
@@ -440,6 +473,10 @@ pub const World = struct {
             },
             .compute => {
                 var timer = try std.time.Timer.start();
+                defer if (false) {
+                    const ns: f32 = @floatFromInt(timer.read());
+                    std.debug.print("Surface compute shader took {d:.3} ms\n", .{ns / 1_000_000});
+                };
                 var values = [_]gl.GLuint{ 0, 1, 0, 0 };
                 gl.bindBuffer(gl.ATOMIC_COUNTER_BUFFER, chunk.atomics_buffer.?);
                 defer gl.bindBuffer(gl.ATOMIC_COUNTER_BUFFER, 0);
@@ -448,16 +485,15 @@ pub const World = struct {
                 gl.bindBufferBase(gl.ATOMIC_COUNTER_BUFFER, 0, chunk.atomics_buffer.?); // 0 is the binding in the shader
                 gl.bindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, chunk.density_buffer.?); // 0 is the index chosen in main
                 gl.bindBufferBase(gl.SHADER_STORAGE_BUFFER, 1, chunk.mesh.vbos.?[0]); // 1 is the index chosen in main
-                world.surface_shader.use();
-                world.surface_shader.set("chunk_size", gl.GLuint, @as(gl.GLuint, @intCast(Chunk.SIZE)));
-                world.surface_shader.set("mip_scale", f32, std.math.pow(f32, 2, @floatFromInt(chunk.wip_mip.?)));
-                world.surface_shader.set("offset", f32, zm.vecToArr3(offset));
+                const shader = world.surface_shader.?;
+                shader.use();
+                shader.set("chunk_size", gl.GLuint, @as(gl.GLuint, @intCast(Chunk.SIZE)));
+                shader.set("mip_scale", f32, std.math.pow(f32, 2, @floatFromInt(chunk.wip_mip.?)));
+                shader.set("offset", f32, zm.vecToArr3(offset));
 
                 const groups = Chunk.SIZE / 4;
                 gl.dispatchCompute(groups, groups, groups);
                 gl.memoryBarrier(gl.BUFFER_UPDATE_BARRIER_BIT | gl.ATOMIC_COUNTER_BARRIER_BIT);
-                const ns: f32 = @floatFromInt(timer.read());
-                if (false) std.debug.print("genChunkSurface took {d:.3} ms\n", .{ns / 1_000_000});
             },
         }
         chunk.surface_mip = chunk.wip_mip;
