@@ -210,8 +210,8 @@ pub const Window = struct {
         }
         win.time = new_time;
 
-        win.set_active(.attack1, false);
-        win.set_active(.attack2, false);
+        win.setActive(.attack1, false);
+        win.setActive(.attack2, false);
         glfw.pollEvents();
         win.input = @splat(0);
         if (win.active(.left)) win.input[0] -= 1;
@@ -244,7 +244,7 @@ pub const Window = struct {
         return win.actionState[@intFromEnum(action)];
     }
 
-    fn set_active(win: *@This(), action: Action, b: bool) void {
+    fn setActive(win: *@This(), action: Action, b: bool) void {
         win.actionState[@intFromEnum(action)] = b;
     }
 

@@ -1,7 +1,7 @@
 const gl = @import("gl");
 
 pub const Texture = struct {
-    id: ?gl.GLuint,
+    id: ?gl.GLuint = null,
     cfg: struct {
         width: gl.GLsizei,
         height: gl.GLsizei,
@@ -16,43 +16,48 @@ pub const Texture = struct {
         fbo_attach: ?gl.GLenum = null,
     },
 
+    pub const Size2D = struct {
+        width: ?gl.GLsizei,
+        height: ?gl.GLsizei,
+    };
+
     pub fn init(cfg: @TypeOf(@as(@This(), undefined).cfg)) @This() {
-        var texture = @This(){ .id = null, .cfg = cfg };
-        errdefer texture.kill();
-        texture.id = undefined;
-        gl.genTextures(1, &texture.id.?);
-        texture.bind();
+        var tex = @This(){ .cfg = cfg };
+        errdefer tex.kill();
+        tex.id = undefined;
+        gl.genTextures(1, &tex.id.?);
+        tex.bind();
         defer unbind();
-        texture.upload();
+        tex.upload();
         gl.texParameteri(
             gl.TEXTURE_2D,
             gl.TEXTURE_MIN_FILTER,
-            texture.cfg.min_filter,
+            tex.cfg.min_filter,
         );
         gl.texParameteri(
             gl.TEXTURE_2D,
             gl.TEXTURE_MAG_FILTER,
-            texture.cfg.mag_filter,
+            tex.cfg.mag_filter,
         );
-        if (texture.cfg.wrap_s) |wrap_s| gl.texParameteri(
+        if (tex.cfg.wrap_s) |wrap_s| gl.texParameteri(
             gl.TEXTURE_2D,
             gl.TEXTURE_WRAP_S,
             wrap_s,
         );
-        if (texture.cfg.wrap_t) |wrap_t| gl.texParameteri(
+        if (tex.cfg.wrap_t) |wrap_t| gl.texParameteri(
             gl.TEXTURE_2D,
             gl.TEXTURE_WRAP_T,
             wrap_t,
         );
-        if (texture.cfg.fbo_attach) |attach| gl.framebufferTexture2D(
+        if (tex.cfg.fbo_attach) |attach| gl.framebufferTexture2D(
             gl.FRAMEBUFFER,
             attach,
             gl.TEXTURE_2D,
-            texture.id.?,
+            tex.id.?,
             0,
         );
 
-        return texture;
+        return tex;
     }
 
     pub fn kill(tex: *@This()) void {
@@ -62,10 +67,7 @@ pub const Texture = struct {
         }
     }
 
-    pub fn resize(tex: *@This(), size: struct {
-        width: ?gl.GLsizei,
-        height: ?gl.GLsizei,
-    }) void {
+    pub fn resize(tex: *@This(), size: Size2D) void {
         if (size.width) |width| tex.cfg.width = width;
         if (size.height) |height| tex.cfg.height = height;
         tex.bind();

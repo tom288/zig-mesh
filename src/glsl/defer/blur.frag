@@ -6,7 +6,7 @@ in vec2 uv;
 
 out float colour;
 
-const int RAD = 2;
+const int RAD = 2;  // Should match gfx.zig (SSAO_NOISE_SIZE - 1) / 2
 
 void main() {
     vec2 texel_size = 1 / vec2(textureSize(tex, 0));

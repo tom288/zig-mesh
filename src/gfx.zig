@@ -5,6 +5,7 @@ const Shader = @import("shader.zig").Shader;
 const Quad = @import("quad.zig").Quad;
 const Texture = @import("texture.zig").Texture;
 const Window = @import("window.zig").Window;
+const Framebuffer = @import("framebuffer.zig").Framebuffer;
 
 pub const DeferredShading = struct {
     quad: ?Quad = null,
@@ -14,25 +15,18 @@ pub const DeferredShading = struct {
     blur_shader: ?Shader = null,
     compose_shader: ?Shader = null,
 
-    g_buffer: ?gl.GLuint = null,
-    g_pos: ?Texture = null,
-    g_norm: ?Texture = null,
-    g_albedo_spec: ?Texture = null,
+    g_buffer: ?Framebuffer(3) = null,
 
-    rbo_depth: ?gl.GLuint = null,
-
-    ssao_buffer: ?gl.GLuint = null,
+    ssao_buffer: ?Framebuffer(1) = null,
     ssao_kernel: [SSAO_KERNEL_SAMPLES * SSAO_KERNEL_COMPONENTS]f32,
-    noise_texture: ?Texture = null,
     ssao_noise: [SSAO_NOISE_SIZE * SSAO_NOISE_SIZE * SSAO_NOISE_COMPONENTS]f32,
-    ssao_tex: ?Texture = null,
+    noise_texture: ?Texture = null,
 
-    blur_buffer: ?gl.GLuint = null,
-    blur_texture: ?Texture = null,
+    blur_buffer: ?Framebuffer(1) = null,
 
     const SSAO_KERNEL_SAMPLES = 64;
     const SSAO_KERNEL_COMPONENTS = 3;
-    const SSAO_NOISE_SIZE = 5;
+    const SSAO_NOISE_SIZE = 5; // Should match defer/blur.frag RAD * 2 + 1
     const SSAO_NOISE_COMPONENTS = 2;
 
     pub fn init(alloc: std.mem.Allocator, resolution: zm.Vec) !@This() {
@@ -77,81 +71,48 @@ pub const DeferredShading = struct {
         const res: @Vector(4, gl.GLint) = @intFromFloat(resolution);
         const size = .{ .width = res[0], .height = res[1] };
 
-        gfx.g_buffer = undefined;
-        gl.genFramebuffers(1, &gfx.g_buffer.?);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, gfx.g_buffer.?);
-
-        gfx.g_pos = Texture.init(.{
-            .width = size.width,
-            .height = size.height,
-            .format = gl.RGBA,
-            .internal_format = gl.RGBA16F,
-            .wrap_s = gl.CLAMP_TO_EDGE,
-            .wrap_t = gl.CLAMP_TO_EDGE,
-            .fbo_attach = gl.COLOR_ATTACHMENT0,
+        gfx.g_buffer = Framebuffer(3).init(.{
+            .colour = .{
+                .{
+                    .width = size.width,
+                    .height = size.height,
+                    .format = gl.RGBA,
+                    .internal_format = gl.RGBA16F,
+                    .wrap_s = gl.CLAMP_TO_EDGE,
+                    .wrap_t = gl.CLAMP_TO_EDGE,
+                    .fbo_attach = gl.COLOR_ATTACHMENT0,
+                },
+                .{
+                    .width = size.width,
+                    .height = size.height,
+                    .format = gl.RGBA,
+                    .internal_format = gl.RGBA16F,
+                    .fbo_attach = gl.COLOR_ATTACHMENT1,
+                },
+                .{
+                    .width = size.width,
+                    .height = size.height,
+                    .format = gl.RGBA,
+                    .internal_format = gl.RGBA,
+                    .type = gl.UNSIGNED_BYTE,
+                    .fbo_attach = gl.COLOR_ATTACHMENT2,
+                },
+            },
+            .depth = size,
         });
-
-        gfx.g_norm = Texture.init(.{
-            .width = size.width,
-            .height = size.height,
-            .format = gl.RGBA,
-            .internal_format = gl.RGBA16F,
-            .fbo_attach = gl.COLOR_ATTACHMENT1,
-        });
-
-        gfx.g_albedo_spec = Texture.init(.{
-            .width = size.width,
-            .height = size.height,
-            .format = gl.RGBA,
-            .internal_format = gl.RGBA,
-            .type = gl.UNSIGNED_BYTE,
-            .fbo_attach = gl.COLOR_ATTACHMENT2,
-        });
-
-        // Choose which attachments of this framebuffer will be used for rendering
-        gl.drawBuffers(3, &[3]gl.GLuint{
-            gl.COLOR_ATTACHMENT0,
-            gl.COLOR_ATTACHMENT1,
-            gl.COLOR_ATTACHMENT2,
-        });
-
-        // Create and attach depth buffer
-        gfx.rbo_depth = undefined;
-        gl.genRenderbuffers(1, &gfx.rbo_depth.?);
-        gl.bindRenderbuffer(gl.RENDERBUFFER, gfx.rbo_depth.?);
-        gl.renderbufferStorage(
-            gl.RENDERBUFFER,
-            gl.DEPTH_COMPONENT,
-            size.width,
-            size.height,
-        );
-        gl.bindRenderbuffer(gl.RENDERBUFFER, 0);
-
-        gl.framebufferRenderbuffer(
-            gl.FRAMEBUFFER,
-            gl.DEPTH_ATTACHMENT,
-            gl.RENDERBUFFER,
-            gfx.rbo_depth.?,
-        );
-
-        std.debug.assert(gl.checkFramebufferStatus(gl.FRAMEBUFFER) == gl.FRAMEBUFFER_COMPLETE);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, 0);
 
         // Create framebuffer for SSAO result
-        gfx.ssao_buffer = undefined;
-        gl.genFramebuffers(1, &gfx.ssao_buffer.?);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, gfx.ssao_buffer.?);
-        gfx.ssao_tex = Texture.init(.{
-            .width = size.width,
-            .height = size.height,
-            .format = gl.RED,
-            .internal_format = gl.RED,
-            .wrap_s = gl.CLAMP_TO_EDGE,
-            .wrap_t = gl.CLAMP_TO_EDGE,
-            .fbo_attach = gl.COLOR_ATTACHMENT0,
-        });
-        std.debug.assert(gl.checkFramebufferStatus(gl.FRAMEBUFFER) == gl.FRAMEBUFFER_COMPLETE);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, 0);
+        gfx.ssao_buffer = Framebuffer(1).init(.{ .colour = .{
+            .{
+                .width = size.width,
+                .height = size.height,
+                .format = gl.RED,
+                .internal_format = gl.RED,
+                .wrap_s = gl.CLAMP_TO_EDGE,
+                .wrap_t = gl.CLAMP_TO_EDGE,
+                .fbo_attach = gl.COLOR_ATTACHMENT0,
+            },
+        } });
 
         // Generate sample kernel
         var rng = std.rand.DefaultPrng.init(0);
@@ -177,18 +138,15 @@ pub const DeferredShading = struct {
         }
 
         // Create framebuffer for SSAO blur result
-        gfx.blur_buffer = undefined;
-        gl.genFramebuffers(1, &gfx.blur_buffer.?);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, gfx.blur_buffer.?);
-        gfx.blur_texture = Texture.init(.{
-            .width = size.width,
-            .height = size.height,
-            .format = gl.RED,
-            .internal_format = gl.RED,
-            .fbo_attach = gl.COLOR_ATTACHMENT0,
-        });
-        std.debug.assert(gl.checkFramebufferStatus(gl.FRAMEBUFFER) == gl.FRAMEBUFFER_COMPLETE);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, 0);
+        gfx.blur_buffer = Framebuffer(1).init(.{ .colour = .{
+            .{
+                .width = size.width,
+                .height = size.height,
+                .format = gl.RED,
+                .internal_format = gl.RED,
+                .fbo_attach = gl.COLOR_ATTACHMENT0,
+            },
+        } });
 
         // Generate noise texture
         for (0..SSAO_NOISE_SIZE * SSAO_NOISE_SIZE) |i| {
@@ -228,36 +186,18 @@ pub const DeferredShading = struct {
         gfx.compose_shader.?.use();
         // gfx.compose_shader.?.set("g_pos", gl.GLint, 0);
         // gfx.compose_shader.?.set("g_norm", gl.GLint, 1);
-        gfx.compose_shader.?.set("g_albedo_spec", gl.GLint, 2);
-        gfx.compose_shader.?.set("ssao", gl.GLint, 3);
+        gfx.compose_shader.?.set("g_albedo_spec", gl.GLint, 0);
+        gfx.compose_shader.?.set("ssao", gl.GLint, 1);
 
         return gfx;
     }
 
     pub fn kill(gfx: *@This()) void {
         inline for (&.{
-            &gfx.g_buffer,
-            &gfx.ssao_buffer,
             &gfx.blur_buffer,
-        }) |*fbo| {
-            if (fbo.*.*) |f| {
-                gl.deleteFramebuffers(1, &f);
-                fbo.*.* = null;
-            }
-        }
-
-        if (gfx.rbo_depth) |rbo| {
-            gl.deleteRenderbuffers(1, &rbo);
-            gfx.rbo_depth = null;
-        }
-
-        inline for (&.{
-            &gfx.blur_texture,
             &gfx.noise_texture,
-            &gfx.ssao_tex,
-            &gfx.g_albedo_spec,
-            &gfx.g_norm,
-            &gfx.g_pos,
+            &gfx.ssao_buffer,
+            &gfx.g_buffer,
             &gfx.compose_shader,
             &gfx.blur_shader,
             &gfx.ssao_shader,
@@ -279,25 +219,14 @@ pub const DeferredShading = struct {
         const res: @Vector(4, gl.GLint) = @intFromFloat(resolution);
         const size = .{ .width = res[0], .height = res[1] };
 
-        gfx.g_pos.?.resize(size);
-        gfx.g_norm.?.resize(size);
-        gfx.g_albedo_spec.?.resize(size);
-        gfx.ssao_tex.?.resize(size);
-        gfx.blur_texture.?.resize(size);
-
-        gl.bindRenderbuffer(gl.RENDERBUFFER, gfx.rbo_depth.?);
-        gl.renderbufferStorage(
-            gl.RENDERBUFFER,
-            gl.DEPTH_COMPONENT,
-            size.width,
-            size.height,
-        );
-        gl.bindRenderbuffer(gl.RENDERBUFFER, 0);
+        gfx.g_buffer.?.resize(size);
+        gfx.ssao_buffer.?.resize(size);
+        gfx.blur_buffer.?.resize(size);
     }
 
     pub fn prep(gfx: @This()) void {
         // Render geometry to G-buffer
-        gl.bindFramebuffer(gl.FRAMEBUFFER, gfx.g_buffer.?);
+        gfx.g_buffer.?.bind();
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         gfx.gbuffer_shader.?.use();
     }
@@ -306,22 +235,22 @@ pub const DeferredShading = struct {
         gl.bindFramebuffer(gl.FRAMEBUFFER, 0);
 
         // Generate SSAO texture
-        gl.bindFramebuffer(gl.FRAMEBUFFER, gfx.ssao_buffer.?);
+        gfx.ssao_buffer.?.bind();
         gl.clear(gl.COLOR_BUFFER_BIT);
         gfx.ssao_shader.?.use();
-        gfx.ssao_shader.?.set_n("samples", f32, SSAO_KERNEL_SAMPLES, gfx.ssao_kernel);
+        gfx.ssao_shader.?.setN("samples", f32, SSAO_KERNEL_SAMPLES, gfx.ssao_kernel);
         gfx.ssao_shader.?.set("proj", f32, zm.matToArr(proj));
-        gfx.g_pos.?.activate(gl.TEXTURE0);
-        gfx.g_norm.?.activate(gl.TEXTURE1);
+        gfx.g_buffer.?.activate(0, 0);
+        gfx.g_buffer.?.activate(1, 1);
         gfx.noise_texture.?.activate(gl.TEXTURE2);
         gfx.quad.?.draw();
         gl.bindFramebuffer(gl.FRAMEBUFFER, 0);
 
         // Blur SSAO texture
-        gl.bindFramebuffer(gl.FRAMEBUFFER, gfx.blur_buffer.?);
+        gfx.blur_buffer.?.bind();
         gl.clear(gl.COLOR_BUFFER_BIT);
         gfx.blur_shader.?.use();
-        gfx.ssao_tex.?.activate(gl.TEXTURE0);
+        gfx.ssao_buffer.?.activate(0, 0);
         gfx.quad.?.draw();
         gl.bindFramebuffer(gl.FRAMEBUFFER, 0);
 
@@ -330,8 +259,8 @@ pub const DeferredShading = struct {
         gfx.compose_shader.?.use();
         // g_pos.activate(gl.TEXTURE0);
         // g_norm.activate(gl.TEXTURE1);
-        gfx.g_albedo_spec.?.activate(gl.TEXTURE2);
-        gfx.blur_texture.?.activate(gl.TEXTURE3);
+        gfx.g_buffer.?.activate(2, 0);
+        gfx.blur_buffer.?.activate(0, 1);
         gfx.quad.?.draw();
     }
 };

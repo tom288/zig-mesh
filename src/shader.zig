@@ -84,10 +84,10 @@ pub const Shader = struct {
     }
 
     pub fn set(shader: @This(), name: [:0]const u8, comptime T: type, value: anytype) void {
-        shader.set_n(name, T, 1, value);
+        shader.setN(name, T, 1, value);
     }
 
-    pub fn set_n(shader: @This(), name: [:0]const u8, comptime T: type, n: gl.GLint, value: anytype) void {
+    pub fn setN(shader: @This(), name: [:0]const u8, comptime T: type, n: gl.GLint, value: anytype) void {
         const id = shader.id.?;
         const location = gl.getUniformLocation(id, name);
         if (location == -1) {
