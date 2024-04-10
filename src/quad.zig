@@ -10,13 +10,10 @@ const glTypeEnum = @import("mesh.zig").glTypeEnum;
 pub const Quad = QuadT(f32);
 
 fn QuadT(T: type) type {
-    // This can be inlined if it's possible to get the non-null @TypeOf(T) of ?T
-    const QuadMesh = Mesh(.{.{
-        .{ .name = "position", .size = 2, .type = glTypeEnum(T) catch unreachable },
-    }});
-
     return struct {
-        mesh: ?QuadMesh,
+        mesh: ?Mesh(.{.{
+            .{ .name = "position", .size = 2, .type = glTypeEnum(T) catch unreachable },
+        }}),
 
         // Return an initialised Quad with pre-uploaded vertices
         pub fn init(
@@ -44,7 +41,8 @@ fn QuadT(T: type) type {
         ) !@This() {
             var quad = @This(){ .mesh = null };
             errdefer quad.kill();
-            quad.mesh = try QuadMesh.init(cfg.shader);
+            quad.mesh = undefined;
+            quad.mesh = try (@TypeOf(quad.mesh.?)).init(cfg.shader);
             const min = cfg.min.?; // Default min CFG.MIN incompatible with T
             const max = cfg.max.?; // Default max CFG.MAX incompatible with T
             try quad.mesh.?.upload(.{&[_]T{

@@ -394,10 +394,10 @@ pub const World = struct {
                     std.debug.print("Density compute shader took {d:.3} ms\n", .{ns / 1_000_000});
                 };
                 gl.bindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, chunk.density_buffer.?); // 0 is the index chosen in main
-                const shader = world.density_shader.?;
-                shader.use();
-                shader.set("chunk_size", gl.GLuint, @as(gl.GLuint, @intCast(Chunk.SIZE)));
-                shader.set("offset", f32, zm.vecToArr3(offset));
+                const density_shader = world.density_shader.?;
+                density_shader.use();
+                density_shader.set("chunk_size", gl.GLuint, @as(gl.GLuint, @intCast(Chunk.SIZE)));
+                density_shader.set("offset", f32, zm.vecToArr3(offset));
 
                 const groups = Chunk.SIZE / 4;
                 gl.dispatchCompute(groups, groups, groups);
@@ -485,11 +485,11 @@ pub const World = struct {
                 gl.bindBufferBase(gl.ATOMIC_COUNTER_BUFFER, 0, chunk.atomics_buffer.?); // 0 is the binding in the shader
                 gl.bindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, chunk.density_buffer.?); // 0 is the index chosen in main
                 gl.bindBufferBase(gl.SHADER_STORAGE_BUFFER, 1, chunk.mesh.vbos.?[0]); // 1 is the index chosen in main
-                const shader = world.surface_shader.?;
-                shader.use();
-                shader.set("chunk_size", gl.GLuint, @as(gl.GLuint, @intCast(Chunk.SIZE)));
-                shader.set("mip_scale", f32, std.math.pow(f32, 2, @floatFromInt(chunk.wip_mip.?)));
-                shader.set("offset", f32, zm.vecToArr3(offset));
+                const surface_shader = world.surface_shader.?;
+                surface_shader.use();
+                surface_shader.set("chunk_size", gl.GLuint, @as(gl.GLuint, @intCast(Chunk.SIZE)));
+                surface_shader.set("mip_scale", f32, std.math.pow(f32, 2, @floatFromInt(chunk.wip_mip.?)));
+                surface_shader.set("offset", f32, zm.vecToArr3(offset));
 
                 const groups = Chunk.SIZE / 4;
                 gl.dispatchCompute(groups, groups, groups);
@@ -716,7 +716,7 @@ pub const World = struct {
                                 const neighbour = &world.chunks[try world.indexFromOffset(neighbour_pos, null)];
                                 if (neighbour.density_refs == 0 and neighbour.wip_mip == null) {
                                     neighbour.surface_mip = null; // Request surface regen
-                                } else unreachable; // TODO add to a queue in the case of .multi
+                                } // TODO else add to a queue in the case of .multi
                             }
                         }
                     }

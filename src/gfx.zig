@@ -15,14 +15,14 @@ pub const DeferredShading = struct {
     blur_shader: ?Shader = null,
     compose_shader: ?Shader = null,
 
-    g_buffer: ?Framebuffer(3) = null,
+    g_buffer: ?Framebuffer(.{ "g_pos", "g_norm", "g_albedo_spec" }) = null,
 
-    ssao_buffer: ?Framebuffer(1) = null,
+    ssao_buffer: ?Framebuffer(.{"raw"}) = null,
     ssao_kernel: [SSAO_KERNEL_SAMPLES * SSAO_KERNEL_COMPONENTS]f32,
     ssao_noise: [SSAO_NOISE_SIZE * SSAO_NOISE_SIZE * SSAO_NOISE_COMPONENTS]f32,
     noise_texture: ?Texture = null,
 
-    blur_buffer: ?Framebuffer(1) = null,
+    blur_buffer: ?Framebuffer(.{"ssao"}) = null,
 
     const SSAO_KERNEL_SAMPLES = 64;
     const SSAO_KERNEL_COMPONENTS = 3;
@@ -71,7 +71,8 @@ pub const DeferredShading = struct {
         const res: @Vector(4, gl.GLint) = @intFromFloat(resolution);
         const size = .{ .width = res[0], .height = res[1] };
 
-        gfx.g_buffer = Framebuffer(3).init(.{
+        gfx.g_buffer = undefined;
+        gfx.g_buffer = @TypeOf(gfx.g_buffer.?).init(.{
             .colour = .{
                 .{
                     .width = size.width,
@@ -102,7 +103,8 @@ pub const DeferredShading = struct {
         });
 
         // Create framebuffer for SSAO result
-        gfx.ssao_buffer = Framebuffer(1).init(.{ .colour = .{
+        gfx.ssao_buffer = undefined;
+        gfx.ssao_buffer = @TypeOf(gfx.ssao_buffer.?).init(.{ .colour = .{
             .{
                 .width = size.width,
                 .height = size.height,
@@ -138,7 +140,8 @@ pub const DeferredShading = struct {
         }
 
         // Create framebuffer for SSAO blur result
-        gfx.blur_buffer = Framebuffer(1).init(.{ .colour = .{
+        gfx.blur_buffer = undefined;
+        gfx.blur_buffer = @TypeOf(gfx.blur_buffer.?).init(.{ .colour = .{
             .{
                 .width = size.width,
                 .height = size.height,
@@ -240,8 +243,8 @@ pub const DeferredShading = struct {
         gfx.ssao_shader.?.use();
         gfx.ssao_shader.?.setN("samples", f32, SSAO_KERNEL_SAMPLES, gfx.ssao_kernel);
         gfx.ssao_shader.?.set("proj", f32, zm.matToArr(proj));
-        gfx.g_buffer.?.activate(0, 0);
-        gfx.g_buffer.?.activate(1, 1);
+        gfx.g_buffer.?.activate("g_pos", 0);
+        gfx.g_buffer.?.activate("g_norm", 1);
         gfx.noise_texture.?.activate(gl.TEXTURE2);
         gfx.quad.?.draw();
         gl.bindFramebuffer(gl.FRAMEBUFFER, 0);
@@ -250,7 +253,7 @@ pub const DeferredShading = struct {
         gfx.blur_buffer.?.bind();
         gl.clear(gl.COLOR_BUFFER_BIT);
         gfx.blur_shader.?.use();
-        gfx.ssao_buffer.?.activate(0, 0);
+        gfx.ssao_buffer.?.activate("raw", 0);
         gfx.quad.?.draw();
         gl.bindFramebuffer(gl.FRAMEBUFFER, 0);
 
@@ -259,8 +262,8 @@ pub const DeferredShading = struct {
         gfx.compose_shader.?.use();
         // g_pos.activate(gl.TEXTURE0);
         // g_norm.activate(gl.TEXTURE1);
-        gfx.g_buffer.?.activate(2, 0);
-        gfx.blur_buffer.?.activate(0, 1);
+        gfx.g_buffer.?.activate("g_albedo_spec", 0);
+        gfx.blur_buffer.?.activate("ssao", 1);
         gfx.quad.?.draw();
     }
 };

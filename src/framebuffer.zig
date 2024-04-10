@@ -4,14 +4,14 @@ const Texture = @import("texture.zig").Texture;
 
 const TextureCFG = @TypeOf(@as(Texture, undefined).cfg);
 
-pub fn Framebuffer(tex_count: usize) type {
+pub fn Framebuffer(tex_names: anytype) type {
     return struct {
         id: ?gl.GLuint = null,
-        textures: [tex_count]Texture,
+        textures: [tex_names.len]Texture,
         depth: ?gl.GLuint = null,
 
         pub fn init(cfg: struct {
-            colour: [tex_count]TextureCFG,
+            colour: [tex_names.len]TextureCFG,
             depth: ?Texture.Size2D = null,
         }) @This() {
             var fbo = @This(){
@@ -25,7 +25,7 @@ pub fn Framebuffer(tex_count: usize) type {
             fbo.bind();
             defer unbind();
 
-            var buffers: [tex_count]gl.GLenum = undefined;
+            var buffers: [tex_names.len]gl.GLenum = undefined;
 
             for (0.., cfg.colour) |i, colour| {
                 fbo.textures[i] = Texture.init(colour);
@@ -34,7 +34,7 @@ pub fn Framebuffer(tex_count: usize) type {
 
             if (cfg.depth) |size| {
                 // Choose which attachments of this framebuffer will be used for rendering
-                gl.drawBuffers(tex_count, &buffers);
+                gl.drawBuffers(tex_names.len, &buffers);
 
                 fbo.depth = undefined;
                 gl.genRenderbuffers(1, &fbo.depth.?);
@@ -101,8 +101,14 @@ pub fn Framebuffer(tex_count: usize) type {
             _bind(0);
         }
 
-        pub fn activate(fbo: @This(), index: usize, unit: usize) void {
-            fbo.textures[index].activate(gl.TEXTURE0 + @as(gl.GLenum, @intCast(unit)));
+        pub fn activate(fbo: @This(), tex_name: [:0]const u8, unit: usize) void {
+            inline for (0.., tex_names) |i, name| {
+                if (std.mem.eql(u8, name, tex_name)) {
+                    fbo.textures[i].activate(gl.TEXTURE0 + @as(gl.GLenum, @intCast(unit)));
+                    return;
+                }
+            }
+            unreachable; // TODO name not found
         }
     };
 }
