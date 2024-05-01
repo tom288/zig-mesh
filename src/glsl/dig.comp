@@ -1,0 +1,18 @@
+#version 460 core
+
+// #include snip/comp/layout.vert
+
+buffer density_block {
+    float density[];
+};
+
+uniform uint chunk_size;
+
+// #include snip/comp/index.vert
+
+void main() {
+    // Calculate the index of density that corresponds to this thread
+    const uint id = threadIndex();
+
+    // TODO Dig
+}

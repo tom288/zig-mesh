@@ -227,7 +227,7 @@ pub fn Mesh(comptime attrs: anytype) type {
                             attr.name,
                         );
                         if (name_index == -1) {
-                            std.log.err("Failed to find {s} in shader\n", .{attr.name});
+                            std.log.err("Failed to find input \"{s}\" in shader\n", .{attr.name});
                             return error.AttrNotFound;
                         } else {
                             index = @intCast(name_index);

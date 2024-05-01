@@ -8,6 +8,7 @@ const Chunk = @import("chunk.zig").Chunk;
 const Shader = @import("shader.zig").Shader;
 const Pool = @import("pool.zig").Pool;
 const Surface = @import("surface.zig");
+const Mesh = @import("mesh.zig").Mesh;
 
 pub const World = struct {
     alloc: std.mem.Allocator,
@@ -20,6 +21,10 @@ pub const World = struct {
     dist_done: usize = 0,
     index_done: usize = 0,
     pool: Pool(WorkerData),
+    planes: Mesh(.{.{
+        .{ .name = "position", .size = 3, .type = gl.FLOAT },
+        .{ .name = "axis", .size = 1, .type = gl.UNSIGNED_INT },
+    }}),
 
     const SIZE = Chunk.SIZE * CHUNKS;
     const CHUNKS = 16;
@@ -29,6 +34,11 @@ pub const World = struct {
         multi,
         compute,
     }.multi;
+    pub const OVERDRAW = enum {
+        naive,
+        greedy,
+        global_lattice,
+    }.global_lattice;
 
     pub fn init(
         alloc: std.mem.Allocator,
@@ -42,6 +52,7 @@ pub const World = struct {
             .cam_pos = cam_pos orelse zm.f32x4s(0),
             .splits = undefined,
             .pool = undefined,
+            .planes = undefined,
         };
 
         world.density_shader = try Shader.initComp(alloc, "density");
@@ -51,67 +62,101 @@ pub const World = struct {
         }
         world.density_shader.?.bindBlock("density_block", 0);
 
-        world.surface_shader = try Shader.initComp(alloc, "surface");
-        errdefer {
-            world.surface_shader.?.kill();
-            world.surface_shader = null;
-        }
-        world.surface_shader.?.bindBlock("density_block", 0);
-        world.surface_shader.?.bindBlock("surface_block", 1);
-
-        world.chunks = try alloc.alloc(Chunk, CHUNKS * CHUNKS * CHUNKS);
-        errdefer {
-            alloc.free(world.chunks);
-            world.chunks = &.{};
-        }
-
-        var count: usize = 0;
-        errdefer for (0..count) |i| {
-            world.chunks[i].kill(alloc);
-        };
-
-        // Assign uninitialised chunks
-        for (world.chunks) |*chunk| {
-            chunk.* = .{
-                .density = &.{},
-                .surface = null,
-                .mesh = try @TypeOf(chunk.mesh).init(shader),
-                .must_free = false,
-                .density_mip = null,
-                .surface_mip = null,
-                .gpu_mip = null,
-                .wip_mip = null,
-                .density_refs = 0,
-                .splits_copy = null,
-                .density_buffer = null,
-                .atomics_buffer = null,
-            };
-            if (THREADING == .compute) {
-                const max_cubes = std.math.pow(usize, Chunk.SIZE, 3);
-
-                chunk.density_buffer = undefined;
-                gl.genBuffers(1, &chunk.density_buffer.?);
-                gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, chunk.density_buffer.?);
-                gl.bufferData(gl.SHADER_STORAGE_BUFFER, @intCast(max_cubes * @sizeOf(f32)), null, gl.STATIC_DRAW);
-                gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, 0);
-
-                chunk.atomics_buffer = undefined;
-                gl.genBuffers(1, &chunk.atomics_buffer.?);
-                gl.bindBuffer(gl.ATOMIC_COUNTER_BUFFER, chunk.atomics_buffer.?);
-                gl.bufferData(gl.ATOMIC_COUNTER_BUFFER, @sizeOf(gl.GLuint) * 4, null, gl.DYNAMIC_DRAW);
-                gl.bindBuffer(gl.ATOMIC_COUNTER_BUFFER, 0);
-
-                switch (Chunk.SURFACE) {
-                    Surface.Voxel => {
-                        try chunk.mesh.resizeVBOs((max_cubes - max_cubes / 2) * 6 * 2 * 3);
-                    },
-                    Surface.MarchingCubes => {
-                        try chunk.mesh.resizeVBOs(max_cubes * 5 * 3); // TODO reduce this further
-                    },
-                    else => unreachable,
+        switch (OVERDRAW) {
+            .global_lattice => {
+                // Radius of global lattice
+                const rad = 16;
+                // Vertex position data for global lattice planes
+                var plane_verts = std.ArrayList(f32).init(world.alloc);
+                defer plane_verts.deinit();
+                // Iterate over plane dimensions
+                for (0..3) |d| {
+                    // Iterate over planes for a given dimension
+                    for (0..rad * 2 + 1) |p| {
+                        // Iterate over vertices of a particular plane
+                        for (0..6) |v| {
+                            var max = zm.f32x4s(rad);
+                            max[3] = 0;
+                            max[d] = @as(f32, @floatFromInt(p)) - rad;
+                            if (v % 2 == 0) {
+                                max[if (d == 0) 1 else 0] *= -1;
+                            }
+                            if (v < 2 or v == 3) {
+                                max[if (d == 1) 2 else 1] *= -1;
+                            }
+                            try plane_verts.appendSlice(&zm.vecToArr3(max));
+                            try plane_verts.append(@bitCast(@as(gl.GLuint, @intCast(d))));
+                        }
+                    }
                 }
-            }
-            count += 1;
+                world.planes = try @TypeOf(world.planes).init(world.shader);
+                errdefer world.planes.kill();
+                try world.planes.upload(.{plane_verts.items});
+            },
+            else => {
+                world.surface_shader = try Shader.initComp(alloc, "surface");
+                errdefer {
+                    world.surface_shader.?.kill();
+                    world.surface_shader = null;
+                }
+                world.surface_shader.?.bindBlock("density_block", 0);
+                world.surface_shader.?.bindBlock("surface_block", 1);
+
+                world.chunks = try alloc.alloc(Chunk, CHUNKS * CHUNKS * CHUNKS);
+                errdefer {
+                    alloc.free(world.chunks);
+                    world.chunks = &.{};
+                }
+
+                var count: usize = 0;
+                errdefer for (0..count) |i| {
+                    world.chunks[i].kill(alloc);
+                };
+
+                // Assign uninitialised chunks
+                for (world.chunks) |*chunk| {
+                    chunk.* = .{
+                        .density = &.{},
+                        .surface = null,
+                        .mesh = try @TypeOf(chunk.mesh).init(shader),
+                        .must_free = false,
+                        .density_mip = null,
+                        .surface_mip = null,
+                        .gpu_mip = null,
+                        .wip_mip = null,
+                        .density_refs = 0,
+                        .splits_copy = null,
+                        .density_buffer = null,
+                        .atomics_buffer = null,
+                    };
+                    if (THREADING == .compute) {
+                        const max_cubes = std.math.pow(usize, Chunk.SIZE, 3);
+
+                        chunk.density_buffer = undefined;
+                        gl.genBuffers(1, &chunk.density_buffer.?);
+                        gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, chunk.density_buffer.?);
+                        gl.bufferData(gl.SHADER_STORAGE_BUFFER, @intCast(max_cubes * @sizeOf(f32)), null, gl.STATIC_DRAW);
+                        gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, 0);
+
+                        chunk.atomics_buffer = undefined;
+                        gl.genBuffers(1, &chunk.atomics_buffer.?);
+                        gl.bindBuffer(gl.ATOMIC_COUNTER_BUFFER, chunk.atomics_buffer.?);
+                        gl.bufferData(gl.ATOMIC_COUNTER_BUFFER, @sizeOf(gl.GLuint) * 4, null, gl.DYNAMIC_DRAW);
+                        gl.bindBuffer(gl.ATOMIC_COUNTER_BUFFER, 0);
+
+                        switch (Chunk.SURFACE) {
+                            Surface.Voxel => {
+                                try chunk.mesh.resizeVBOs((max_cubes - max_cubes / 2) * 6 * 2 * 3);
+                            },
+                            Surface.MarchingCubes => {
+                                try chunk.mesh.resizeVBOs(max_cubes * 5 * 3); // TODO reduce this further
+                            },
+                            else => unreachable,
+                        }
+                    }
+                    count += 1;
+                }
+            },
         }
 
         world.splits = splitsFromPos(world.cam_pos);
@@ -135,11 +180,18 @@ pub const World = struct {
         }
         world.pool.kill(world.alloc);
         // Free everything
-        for (world.chunks) |*chunk| {
-            chunk.kill(world.alloc);
+        switch (OVERDRAW) {
+            .global_lattice => {
+                world.planes.kill();
+            },
+            else => {
+                for (world.chunks) |*chunk| {
+                    chunk.kill(world.alloc);
+                }
+                world.alloc.free(world.chunks);
+                world.chunks = &.{};
+            },
         }
-        world.alloc.free(world.chunks);
-        world.chunks = &.{};
         // Free shaders
         inline for (&.{
             &world.density_shader,
@@ -153,6 +205,13 @@ pub const World = struct {
     }
 
     pub fn draw(world: @This(), pos: zm.Vec, view: zm.Mat, proj: zm.Mat) !void {
+        world.shader.set("view", f32, zm.matToArr(view));
+        world.shader.set("proj", f32, zm.matToArr(proj));
+        if (OVERDRAW == .global_lattice) {
+            world.shader.set("model", f32, zm.matToArr(zm.identity()));
+            world.planes.draw(gl.TRIANGLES, null, null);
+            return;
+        }
         var timer = try std.time.Timer.start();
         defer if (false) {
             const ns: f32 = @floatFromInt(timer.read());
@@ -175,8 +234,6 @@ pub const World = struct {
             // Chunk.SIZE * 1.3 is not sufficient at 16:9 so let's try 1.4
             if (zm.all(@abs(pos - offset) < zm.f32x4s(Chunk.SIZE) * zm.f32x4s(1.4), 3)) {
                 world.shader.set("model", f32, zm.matToArr(model));
-                world.shader.set("view", f32, zm.matToArr(view));
-                world.shader.set("proj", f32, zm.matToArr(proj));
                 chunk.mesh.draw(gl.TRIANGLES, null, chunk.atomics_buffer);
                 draws += 1;
                 continue;
@@ -200,8 +257,6 @@ pub const World = struct {
                     if (corner[2] < 0) continue :corners;
                 }
                 world.shader.set("model", f32, zm.matToArr(model));
-                world.shader.set("view", f32, zm.matToArr(view));
-                world.shader.set("proj", f32, zm.matToArr(proj));
                 chunk.mesh.draw(gl.TRIANGLES, null, chunk.atomics_buffer);
                 draws += 1;
                 break :corners;
@@ -256,12 +311,17 @@ pub const World = struct {
                             pos[d1] *= @floatFromInt(i);
                             pos[d2] *= @floatFromInt(j);
                             pos += world.cam_pos - zm.f32x4s(SIZE - Chunk.SIZE) / zm.f32x4s(2);
-                            const chunk_index = try world.indexFromOffset(pos, null);
-                            const chunk = &world.chunks[chunk_index];
-                            if (chunk.wip_mip != null or chunk.density_refs > 0) {
-                                chunk.must_free = true;
-                            } else {
-                                chunk.free(world.alloc, true);
+                            switch (OVERDRAW) {
+                                .global_lattice => {},
+                                else => {
+                                    const chunk_index = try world.indexFromOffset(pos, null);
+                                    const chunk = &world.chunks[chunk_index];
+                                    if (chunk.wip_mip != null or chunk.density_refs > 0) {
+                                        chunk.must_free = true;
+                                    } else {
+                                        chunk.free(world.alloc, true);
+                                    }
+                                },
                             }
                         }
                     }
@@ -507,6 +567,7 @@ pub const World = struct {
     // Return null if we have ran out of threads so that the caller can break
     // Return true if the chunk is already generated at a sufficient mip level
     pub fn genChunk(world: *@This(), pos: zm.Vec, mip_level: usize, edge: bool) !?bool {
+        if (OVERDRAW == .global_lattice) return true;
         const chunk_index = try world.indexFromOffset(pos, null);
         const chunk = &world.chunks[chunk_index];
 
@@ -671,16 +732,24 @@ pub const World = struct {
                     const chunk_pos = corner + zm.f32x4(x, y, z, 0);
                     const chunk_index = try world.indexFromOffset(chunk_pos, null);
                     const offset = world.offsetFromIndex(chunk_index, null);
-                    var chunk = world.chunks[chunk_index];
-                    switch (THREADING) {
-                        // TODO .multi should do this on another thread
-                        .single, .multi => try chunk.dig(pos - offset, rad),
-                        .compute => @panic("Digging is not implemented in compute shaders"),
+                    switch (OVERDRAW) {
+                        .global_lattice => {},
+                        else => {
+                            var chunk = world.chunks[chunk_index];
+                            switch (THREADING) {
+                                // TODO .multi should do this on another thread
+                                .single, .multi => try chunk.dig(pos - offset, rad),
+                                .compute => @panic("Digging is not implemented in compute shaders"),
+                            }
+                        },
                     }
                 }
             }
         }
         // Surface
+        if (OVERDRAW == .global_lattice) {
+            return;
+        }
         for (0..iters) |k| {
             var z = @as(f32, @floatFromInt(k)) * Chunk.SIZE;
             if (k + 1 == iters and rad > 0) {
