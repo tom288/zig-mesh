@@ -4,6 +4,7 @@
 const std = @import("std");
 const zm = @import("zmath");
 const Chunk = @import("chunk.zig").Chunk;
+const CFG = @import("cfg.zig");
 
 pub const Camera = struct {
     // Kinematics
@@ -134,7 +135,7 @@ pub const Camera = struct {
     }
 };
 
-const SPEED = @as(f32, Chunk.SIZE) * 2.5;
+const SPEED = @as(f32, CFG.chunk_blocks) * 2.5;
 const SCROLL = 0.2;
 const ACC_TIME = 0.125;
 const FRICTION = 12.5;

@@ -12,6 +12,7 @@ const Mesh = @import("mesh.zig").Mesh;
 const World = @import("world.zig").World;
 const Surface = @import("surface.zig");
 const Density = @import("density.zig");
+const CFG = @import("cfg.zig");
 
 pub const Chunk = struct {
     // The fullness at internal grid positions
@@ -47,10 +48,6 @@ pub const Chunk = struct {
     density_buffer: ?gl.GLuint,
     atomics_buffer: ?gl.GLuint,
 
-    pub const SIZE = 16;
-    pub const DENSITY = Density.Perlin;
-    pub const SURFACE = Surface.Voxel;
-
     pub fn free(chunk: *@This(), alloc: std.mem.Allocator, gpu: bool) void {
         if (chunk.wip_mip) |_| unreachable;
         if (chunk.density_refs > 0) unreachable;
@@ -80,22 +77,19 @@ pub const Chunk = struct {
             chunk.atomics_buffer = null;
         }
         chunk.mesh.kill();
+        chunk.mesh = undefined;
         chunk.free(alloc, false);
         chunk.gpu_mip = null;
     }
 
     pub fn genDensity(chunk: *@This(), offset: zm.Vec) !void {
-        DENSITY.gen(chunk, offset);
+        CFG.density.gen(chunk, offset);
     }
 
     pub fn genSurface(chunk: *@This(), world: World, offset: zm.Vec) !void {
-        // Noise generator used for colour
-        const gen = znoise.FnlGenerator{
-            .frequency = 0.4 / @as(f32, SIZE),
-        };
         chunk.surface.?.clearRetainingCapacity();
         for (0..chunk.density.len) |i| {
-            try SURFACE.gen(chunk, world, gen, chunk.posFromIndex(i), offset);
+            try CFG.surface.gen(chunk, world, chunk.posFromIndex(i), offset);
         }
         chunk.surface.?.shrinkAndFree(chunk.surface.?.items.len);
     }
@@ -103,22 +97,22 @@ pub const Chunk = struct {
     pub fn posFromIndex(chunk: @This(), index: usize) zm.Vec {
         const mip_level = chunk.wip_mip orelse chunk.density_mip.?;
         const mip_scale = std.math.pow(f32, 2, @floatFromInt(mip_level));
-        const size = SIZE / @as(usize, @intFromFloat(mip_scale));
+        const size = CFG.chunk_blocks / @as(usize, @intFromFloat(mip_scale));
         const half = @as(f32, @floatFromInt(size)) / 2;
         return (zm.f32x4(
             @floatFromInt(index % size),
             @floatFromInt(index / size % size),
             @floatFromInt(index / size / size),
-            half - SURFACE.CELL_OFFSET,
-        ) + zm.f32x4s(SURFACE.CELL_OFFSET - half)) * zm.f32x4s(mip_scale);
+            half - CFG.surface.CELL_OFFSET,
+        ) + zm.f32x4s(CFG.surface.CELL_OFFSET - half)) * zm.f32x4s(mip_scale);
     }
 
     pub fn indexFromPos(chunk: *@This(), _pos: zm.Vec) !usize {
         const mip_level = chunk.wip_mip orelse chunk.density_mip.?;
         const mip_scale = std.math.pow(f32, 2, @floatFromInt(mip_level));
-        const size = @This().SIZE / @as(usize, @intFromFloat(mip_scale));
+        const size = CFG.chunk_blocks / @as(usize, @intFromFloat(mip_scale));
 
-        const pos = zm.floor((_pos + zm.f32x4s(@as(f32, @This().SIZE) / 2)) / zm.f32x4s(mip_scale));
+        const pos = zm.floor((_pos + zm.f32x4s(@as(f32, CFG.chunk_blocks) / 2)) / zm.f32x4s(mip_scale));
         var index: usize = 0;
         for (0..3) |d| {
             const i = 2 - d;

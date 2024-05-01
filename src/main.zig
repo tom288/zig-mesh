@@ -5,7 +5,7 @@ const Window = @import("window.zig").Window;
 const Shader = @import("shader.zig").Shader;
 const World = @import("world.zig").World;
 const Camera = @import("camera.zig").Camera;
-const GFX = @import("gfx.zig").DeferredShading;
+const CFG = @import("cfg.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -21,7 +21,7 @@ pub fn main() !void {
     defer window.kill();
     window.clearColour(0.1, 0, 0.2, 1);
 
-    var gfx = try GFX.init(alloc, window.resolution);
+    var gfx = try CFG.gfx.init(alloc, window.resolution);
     defer gfx.kill();
 
     var world = try World.init(

@@ -17,7 +17,10 @@ pub fn Framebuffer(tex_names: anytype) type {
             var fbo = @This(){
                 .textures = undefined,
             };
-            errdefer fbo.kill();
+            errdefer {
+                fbo.kill();
+                fbo = undefined;
+            }
 
             fbo.id = undefined;
             gl.genFramebuffers(1, &fbo.id.?);

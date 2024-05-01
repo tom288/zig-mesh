@@ -9,6 +9,7 @@ const Shader = @import("shader.zig").Shader;
 const Pool = @import("pool.zig").Pool;
 const Surface = @import("surface.zig");
 const Mesh = @import("mesh.zig").Mesh;
+const CFG = @import("cfg.zig");
 
 pub const World = struct {
     alloc: std.mem.Allocator,
@@ -16,6 +17,7 @@ pub const World = struct {
     density_shader: ?Shader = null,
     surface_shader: ?Shader = null,
     chunks: []Chunk,
+    chunk_state: []bool,
     cam_pos: zm.Vec,
     splits: zm.Vec,
     dist_done: usize = 0,
@@ -25,20 +27,9 @@ pub const World = struct {
         .{ .name = "position", .size = 3, .type = gl.FLOAT },
         .{ .name = "axis", .size = 1, .type = gl.UNSIGNED_INT },
     }}),
+    global_density: []f32,
 
-    const SIZE = Chunk.SIZE * CHUNKS;
-    const CHUNKS = 16;
-    const MIP0_DIST = CHUNKS / 2; // CHUNKS / 2 = Whole world
-    const THREADING = enum {
-        single,
-        multi,
-        compute,
-    }.multi;
-    pub const OVERDRAW = enum {
-        naive,
-        greedy,
-        global_lattice,
-    }.global_lattice;
+    const MIP0_DIST = CFG.world_chunks / 2; // CFG.world_chunks / 2 = Whole world
 
     pub fn init(
         alloc: std.mem.Allocator,
@@ -49,10 +40,12 @@ pub const World = struct {
             .alloc = alloc,
             .shader = shader,
             .chunks = undefined,
+            .chunk_state = undefined,
             .cam_pos = cam_pos orelse zm.f32x4s(0),
             .splits = undefined,
             .pool = undefined,
             .planes = undefined,
+            .global_density = undefined,
         };
 
         world.density_shader = try Shader.initComp(alloc, "density");
@@ -62,8 +55,14 @@ pub const World = struct {
         }
         world.density_shader.?.bindBlock("density_block", 0);
 
-        switch (OVERDRAW) {
+        switch (CFG.overdraw) {
             .global_lattice => {
+                world.chunk_state = try alloc.alloc(bool, CFG.world_chunks * CFG.world_chunks * CFG.world_chunks);
+                errdefer {
+                    alloc.free(world.chunk_state);
+                    world.chunk_state = &.{};
+                }
+                @memset(world.chunk_state, false);
                 // Radius of global lattice
                 const rad = 16;
                 // Vertex position data for global lattice planes
@@ -92,6 +91,8 @@ pub const World = struct {
                 world.planes = try @TypeOf(world.planes).init(world.shader);
                 errdefer world.planes.kill();
                 try world.planes.upload(.{plane_verts.items});
+                const floats = std.math.powi(usize, CFG.world_chunks * CFG.chunk_blocks, 3);
+                world.global_density = try alloc.alloc(f32, floats catch unreachable);
             },
             else => {
                 world.surface_shader = try Shader.initComp(alloc, "surface");
@@ -102,7 +103,7 @@ pub const World = struct {
                 world.surface_shader.?.bindBlock("density_block", 0);
                 world.surface_shader.?.bindBlock("surface_block", 1);
 
-                world.chunks = try alloc.alloc(Chunk, CHUNKS * CHUNKS * CHUNKS);
+                world.chunks = try alloc.alloc(Chunk, CFG.world_chunks * CFG.world_chunks * CFG.world_chunks);
                 errdefer {
                     alloc.free(world.chunks);
                     world.chunks = &.{};
@@ -129,8 +130,8 @@ pub const World = struct {
                         .density_buffer = null,
                         .atomics_buffer = null,
                     };
-                    if (THREADING == .compute) {
-                        const max_cubes = std.math.pow(usize, Chunk.SIZE, 3);
+                    if (CFG.threading == .compute) {
+                        const max_cubes = std.math.pow(usize, CFG.chunk_blocks, 3);
 
                         chunk.density_buffer = undefined;
                         gl.genBuffers(1, &chunk.density_buffer.?);
@@ -144,7 +145,7 @@ pub const World = struct {
                         gl.bufferData(gl.ATOMIC_COUNTER_BUFFER, @sizeOf(gl.GLuint) * 4, null, gl.DYNAMIC_DRAW);
                         gl.bindBuffer(gl.ATOMIC_COUNTER_BUFFER, 0);
 
-                        switch (Chunk.SURFACE) {
+                        switch (CFG.surface) {
                             Surface.Voxel => {
                                 try chunk.mesh.resizeVBOs((max_cubes - max_cubes / 2) * 6 * 2 * 3);
                             },
@@ -180,9 +181,13 @@ pub const World = struct {
         }
         world.pool.kill(world.alloc);
         // Free everything
-        switch (OVERDRAW) {
+        switch (CFG.overdraw) {
             .global_lattice => {
                 world.planes.kill();
+                world.alloc.free(world.chunk_state);
+                world.chunk_state = &.{};
+                world.alloc.free(world.global_density);
+                world.global_density = undefined;
             },
             else => {
                 for (world.chunks) |*chunk| {
@@ -207,7 +212,7 @@ pub const World = struct {
     pub fn draw(world: @This(), pos: zm.Vec, view: zm.Mat, proj: zm.Mat) !void {
         world.shader.set("view", f32, zm.matToArr(view));
         world.shader.set("proj", f32, zm.matToArr(proj));
-        if (OVERDRAW == .global_lattice) {
+        if (CFG.overdraw == .global_lattice) {
             world.shader.set("model", f32, zm.matToArr(zm.identity()));
             world.planes.draw(gl.TRIANGLES, null, null);
             return;
@@ -231,8 +236,8 @@ pub const World = struct {
             const model_to_clip = zm.mul(model, world_to_clip);
 
             // Draw the chunk we are inside of no matter what
-            // Chunk.SIZE * 1.3 is not sufficient at 16:9 so let's try 1.4
-            if (zm.all(@abs(pos - offset) < zm.f32x4s(Chunk.SIZE) * zm.f32x4s(1.4), 3)) {
+            // CFG.chunk_blocks * 1.3 is not sufficient at 16:9 so let's try 1.4
+            if (zm.all(@abs(pos - offset) < zm.f32x4s(CFG.chunk_blocks) * zm.f32x4s(1.4), 3)) {
                 world.shader.set("model", f32, zm.matToArr(model));
                 chunk.mesh.draw(gl.TRIANGLES, null, chunk.atomics_buffer);
                 draws += 1;
@@ -247,7 +252,7 @@ pub const World = struct {
                         if (c / 2 % 2 > 0) 1 else -1,
                         if (c / 4 > 0) 1 else -1,
                         0,
-                    ) * zm.f32x4s(Chunk.SIZE / 2);
+                    ) * zm.f32x4s(CFG.chunk_blocks / 2);
                     corner[3] = 1;
                     corner = zm.mul(corner, model_to_clip);
                     corner /= @splat(corner[3]);
@@ -265,7 +270,7 @@ pub const World = struct {
         if (count) std.debug.print("{} / {}\n", .{ draws, attempts });
     }
 
-    // Chunk boundaries occur at multiples of Chunk.SIZE
+    // Chunk boundaries occur at multiples of CFG.chunk_blocks
     // The group of closest chunks changes halfway between these boundaries
     pub fn updateSplits(world: *@This(), cam_pos: ?zm.Vec) !void {
         var timer = try std.time.Timer.start();
@@ -275,8 +280,8 @@ pub const World = struct {
         };
 
         if (cam_pos) |pos| {
-            world.cam_pos = (pos / zm.f32x4s(Chunk.SIZE)) - zm.f32x4s(0.5);
-            world.cam_pos = zm.ceil(world.cam_pos) * zm.f32x4s(Chunk.SIZE);
+            world.cam_pos = (pos / zm.f32x4s(CFG.chunk_blocks)) - zm.f32x4s(0.5);
+            world.cam_pos = zm.ceil(world.cam_pos) * zm.f32x4s(CFG.chunk_blocks);
             world.cam_pos[3] = 0;
         }
         const new_splits = splitsFromPos(world.cam_pos);
@@ -293,7 +298,7 @@ pub const World = struct {
             const neg = diff < zm.f32x4s(0);
             diff = @abs(diff);
             var min = [3]usize{ 0, 0, 0 };
-            var max = [3]usize{ CHUNKS, CHUNKS, CHUNKS };
+            var max = [3]usize{ CFG.world_chunks, CFG.world_chunks, CFG.world_chunks };
             world.splits = new_splits;
 
             for (0..3) |d| {
@@ -304,14 +309,15 @@ pub const World = struct {
                     // Clear whole plane
                     for (min[d1]..max[d1]) |i| {
                         for (min[d2]..max[d2]) |j| {
-                            var pos = zm.f32x4s(Chunk.SIZE);
+                            var pos = zm.f32x4s(CFG.chunk_blocks);
                             // We are using the new splits, so the chunks we
                             // are interested in have already wrapped around
                             pos[d] *= @floatFromInt(if (neg[d]) min[d] else max[d] - 1);
                             pos[d1] *= @floatFromInt(i);
                             pos[d2] *= @floatFromInt(j);
-                            pos += world.cam_pos - zm.f32x4s(SIZE - Chunk.SIZE) / zm.f32x4s(2);
-                            switch (OVERDRAW) {
+                            const world_blocks = CFG.chunk_blocks * CFG.world_chunks;
+                            pos += world.cam_pos - zm.f32x4s(world_blocks - CFG.chunk_blocks) / zm.f32x4s(2);
+                            switch (CFG.overdraw) {
                                 .global_lattice => {},
                                 else => {
                                     const chunk_index = try world.indexFromOffset(pos, null);
@@ -343,7 +349,7 @@ pub const World = struct {
             std.debug.print("Generation took {d:.3} ms\n", .{ns / 1_000_000});
         };
 
-        const max_dist = CHUNKS / 2;
+        const max_dist = CFG.world_chunks / 2;
 
         var start_index = world.index_done;
         var all_done = true;
@@ -394,7 +400,7 @@ pub const World = struct {
                 pos[if (plane > 1) 1 else 2] = signedDist(i / (base1 * 2), base2);
 
                 if (try world.genChunk(
-                    world.cam_pos + pos * zm.f32x4s(Chunk.SIZE),
+                    world.cam_pos + pos * zm.f32x4s(CFG.chunk_blocks),
                     if (dist < MIP0_DIST) 0 else 2,
                     edge,
                 )) |done| {
@@ -414,8 +420,8 @@ pub const World = struct {
     ) !bool {
         chunk.free(world.alloc, false);
         const mip_scale = std.math.pow(f32, 2, @floatFromInt(mip_level));
-        const size = Chunk.SIZE / @as(usize, @intFromFloat(mip_scale));
-        if (THREADING != .compute) chunk.density = try world.alloc.alloc(f32, size * size * size);
+        const size = CFG.chunk_blocks / @as(usize, @intFromFloat(mip_scale));
+        if (CFG.threading != .compute and CFG.overdraw != .global_lattice) chunk.density = try world.alloc.alloc(f32, size * size * size);
 
         const offset = world.offsetFromIndex(chunk_index, null);
         const old_mip = chunk.density_mip;
@@ -424,7 +430,7 @@ pub const World = struct {
         chunk.wip_mip = mip_level;
         chunk.splits_copy = world.splits;
 
-        switch (THREADING) {
+        switch (CFG.threading) {
             .single => {
                 try chunk.genDensity(offset);
             },
@@ -456,10 +462,10 @@ pub const World = struct {
                 gl.bindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, chunk.density_buffer.?); // 0 is the index chosen in main
                 const density_shader = world.density_shader.?;
                 density_shader.use();
-                density_shader.set("chunk_size", gl.GLuint, @as(gl.GLuint, @intCast(Chunk.SIZE)));
+                density_shader.set("chunk_size", gl.GLuint, @as(gl.GLuint, @intCast(CFG.chunk_blocks)));
                 density_shader.set("offset", f32, zm.vecToArr3(offset));
 
-                const groups = Chunk.SIZE / 4;
+                const groups = CFG.chunk_blocks / 4;
                 gl.dispatchCompute(groups, groups, groups);
                 gl.memoryBarrier(gl.BUFFER_UPDATE_BARRIER_BIT);
             },
@@ -475,13 +481,13 @@ pub const World = struct {
         chunk: *Chunk,
         chunk_index: usize,
     ) !bool {
-        const min = if (Chunk.SURFACE.NEG_ADJ) 0 else 1;
+        const min = if (CFG.surface.NEG_ADJ) 0 else 1;
         const offset = world.offsetFromIndex(chunk_index, null);
         const old_mip = chunk.surface_mip;
         chunk.surface_mip = null;
         chunk.wip_mip = chunk.density_mip;
         chunk.splits_copy = world.splits;
-        if (THREADING != .compute) {
+        if (CFG.threading != .compute) {
             // TODO why does it segfault if I use this instead?
             // if (chunk.surface) |_| chunk.surface.?.clearAndFree();
             // chunk.surface = std.ArrayList(f32).init(world.alloc);
@@ -492,7 +498,7 @@ pub const World = struct {
                 chunk.surface = std.ArrayList(f32).init(world.alloc);
             }
         }
-        switch (THREADING) {
+        switch (CFG.threading) {
             .single => {
                 try chunk.genSurface(world.*, offset);
                 try chunk.mesh.upload(.{chunk.surface.?.items});
@@ -522,7 +528,7 @@ pub const World = struct {
                                 @floatFromInt(j),
                                 @floatFromInt(k),
                                 1,
-                            ) - zm.f32x4s(1)) * zm.f32x4s(Chunk.SIZE) +
+                            ) - zm.f32x4s(1)) * zm.f32x4s(CFG.chunk_blocks) +
                                 world.offsetFromIndex(chunk_index, chunk.splits_copy);
                             const neighbour = &world.chunks[try world.indexFromOffset(neighbour_pos, chunk.splits_copy)];
                             neighbour.density_refs += 1;
@@ -547,11 +553,11 @@ pub const World = struct {
                 gl.bindBufferBase(gl.SHADER_STORAGE_BUFFER, 1, chunk.mesh.vbos.?[0]); // 1 is the index chosen in main
                 const surface_shader = world.surface_shader.?;
                 surface_shader.use();
-                surface_shader.set("chunk_size", gl.GLuint, @as(gl.GLuint, @intCast(Chunk.SIZE)));
+                surface_shader.set("chunk_size", gl.GLuint, @as(gl.GLuint, @intCast(CFG.chunk_blocks)));
                 surface_shader.set("mip_scale", f32, std.math.pow(f32, 2, @floatFromInt(chunk.wip_mip.?)));
                 surface_shader.set("offset", f32, zm.vecToArr3(offset));
 
-                const groups = Chunk.SIZE / 4;
+                const groups = CFG.chunk_blocks / 4;
                 gl.dispatchCompute(groups, groups, groups);
                 gl.memoryBarrier(gl.BUFFER_UPDATE_BARRIER_BIT | gl.ATOMIC_COUNTER_BARRIER_BIT);
             },
@@ -567,7 +573,7 @@ pub const World = struct {
     // Return null if we have ran out of threads so that the caller can break
     // Return true if the chunk is already generated at a sufficient mip level
     pub fn genChunk(world: *@This(), pos: zm.Vec, mip_level: usize, edge: bool) !?bool {
-        if (OVERDRAW == .global_lattice) return true;
+        if (CFG.overdraw == .global_lattice) return true;
         const chunk_index = try world.indexFromOffset(pos, null);
         const chunk = &world.chunks[chunk_index];
 
@@ -586,7 +592,7 @@ pub const World = struct {
                 chunk_index,
                 mip_level,
             )) {
-                true => THREADING == .single,
+                true => CFG.threading == .single,
                 false => null,
             };
         }
@@ -596,7 +602,7 @@ pub const World = struct {
         // Whether all relevant neighbours have sufficient generated densities
         var all_ready = true;
 
-        const min = if (Chunk.SURFACE.NEG_ADJ) 0 else 1;
+        const min = if (CFG.surface.NEG_ADJ) 0 else 1;
         // Iterate over neighbour region and generate any missing densities
         for (min..3) |k| {
             for (min..3) |j| {
@@ -607,7 +613,7 @@ pub const World = struct {
                         @floatFromInt(j),
                         @floatFromInt(k),
                         1,
-                    ) - zm.f32x4s(1)) * zm.f32x4s(Chunk.SIZE) + pos;
+                    ) - zm.f32x4s(1)) * zm.f32x4s(CFG.chunk_blocks) + pos;
                     const neighbour_index = try world.indexFromOffset(neighbour_pos, null);
                     const neighbour = &world.chunks[neighbour_index];
 
@@ -621,7 +627,7 @@ pub const World = struct {
                     if (neighbour.density_mip) |mip| if (mip <= mip_level) continue;
 
                     // If we are about to schedule work then we are not all ready
-                    if (THREADING != .single) all_ready = false;
+                    if (CFG.threading != .single) all_ready = false;
 
                     // Skip chunks currently being used for their densities
                     if (neighbour.density_refs > 0) continue;
@@ -637,13 +643,13 @@ pub const World = struct {
         if (!all_ready) return false;
         // All densities are present so lets generate the surface
         return switch (try world.genChunkSurface(chunk, chunk_index)) {
-            true => THREADING == .single,
+            true => CFG.threading == .single,
             false => null,
         };
     }
 
     fn sync(world: *@This()) !void {
-        const min = if (Chunk.SURFACE.NEG_ADJ) 0 else 1;
+        const min = if (CFG.surface.NEG_ADJ) 0 else 1;
         // Iterate over pool workers
         for (world.pool.workers) |*worker| {
             // Find workers who are finished and waiting for a sync
@@ -660,7 +666,7 @@ pub const World = struct {
                                 @floatFromInt(y),
                                 @floatFromInt(z),
                                 1,
-                            ) - zm.f32x4s(1)) * zm.f32x4s(Chunk.SIZE) + worker.data.offset;
+                            ) - zm.f32x4s(1)) * zm.f32x4s(CFG.chunk_blocks) + worker.data.offset;
                             const neighbour = &world.chunks[try world.indexFromOffset(neighbour_pos, splits)];
                             neighbour.density_refs -= 1;
                             if (neighbour.must_free and
@@ -696,34 +702,34 @@ pub const World = struct {
     pub fn dig(world: *@This(), pos: zm.Vec, rad: f32) !void {
         std.debug.assert(rad >= 0);
         const last = rad * 2;
-        const iters: usize = @intFromFloat(@ceil(last / Chunk.SIZE) + 1);
+        const iters: usize = @intFromFloat(@ceil(last / CFG.chunk_blocks) + 1);
         var skip_last: [3]bool = undefined;
         var corner = pos - zm.f32x4s(rad);
         corner[3] = 0;
 
         for (0..3) |d| {
             var other = corner;
-            other[d] += @mod(last, Chunk.SIZE);
+            other[d] += @mod(last, CFG.chunk_blocks);
             skip_last[d] = try world.indexFromOffset(corner, null) ==
                 try world.indexFromOffset(other, null);
         }
 
         // Density
         for (0..iters) |k| {
-            var z = @as(f32, @floatFromInt(k)) * Chunk.SIZE;
+            var z = @as(f32, @floatFromInt(k)) * CFG.chunk_blocks;
             if (k + 1 == iters and rad > 0) {
                 if (skip_last[2]) continue;
                 z = last;
             }
             for (0..iters) |j| {
-                var y = @as(f32, @floatFromInt(j)) * Chunk.SIZE;
+                var y = @as(f32, @floatFromInt(j)) * CFG.chunk_blocks;
                 if (j + 1 == iters and rad > 0) {
                     if (skip_last[1]) continue;
                     y = last;
                 }
 
                 for (0..iters) |i| {
-                    var x = @as(f32, @floatFromInt(i)) * Chunk.SIZE;
+                    var x = @as(f32, @floatFromInt(i)) * CFG.chunk_blocks;
                     if (i + 1 == iters and rad > 0) {
                         if (skip_last[0]) continue;
                         x = last;
@@ -732,11 +738,11 @@ pub const World = struct {
                     const chunk_pos = corner + zm.f32x4(x, y, z, 0);
                     const chunk_index = try world.indexFromOffset(chunk_pos, null);
                     const offset = world.offsetFromIndex(chunk_index, null);
-                    switch (OVERDRAW) {
+                    switch (CFG.overdraw) {
                         .global_lattice => {},
                         else => {
                             var chunk = world.chunks[chunk_index];
-                            switch (THREADING) {
+                            switch (CFG.threading) {
                                 // TODO .multi should do this on another thread
                                 .single, .multi => try chunk.dig(pos - offset, rad),
                                 .compute => @panic("Digging is not implemented in compute shaders"),
@@ -747,31 +753,31 @@ pub const World = struct {
             }
         }
         // Surface
-        if (OVERDRAW == .global_lattice) {
+        if (CFG.overdraw == .global_lattice) {
             return;
         }
         for (0..iters) |k| {
-            var z = @as(f32, @floatFromInt(k)) * Chunk.SIZE;
+            var z = @as(f32, @floatFromInt(k)) * CFG.chunk_blocks;
             if (k + 1 == iters and rad > 0) {
                 if (skip_last[2]) continue;
                 z = last;
             }
             for (0..iters) |j| {
-                var y = @as(f32, @floatFromInt(j)) * Chunk.SIZE;
+                var y = @as(f32, @floatFromInt(j)) * CFG.chunk_blocks;
                 if (j + 1 == iters and rad > 0) {
                     if (skip_last[1]) continue;
                     y = last;
                 }
 
                 for (0..iters) |i| {
-                    var x = @as(f32, @floatFromInt(i)) * Chunk.SIZE;
+                    var x = @as(f32, @floatFromInt(i)) * CFG.chunk_blocks;
                     if (i + 1 == iters and rad > 0) {
                         if (skip_last[0]) continue;
                         x = last;
                     }
 
                     const chunk_pos = corner + zm.f32x4(x, y, z, 0);
-                    const min = if (Chunk.SURFACE.NEG_ADJ) 0 else 1;
+                    const min = if (CFG.surface.NEG_ADJ) 0 else 1;
                     for (min..3) |c| {
                         for (min..3) |b| {
                             for (min..3) |a| {
@@ -781,7 +787,7 @@ pub const World = struct {
                                     @floatFromInt(b),
                                     @floatFromInt(c),
                                     1,
-                                ) - zm.f32x4s(1)) * zm.f32x4s(Chunk.SIZE) + chunk_pos;
+                                ) - zm.f32x4s(1)) * zm.f32x4s(CFG.chunk_blocks) + chunk_pos;
                                 const neighbour = &world.chunks[try world.indexFromOffset(neighbour_pos, null)];
                                 if (neighbour.density_refs == 0 and neighbour.wip_mip == null) {
                                     neighbour.surface_mip = null; // Request surface regen
@@ -799,15 +805,15 @@ pub const World = struct {
 
     pub fn indexFromOffset(world: @This(), _pos: zm.Vec, splits: ?zm.Vec) !usize {
         const spl = splits orelse world.splits;
-        const pos = zm.floor(_pos / zm.f32x4s(Chunk.SIZE));
+        const pos = zm.floor(_pos / zm.f32x4s(CFG.chunk_blocks));
         var index: usize = 0;
         for (0..3) |d| {
             const i = 2 - d;
-            var f = pos[i] - @floor(spl[i] / CHUNKS) * CHUNKS;
-            if (@mod(f, CHUNKS) >=
-                @mod(spl[i], CHUNKS)) f += CHUNKS;
-            if (f < 0 or f >= CHUNKS) return error.PositionOutsideWorld;
-            index *= CHUNKS;
+            var f = pos[i] - @floor(spl[i] / CFG.world_chunks) * CFG.world_chunks;
+            if (@mod(f, CFG.world_chunks) >=
+                @mod(spl[i], CFG.world_chunks)) f += CFG.world_chunks;
+            if (f < 0 or f >= CFG.world_chunks) return error.PositionOutsideWorld;
+            index *= CFG.world_chunks;
             index += @intFromFloat(f);
         }
         return index;
@@ -816,21 +822,21 @@ pub const World = struct {
     pub fn offsetFromIndex(world: @This(), index: usize, splits: ?zm.Vec) zm.Vec {
         const spl = splits orelse world.splits;
         var offset = (zm.f32x4(
-            @floatFromInt(index % CHUNKS),
-            @floatFromInt(index / CHUNKS % CHUNKS),
-            @floatFromInt(index / CHUNKS / CHUNKS),
+            @floatFromInt(index % CFG.world_chunks),
+            @floatFromInt(index / CFG.world_chunks % CFG.world_chunks),
+            @floatFromInt(index / CFG.world_chunks / CFG.world_chunks),
             0,
         ) + zm.f32x4(0.5, 0.5, 0.5, 0));
         for (0..3) |i| {
-            offset[i] += @floor(spl[i] / CHUNKS) * CHUNKS;
-            if (@mod(offset[i], CHUNKS) >=
-                @mod(spl[i], CHUNKS)) offset[i] -= CHUNKS;
+            offset[i] += @floor(spl[i] / CFG.world_chunks) * CFG.world_chunks;
+            if (@mod(offset[i], CFG.world_chunks) >=
+                @mod(spl[i], CFG.world_chunks)) offset[i] -= CFG.world_chunks;
         }
-        return offset * zm.f32x4s(Chunk.SIZE);
+        return offset * zm.f32x4s(CFG.chunk_blocks);
     }
 
     fn splitsFromPos(pos: zm.Vec) zm.Vec {
-        var splits = zm.floor(pos / zm.f32x4s(Chunk.SIZE) + zm.f32x4s(0.5)) + zm.f32x4s(CHUNKS / 2);
+        var splits = zm.floor(pos / zm.f32x4s(CFG.chunk_blocks) + zm.f32x4s(0.5)) + zm.f32x4s(CFG.world_chunks / 2);
         splits[3] = 0;
         return splits;
     }

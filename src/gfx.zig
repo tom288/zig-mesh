@@ -6,7 +6,7 @@ const Quad = @import("quad.zig").Quad;
 const Texture = @import("texture.zig").Texture;
 const Window = @import("window.zig").Window;
 const Framebuffer = @import("framebuffer.zig").Framebuffer;
-const World = @import("world.zig").World; // TODO change to some global config
+const CFG = @import("cfg.zig");
 
 pub const DeferredShading = struct {
     quad: ?Quad = null,
@@ -43,9 +43,9 @@ pub const DeferredShading = struct {
 
         gfx.gbuffer_shader = try Shader.init(
             alloc,
-            (if (World.OVERDRAW == .global_lattice) "global_lattice/" else "") ++ "defer/gbuffer",
+            (if (CFG.overdraw == .global_lattice) "global_lattice/" else "") ++ "defer/gbuffer",
             null,
-            (if (World.OVERDRAW == .global_lattice) "global_lattice/" else "") ++ "defer/gbuffer",
+            (if (CFG.overdraw == .global_lattice) "global_lattice/" else "") ++ "defer/gbuffer",
         );
 
         gfx.ssao_shader = try Shader.init(
@@ -279,9 +279,9 @@ pub const ForwardRendering = struct {
 
         gfx.forward_shader = try Shader.init(
             alloc,
-            if (World.OVERDRAW == .global_lattice) "global_lattice/defer/gbuffer" else "perspective",
+            if (CFG.overdraw == .global_lattice) "global_lattice/defer/gbuffer" else "perspective",
             null,
-            (if (World.OVERDRAW == .global_lattice) "global_lattice/" else "") ++ "perspective",
+            (if (CFG.overdraw == .global_lattice) "global_lattice/" else "") ++ "perspective",
         );
 
         return gfx;

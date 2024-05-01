@@ -27,7 +27,6 @@ pub const threading = enum {
 // Tradeoff between overdraw and voxel world vertex count
 pub const overdraw = enum {
     naive,
-    greedy,
     binary_greedy,
     global_lattice,
 }.global_lattice;
