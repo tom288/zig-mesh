@@ -16,9 +16,9 @@ pub fn Pool(comptime Data: type) type {
             data: Data,
 
             pub fn finish(worker: *Worker) bool {
-                if (!worker.wait.load(.Unordered)) return false;
+                if (!worker.wait.load(.unordered)) return false;
                 // Reset worker state
-                worker.wait.store(false, .Unordered);
+                worker.wait.store(false, .unordered);
                 worker.busy = false;
                 return true;
             }
@@ -51,7 +51,7 @@ pub fn Pool(comptime Data: type) type {
             for (pool.workers) |*worker| {
                 if (worker.busy) continue;
                 worker.busy = true;
-                worker.wait.store(false, .Unordered);
+                worker.wait.store(false, .unordered);
                 worker.data = data;
                 (try std.Thread.spawn(
                     .{},
@@ -69,7 +69,7 @@ pub fn Pool(comptime Data: type) type {
             data: Data,
         ) !void {
             func(data);
-            wait.store(true, .Unordered);
+            wait.store(true, .unordered);
         }
     };
 }

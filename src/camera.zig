@@ -100,8 +100,8 @@ pub const Camera = struct {
     }
 
     fn calcVecs(cam: *Camera) void {
-        const y = std.math.degreesToRadians(f32, cam.yaw);
-        const p = std.math.degreesToRadians(f32, cam.pitch);
+        const y = std.math.degreesToRadians(cam.yaw);
+        const p = std.math.degreesToRadians(cam.pitch);
         const c = @cos(p);
         cam.look = .{ @cos(y) * c, @sin(p), @sin(y) * c, 0 };
         cam.look = zm.normalize3(cam.look);
@@ -111,7 +111,7 @@ pub const Camera = struct {
     }
 
     fn setFov(cam: *Camera, fov: f32) void {
-        cam.fov = std.math.degreesToRadians(f32, fov);
+        cam.fov = std.math.degreesToRadians(fov);
         cam.calcProj();
     }
 

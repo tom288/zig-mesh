@@ -4,7 +4,7 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
     // const optimize = std.builtin.OptimizeMode.ReleaseFast;
-    const root = .{ .path = "src/main.zig" };
+    const root = b.path("src/main.zig");
 
     const exe = b.addExecutable(.{
         .name = "zig-mesh",
@@ -25,7 +25,7 @@ pub fn build(b: *std.Build) !void {
     };
 
     const gl = b.createModule(.{
-        .root_source_file = .{ .path = "libs/gl46.zig" },
+        .root_source_file = b.path("libs/gl46.zig"),
     });
     const glfw = b.dependency("mach_glfw", options);
     const zmath = b.dependency("zmath", options);

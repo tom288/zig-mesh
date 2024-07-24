@@ -3,8 +3,8 @@
     .version = "0.1.0",
     .dependencies = .{
         .mach_glfw = .{
-            .url = "https://pkg.machengine.org/mach-glfw/1a9a03399058fd83f7fbb597f3f8304007ff6a3c.tar.gz",
-            .hash = "1220b4d58ec6cf53abfd8d7547d39afb9bffa41822d4d58f52625230466e51cc93bb",
+            .url = "https://pkg.machengine.org/mach-glfw/fb4ae48540454270ab969c8c645bbc6eff3c2dfb.tar.gz",
+            .hash = "12201ae68707aefe54ffb9d8c64721d4a2ac36186f8bd390e4f670033fec6737664a",
         },
         .zmath = .{
             .path = "libs/zig-gamedev/libs/zmath",
